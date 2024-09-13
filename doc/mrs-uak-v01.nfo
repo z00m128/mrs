@@ -1,0 +1,17 @@
+MRS-UAK-V01
+~~~~~~~~~~~
+Uplne prapovodne prva a zakladna verzia
+programu MEMORY RESIDENT SYSTEM pre ZX Spektrum.
+Vytvorena bola 08.10.1986 v UAK Bratislava.
+
+Okrem nej este existuju aj verzie V02 a V03,
+ktore su identicky a funkcne totozne, lisia
+sa len adresou kde zacina kniznica (sysmod).
+
+Subor mrs-uak-v01.txt[kam,win] je uzivatelsky manual
+Subor mrs-uak-v01.a80 je zdrojovy kod pre SjASMPlus
+Subor mrs-uak-priklad.* je prakticky priklad pouzitia
+Kodovanie diakritiky: txt=None, kam=Kamenicky, win=CP1250
+
+
+

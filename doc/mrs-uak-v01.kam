@@ -1,0 +1,2337 @@
+                M E M O R Y   R E S I D E N T   S Y S T E M
+ 
+ 
+                          VERZIA PRE ZX-SPECTRUM
+ 
+ 
+                        U’IVATEœSK PR‹RU€KA  M R S
+ 
+ 
+ 
+ 
+ 
+ 
+                            RNDr.IVAN JEDLI€KA
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+                                KAPITOLA  1
+ 
+ 
+ 
+                                   —VOD
+ 
+ 
+ 
+   mrs (memory resident system) je programovy prostriedok  urceny  na  vyvoj
+programoveho  vybavenia  v  zostavovacom  jazyku  mikroprocesora  zilog  80.
+poskytuje vsetky bezne funkcie bez toho, aby vyuzival  vonkajsie  zariadenie
+typu  pruzny  disk,  a  preto je obzvlast vhodny na pracu na malych osobnych
+pocitacoch.  jeho pouzitie je vsak opodstatnene i na vykonnejsich  sytemoch,
+pretoze praca s nim je velmi pohodlna a rychla.
+ 
+   system sa sklada z nasledujucich modulov:
+ 
+    - riadiaci modul (mrs) - zabezpecuje komunikaciu uzivatela so systemom a
+      umoznuje mu pristup k ostatnym castiam systemu
+ 
+    - editor (edi) - je urceny na pisanie a opravovanie zdrojovych programov
+      v zostavovacom jazyku mikroprocesora z80
+ 
+    - zostavovaci program (asm) - preklada zdrojovy text pripraveny editorom
+      do binarnych modulov a tieto uklada do kniznice
+ 
+    - spojovaci program (lnk) -  vytvara  z  binarnych  modulov  vykonatelny
+      program
+ 
+    - program na  obsluhu  kniznice  binarnych  modulov  (lib)  -  poskytuje
+      niektore funkcie nutne pri vyuzivani kniznice
+ 
+    - ladiaci program (dbg) - sluzi na ladenie programov
+ 
+    - spaetny prekladac (dis) - vytvara  z  binarneho  kodu  zdrojovy  text,
+      ktory je mozne dalsimi modulmi spracovat
+ 
+ 
+   system je  napisany  v  zostavovacom  jazyku  mikroprocesora  zilog 80  a
+realizovany  na  osobnom  pocitaci  mo8x.  pri navrhu bol vsak kladeny velky
+doraz na prenositelnost systemu do ineho technickeho  prostredia  a  uz  bol
+realizovany prenos na domaci pocitac zx spectrum.
+ 
+   dalsi popis systemu sa tyka tejto konkretnej implementacie.
+ 
+ 
+ 
+ 
+ 
+                                 kapitola  2
+ 
+                     popis prace s jednotlivymi modulmi
+ 
+ 
+ 
+2.1  spustenie systemu
+ 
+   sucasna verzia systemu sa dodava na kazete a sklada  sa  z  dvoch  casti,
+ktore su na paske za sebou v tomto poradi
+ 
+   vlastny system
+   zakladny modul binarnej kniznice - sysmod
+ 
+oba moduly sa nahraju pomocou kratkeho programu v basicu prikazom
+ 
+                               load "mrs"
+ 
+a riadenie sa odovzda riadiacemu modulu.
+ 
+   umiestenie modulov v pamati spectra je  premenlive  podla  verzie,  ktoru
+uzivatel  pouziva.  distribuuju sa tri verzie s oznacenim mrs.v01, mrs.v02 a
+mrs.v03.  lisia sa umiestenim kniznice, ktora je od adresy  #6000,  #8000  a
+#d000.   kniznice  nie  su zamenitelne.  v zavadzacom module je ako poznamka
+da- tum vzniku, autor udrzuje len verziu, ktora vznikla 8.  10.  1986.
+ 
+      binarna kniznica (sysmod) #6000 -->
+      system mrs #d500-#ff00
+ 
+ 
+   priestor od  adresy  #d500  smerom  dole  sa  vyuziva  na  zdrojovy  text
+uzivatela.   stack pointer je pri spusteni systemu inicializovany na hodnotu
+#ff40.  teda ak uzivatelovi v jeho vlastnych  programoch  nestaci  64  bytov
+(#ff00-#ff40) na stack,musi si inicializovat stack pointer sam.v skutocnosti
+je to o nieco viac, pretoze mrs nesiaha az po adresu #ff00.
+ 
+   startovacia adresa systemu mrs je ulozena v zavadzacom programe "mrs", po
+nahrati  oboch modulov je mozne system spustit od tejto adresy prikazom usr.
+v tomto pripade sa inicializuje pamat a povodny uzivatelsky text sa  vymaze.
+ak  system  spustime  od  tejto  adresy+3,tak  sa  obsah pamate nemeni (warm
+start).
+ 
+   na poziadanie mozu byt vytvorene i verzie umiestene  v  pamati  na  inych
+adresach ale len v oddovodnenych pripadoch.
+ 
+   na adrese #fe00 je pracovny buffer systemu, ktory pouziva aj uzivatel a v
+dalsom texte sa odvolavky na premennu bufer tykaju tejto adresy.
+ 
+ 
+ 
+2.2  riadiaci modul
+ 
+   riadiaci modul sa ohlasi vypisom
+ 
+                                  mrs>
+ 
+do posledneho riadku  obrazovky.   tento  riadok  je  rezervovany  pre  styk
+uzivatela so systemom a v dalsom texte sa nazyva dialogovy riadok.  uzivatel
+pise prikazy  do  dialogoveho  riadku  beznym  sposobom,  pricom  na  opravu
+preklepov vyuziva tieto specialne klavesy:
+    caps shift/5  - sposobi presun jazdca na predchadzajuci znak
+    popis prace s jednotlivymi modulmi                                  strana 2-2
+ 
+ 
+ 
+    caps shift/8  - sposobi presun jazdca na nasledujuci znak
+    caps shift/9  - vlozi medzeru na poziciu oznacenu jazdcom a zbytok textu
+                    posunie doprava
+    caps shift/0  - vymaze znak oznaceny  jazdcom  a  zbytok  textu  posunie
+                    dolava.  ak je jazdec za poslednym znakom riadku, tak sa
+                    posunie dolava a posledny znak sa vymaze.
+    enter         - ukonci zadavanie textu
+ 
+****************************************************************************
+vsetky znaky,  ktore  system  mrs  akymkolvek  sposobom  spracuva,musia  byt
+napisane  malymi  pismenami.   system  vsak  pozna  aj  velke pismena, ktore
+uzivatel moze pouzit napriklad  na  poznamky  alebo  ako  textove  konstanty
+(pozri modul edi).
+****************************************************************************
+ 
+   pri pisani textu sa sleduju hranice riadku a pokus o ich prekrocenie, ako
+aj stlacenie nedefinovanej specialnej klavesy oznami zvukovym signalom.
+ 
+   dialogovy riadok ma kapacitu 64 znakov, po napisani viac ako 32 znakov sa
+text posuva vlavo a prve znaky miznu z obrazovky.
+ 
+   modul mrs rozoznava tieto prikazy:
+ 
+   edi - odovzda riadenie editoru
+   asm - odovzda riadenie zostavovaciemu programu
+   lnk - odovzda riadenie spojovaciemu programu
+   lib - odovzda riadenie programu na obsluhu kniznice
+   dbg - odovzda riadenie ladiacemu programu
+   mon - odovzda riadenie basicu pocitaca spectrum
+   ald - specialny prikaz, ktory postupne vyvola  moduly  asm,  lib  a  dbg.
+         pozri popis prikazov modulu edi.
+   run - spusti uzivatelsky program od adresy  specifikovanej  prikazom  ent
+         modulu lib (pozri popis prikazov tohto modulu)
+ 
+   ostatne texty sa povazuju  za  chybne  prikazy.   uzivatel  je  na  chybu
+upozorneny zvukovym signalom, jazdec sa nastavi na prvy znak prikazu a chybu
+je mozne opravit.  rovnaka akcia sa vykona,  aj  ked  za  spravnym  prikazom
+nasleduju nespravne parametre (pozri popis jednotlivych prikazov).
+ 
+   program dis je povazovany za zvlastny program  na  vytvaranie  zdrojovych
+textov a ako taky je volatelny len z modulu edi.
+ 
+ 
+ 
+2.3  editor
+ 
+ 
+ 
+2.3.1  prikazovy rezim
+ 
+   editor umoznuje pracu v dvoch rezimoch:  prikazovom a  obrazovkovom.   po
+vyvolani je v rezime prikazovom, ktory je indikovany vypisom
+ 
+                                  edi>
+ 
+do dialogoveho riadku.  mozne prikazy editora su:
+ 
+   ini - inicializuje pracovnu oblast editora a pripravi ju na vstup  noveho
+         textu.   obrazovka  sa  vymaze, jazdec sa nastavi na prvu poziciu a
+         editor prejde obrazovkoveho rezimu.
+ 
+   ln+
+    popis prace s jednotlivymi modulmi                                  strana 2-3
+ 
+ 
+ 
+   ln-
+   ln= - posuva ukazovatel po texte, a sice  ln-n  posunie  ukazovatel  o  n
+         riadkov  smerom  k zaciatku textu, ln+n o n riadkov smerom ku koncu
+         textu a prikaz a ln=n nastavi ukazovatel na  n-ty  riadok.   prikaz
+         ln-0  nastavi  ukazovatel  na  prvy riadok, prikaz ln+0 za posledny
+         riadok a prikaz ln=0 na naposledy opravovany riadok.
+         prikaz ln=  povoluje  ako  dalsi  paramater  tiez  retazec  znakov.
+         ukazovatel  sa  nastavi  na  prvy  riadok,  ktory  v  poli navestia
+         obsahuje dany text.  ak taky riadok neexistuje, povazuje sa  to  za
+         chybu a uzivatel moze text opravit.
+         vykonanim prikazu sa vypisu na obrazovku riadky od  vyhladaneho  po
+         koniec  obrazovky  alebo textu, jazdec sa nastavi na prvu poziciu a
+         editor prejde do obrazovkoveho rezimu (pozri dalej).
+ 
+   dlb - za prikazom nasleduju dve decimalne  cisla  v  tvare  n-m.   prikaz
+         vymaze riadky s poradovymi cislami v intervale n-m vcitane a editor
+         ocakava dalsi prikaz.
+ 
+   cpb - za prikazom nasleduju dve decimalne  cisla  v  tvare  n-m.   prikaz
+         skopiruje  riadky  s  poradovymi cislami n-m pred riadok, na ktorom
+         bol jazdec pri prechode do dialogoveho rezimu.  ak je tento  riadok
+         v  intervale  n-m  povazuje  sa to za chybu.(pozri tiez obrazovkovy
+         rezim).
+ 
+   sav - sluzi na ulozenie zdrojoveho textu na magnetofon.   sucasna  verzia
+         systemu  vyuziva  na  obsluhu magnetofonu standardny modul monitora
+         spectrum, ale poskytuje k nemu vlastne prepojenie.  za prikazom sav
+         ako dalsi parameter nasleduje meno suboru.  od prikazu sav musi byt
+         oddelene  jednou  medzerou.   meno  suboru  je  lubovolny   retazec
+         maximalne  10  znakov,  ktory  sa  na  tuto dlzku v pripade potreby
+         doplni medzerami.  ak meno suboru chyba povazuje sa  to  za  chybu.
+         zaznie zvukovy signal a uzivatel moze chybny prikaz opravit.
+ 
+            editor sam urci rozsah pamate, ktory je potrebne ulozit na pasku
+         a  vyvola  prislusny  modul  monitora.  zdrojovy text je ulozeny so
+         standartnou hlavickou, ktora v poslednych 2 bytoch ma  zapisane  1,
+         podla coho editor rozpoznava zdrojove texty.
+ 
+            pred odoslanim prikazu klavesom enter je nutne zapnut magnetofon
+         na  nahravanie.   po  nahrati  textu (alebo po preruseni nahravania
+         klavesom break) sa opat prihlasi editor.
+ 
+   mer - sluzi na nahranie zdrojoveho  textu  z  magnetofonu.   opat  sa  na
+         vlastnu  pracu  vyuziva  modul monitora.  za prikazom mer nasleduje
+         meno pozadovaneho textu, ktore tvori retazec maximalne 10 znakov od
+         prikazu mer oddeleny medzerou.  ak meno chyba, nahra sa prvy modul,
+         ktory editor na paske najde.  editor  rozoznava  vlastne  moduly  a
+         pripadny  modul  s  rovnakym menom, ktory ale nevytvoril editor, sa
+         ignoruje.
+ 
+            po odoslani prikazu uzivatel zapne magnetofon a  editor  vyhlada
+         na paske program s danym menom.  pocas vyhladavania vypisuje editor
+         do dialogoveho riadku informacie o precitanych moduloch v tvare
+ 
+                                      meno
+ 
+         kde meno je meno najdeneho modulu.  ak sa na paske najde pozadovany
+         modul, za jeho meno sa do dialogoveho riadku vypise text
+ 
+                                     loading
+ 
+         a modul sa nahrava do pamati.  vyhladavanie a nahravanie modulu  je
+    popis prace s jednotlivymi modulmi                                  strana 2-4
+ 
+ 
+ 
+         mozne prerusit klavesom break.  vtedy sa riadenie sa vrati editoru
+ 
+            ak sa pri nahrani modulu zisti chyba  nahravania  vypise  sa  do
+         dialogoveho riadku text
+ 
+                                    io error
+ 
+         a po stlaceni klavesu enter sa riadenie vrati editoru.
+ 
+            ak editor zisti, ze sa  hladany  text  uz  do  pamati  nezmesti,
+         vypise do dialogoveho riadku
+ 
+                                    mem full
+ 
+         a po stlaceni klavesu enter sa riadenie vrati editoru.
+ 
+            uspesne nahraty text sa uklada do pamati pred riadok, na  ktorom
+         bol  nastaveny  jazdec  vtedy, ked uzivatel presiel z obrazovkoveho
+         rezimu do prikazoveho.  toto ukladanie moze trvat az  20  sekund  a
+         pocas neho je vypisany v dialogovom riadku text
+ 
+                                      wait
+ 
+         po vlozeni nahrateho textu sa opat prihlasi editor vypisom edi>.
+ 
+   loa - tento  prikaz  ma  rovnaku  funkciu  ako  prikaz  mer,  len  s  tym
+         rozdielom,  ze text nahrany z pasky prepise text v pamati.  preto o
+         nom plati vsetko, co bolo napisane o prikaze mer,  len  po  nahrati
+         textu sa riadenie hned vrati editoru.
+ 
+   ald - specialny prikaz, pomocou ktoreho uzivatel spusti postupnost volani
+         jednotlivych  modulov systemu a sice asm, lnk, dbg.  pokial preklad
+         alebo spajanie  skonci  s  chybami  volanie  ostatnych  modulov  sa
+         neuskutocni  a riadenie sa vrati editoru.  blizsie pozri pri popise
+         jednotlivych modulov.
+ 
+   dis - spusta spaetny prekladac.  za prikazom dis nasleduje medzera  a  za
+         nou  pociatocna a koncova adresa pamate, ktorej obsah sa ma spaetne
+         prelozit v tvare
+ 
+                                    xxxx-yyyy
+ 
+         kde xxxx a yyyy su hexadecimalne konstanty (nezacinaju vsak  znakom
+         #).   instrukcia  na  adrese yyyy sa uz nepreklada.  text sa uklada
+         pred riadok, na ktorom bol jazdec, rovnako  ako  keby  ho  uzivatel
+         pisal  sam.   vyrazy v adresnom poli su vyjadrene ako hexadecimalna
+         konstanta a ak hodnota na niektorej adrese neobsahuje  kod  platnej
+         instrukcie,  je  tato hodnota prelozena pomocou pseudoinstrukcie db
+         (pozri popis prekladaca).   ak  chceme  ziskat  aj  hodnoty  citaca
+         adries,  mozeme  takto ziskany zdrojovy text normalne prelozit a na
+         zaklade vypisu prekladu doplnit vyrazy v poli adresy o navestia.
+ 
+            prikaz dis sa vyuziva ak chceme pokracovat v praci na  programe,
+         ktory  sme  doteraz  vytvarali  v  strojovom  kode  (alebo pod inym
+         systemom) pod systemom mrs, alebo ak chceme do odladeneho  programu
+         vlozit  niektore moduly systemu mrs, aby sa program stal na systeme
+         mrs nezavisly (pozri popis modulov lib a lnk).
+ 
+    popis prace s jednotlivymi modulmi                                  strana 2-5
+ 
+ 
+ 
+            ak sa pri vykonavani spaetneho prekladu  preplni  pamat,  system
+         vypise
+ 
+                                    mem full
+ 
+         a riadenie sa vrati modulu mrs.
+ 
+   ins - toto je specialna obdoba prikazu dis a sluzi na vlozenie zdrojoveho
+         textu,  ktory  nebol vytvoreny systemom mrs.  za prikazom nasleduju
+         dve hexadecimalne konstanty rovnako  ako  za  prikazom  dis.   prva
+         konstanta  obsahuje  adresu  uzivatelskeho  podprogramu, na hodnotu
+         druhej konstanty je inicializovany register  hl  pri  prvom  volani
+         uzivatelskeho   podprogramu.    tento   register  je  k  dispozicii
+         uzivatelskemu modulu a pri dalsich volaniach ma hodnotu, ktoru  mal
+         pri odchode z podprogramu.
+ 
+            ulohou uzivatelskeho podprogramu je pri kazdom  zavolani  ulozit
+         do  bufra  od  adresy #fe00 dalsi riadok zdrojoveho textu a nasadit
+         carry  flag  =  0.   ak  uz  nie  je  k  dispozicii  dalsi  riadok,
+         uzivatelsky  podprogram  nasadi  carry flag = 1 a riadenie sa vrati
+         editoru.
+ 
+            riadky textu sa  syntakticky  kontroluju  a  spravne  riadky  sa
+         ukladaju  do  textu pred riadok, na ktorom bol jazdec (pozri prikaz
+         dis).
+ 
+            chybne riadky sa zobrazia do prveho riadku obrazovky a v  pravom
+         dolnom rohu je ich poradove cislo.  riadky je potom mozne opravovat
+         tak ako je to popisane v odseku 2.3.3.  oprava sa  ukonci  klavesom
+         enter.   v pripade chyby zaznie zvukovy signal a cyklus sa opakuje.
+         prikaz ins je  mozne  prerusit  klavesami  caps shift/medzera.   do
+         dialogoveho riadku sa vypise
+ 
+                                      break
+ 
+         a po stlaceni klavesy enter sa riadenie vrati systemu mrs.   ak  sa
+         pri  vkladani  textu  preplni pamat, system reaguje rovnako ako pri
+         prikaze dis.  na klaves caps shift/medzera reaguje system kratko po
+         ukonceni opravy klavesom enter.
+ 
+   mon
+   run
+   asm
+   lnk
+   lib
+   dbg - tieto prikazy vyvolavaju prislusny modul systemu a  odovzdavaju  mu
+         riadenie
+ 
+ 
+ 
+2.3.2  obrazovkovy rezim
+ 
+   po vykonani prikazov ln a ini editor prejde do  obrazovkoveho  modu.   to
+znamena, ze na obrazovku vypise text od riadku nastaveneho prikazom ln alebo
+je obrazovka prazdna (po prikaze ini), jazdec  je  v  lavom  hornom  rohu  a
+editor ocakava dalsi text.
+ 
+   pre pochopenie obrazovkoveho rezimu je nutne si uvedomit,  ze  editor  uz
+pripravuje  text  pre  zostavovaci jazyk,a to tak,ze ho vhodne predspracuje.
+preto uz pri pisani textu musime dbat na spravnu syntax a v dalsom texte  sa
+preto prelinaju informacie o editore s informaciami o zostavovacom jazyku.
+ 
+    popis prace s jednotlivymi modulmi                                  strana 2-6
+ 
+ 
+ 
+   vseobecny tvar riadku textu je nasledovny:
+ 
+ label   ins  adr             poznamka
+ 
+ 
+   vidime, ze riadok je rozdeleny na 4 polia s tymto obsahom:
+ 
+    label - pole navestia.  zacina na nultej pozicii a ma  dlzku  7  znakov.
+            je  bud  vyplnene  medzerami, alebo obsahuje navestie.  navestie
+            moze byt retazec maximalne  6  pismen  a  cislic,  ktory  zacina
+            pismenom.  zbytok pola musi byt vyplneny medzerami.
+ 
+    ins   - pole instrukcie.  zacina na siedmej pozicii a ma dlzku 5 znakov.
+            bud  je  vyplnene  medzerami,  alebo  obsahuje platnu instrukciu
+            mikroprocesora  zilog 80,   pripadne   platnu   pseudoinstrukciu
+            zostavovacieho jazyka.  zbytok pola musi byt vyplneny medzerami.
+ 
+    adr   - pole adresy.  zacina na 12.pozicii a ma dlzku 20 znakov.  ak  je
+            pole  ins  vyplnene  medzerami,  musi  byt  aj pole adr vyplnene
+            medzerami.  inac obsahuje platnu  adresu  pre  instrukciu  alebo
+            pseudoinstrukciu  zapisanu  v  poli  ins.   pole adresy musi byt
+            zakoncene medzerou a zbytok pola musi byt vyplneny medzerami.
+ 
+    pozn  - pole poznamky.  zacina na 32.pozicii a ma dlzku 32 znakov.  moze
+            obsahovat  lubovolne znaky, kedze ho zostavovaci jazyk ignoruje.
+            pocas pisania textu do pola poznamky sa riadok posuva  dolava  a
+            prve  znaky sa z obrazovky stracaju.  pole poznamky nesmie byt v
+            riadku,  ktory  nema  instrukciu.   pocas  pisania  poznamky  sa
+            sleduje dlzka riadku.
+ 
+ 
+   okrem takehoto riadku pozna system riadok poznamky a riadok  na  riadenie
+prekladu.  riadok poznamky zacina znakom ; a moze obsahovat lubovolne znaky,
+kedze ho prekladac ignoruje.  riadok na riadenie prekladu zacina  znakom  *,
+jeho  obsah  sa syntakticky kontroluje.  platne prikazy su popisane v odseku
+2.4.3 a zbytok riadku musi byt vyplneny medzerami.
+ 
+   tieto riadky nie su clenene na  polia  a  stlacenie  klaves  caps shift/1
+alebo caps shift/4 v nich sa povazuje za chybu (pozri odsek 2.3.3.).
+ 
+   pole adresy moze obsahovat okrem prvkov predpisanych presne istrukciou aj
+prvky,  ktore sa vyhodnocuju pocas prekladu, a ktore nazyvame vyrazy.  vyraz
+v systeme mrs moze mat jeden z tychto tvarov:
+ 
+        - symbol
+        - symbol+symbol
+        - symbol-symbol
+        - symbol*symbol
+        - symbol/symbol
+        - symbol!symbol      operacia or
+        - symbol&symbol      operacia and
+        - symbol@symbol      operacia xor
+        - -symbol
+        - >symbol   (vyssi byte 2-bytovej konstanty)
+        - <symbol   (nizsi byte 2-bytovej konstanty)
+ 
+pricom symbol moze mat jeden z tychto tvarov:
+ 
+        - navestie
+        - decimalna konstanta, co je retazec cislic
+        - hexadecimalna konstanta, co je retazec cislic a pismen  a-f,  pred
+          ktorymi je znak #.
+    popis prace s jednotlivymi modulmi                                  strana 2-7
+ 
+ 
+ 
+        - znakova konstanta, co je lubovolny zobrazitelny  znak  uzavrety  v
+          apostrofoch.
+        - znak $.  oznacuje citac instrukcii.
+ 
+okrem instrukcii mozu byt v poli ins tieto pseudoinstrukcie:
+ 
+    org - v adresnej casti musi byt vyraz.
+ 
+    ds  - v adresnej casti musi byt vyraz.
+ 
+    db  - v adresnej casti musi byt  jeden  alebo  viac  vyrazov  oddelenych
+          ciarkami.   v  pripade pseudoinstrukcie db ako vyraz moze byt tiez
+          retazec znakov uzavrety v apostrofoch.
+ 
+    dw  - v adresnej casti musi byt  jeden  alebo  viac  vyrazov  oddelenych
+          ciarkami.
+ 
+    equ - v poli navestia musi byt navestie a v poli adresy musi byt vyraz.
+ 
+    ent - v poli  adresy  musi  byt  jedno  alebo  viac  navesti  oddelenych
+          ciarkami.
+ 
+    ext - v poli  adresy  musi  byt  jedno  alebo  viac  navesti  oddelenych
+          ciarkami.
+ 
+    end - pole adresy musi byt prazdne.
+ 
+ 
+ 
+ 
+2.3.3  pisanie riadku
+ 
+   riadok sa pise beznym  sposobom,  pricom  sa  vyuzivaju  tieto  specialne
+klavesy:
+ 
+   caps shift/8  - sposobi presun jazdca na nasledujuci znak, hranice riadku
+                   sa kontroluju.
+   caps shift/5  - sposobi presun jazdca  na  predchadzajuci  znak,  hranice
+                   riadku sa kontroluju.
+   caps shift/9  - vlozi medzeru na poziciu oznacenu jazdcom a  zbytok  pola
+                   posunie doprava.
+   caps shift/0  - vymaze znak oznaceny jazdcom a zbytok pola posunie dolava
+                   ak  je  jazdec  za  poslednym znakom riadku, posunie sa o
+                   jeden znak dolava a posledny znak sa vymaze.
+   caps shift/4  - posunie jazdca na zaciatok dalsieho pola, hranice  riadku
+                   sa kontroluju.
+   caps shift/1  - presunie  jazdca  na  zaciatok  pola  alebo  na  zaciatok
+                   predchadzajuceho pola, hranice riadku sa kontroluju.
+   symbol shift/medzera - nastavi jazdca na posledny znak v poli adresy
+   medzera       - vyplni zbytok pola medzerami a jazdca nastavi na zaciatok
+                   dalsieho   pola.    tato  funkcia  je  potlacena  v  poli
+                   poznamky,  v  riadku  poznamky,  alebo  ked  je   medzera
+                   sucastou  retazca  alebo  znakovej  konstanty.   v tychto
+                   pripadoch sa medzera normalne ulozi do textu.
+ 
+ 
+   dalsie riadiace znaky sposobuju  ukoncenie  pisania  riadku.   riadok  sa
+syntakticky  skontroluje.   ak niektore pole nevyhovuje predpisom, jazdec sa
+nastavi na jeho zaciatok, vyda sa zvukovy  signal  a  uzivatel  musi  riadok
+opravit.
+ 
+    popis prace s jednotlivymi modulmi                                  strana 2-8
+ 
+ 
+ 
+   syntakticky spravny riadok sa pomerne komplikovane komprimuje a  opat  sa
+prevedie  do  zdrojovej formy.  potom sa porovna s povodnym riadkom a pokial
+sa tieto dva riadky nerovnaju,  vypise  sa  riadok,  ktory  vytvoril  system
+namiesto  povodneho  riadku a zaznie zvukovy signal.  ak je uzivatel s novym
+riadkom spokojny stlaci enter a pokracuje v praci, inac ho moze opravit.
+ 
+   na  prvy  pohlad  komplikovany  system   je   pre   uzivatela   prakticky
+neviditelny.   ak  su  totiz  riadky  rovnake  (a  to su vzdy, ked je riadok
+spravne napisany), pokracuje normalne v praci.
+ 
+   pomocou tohto mechanizmu sa objavia chyby
+ 
+      - pretecenia (prilis velka konstanta sa komprimovanim zmeni)
+      - neformalizovany zapis konstanty (hexadecimalna  konstanta  musi  mat
+        parny pocet bytov, pred decimalnou konstantou nesmu byt nuly)
+      - formalne spravne, ale  neexistujuce  instrukcie  (napr.   instrukcia
+        add hl,ix sa pretvori na instrukciu add ix,ix a tym sa zisti chyba)
+ 
+****************************************************************************
+system mrs (moduly  edi,  asm  a  dbg)  spravne  spracuva  aj  tzv.   skryte
+instrukcie.   su  to  jednak  instrukcie  sll (operacny znak cb30 az cb37) a
+instrukcie ekvivalentne instrukciam, ktore pracuju s registrami h a l, ale s
+prefixom  dd  resp.   fd).  tieto potom pracuju s vyssim alebo nizssim bytom
+indexregistra ix resp iy.  tieto instrukcie sa zapisuju tak,  ze  na  mieste
+registra  h  sa pise xh alebo yh a na mieste registra l sa pise xl alebo yl.
+nie kazda nahrada napr.  registra h registrom xh  je  mozna  (napr.   ak  uz
+instrukcia  ma  prefix  cb  tak  h sa xh neda nahradit).  blizsie o skrytych
+instrukciach pozri v odbornej literature.
+inac jedina odchylka od standardneho zapisu  instrukcii  je,  ze  instrukcia
+ex   af,af' sa pise bez apostrofu, teda ako ex    af,af
+****************************************************************************
+ 
+   v pripade spravneho riadku dalsia akcia zavisi  od  pouziteho  riadiaceho
+znaku.
+ 
+   caps shift/7            - jazdec sa nastavi na zaciatok  predchadzajuceho
+                             riadku.    ak   je   jazdec   na  prvom  riadku
+                             obrazovky, cela obrazovka sa posunie  o  riadok
+                             dole.   ak  je  jazdec  na  prvom  riadku textu
+                             zaznie zvukovy signal a nic sa nevykona.
+   caps shift/6            - jazdec sa  nastavi  na  zaciatok  nasledujuceho
+                             riadku.   ak  je  jazdec  na  poslednom  riadku
+                             obrazovky posunie sa cela  obrazovka  o  riadok
+                             hore.  ak je jazdec za poslednym riadkom textu,
+                             ozve sa zvukovy signal a nic sa nevykona.
+   caps shift/3            - vypise  sa  predchadzajuca  obrazovka  textu  a
+                             jazdec je na zaciatku prveho riadku obrazovky.
+   caps shift/2            - vypise sa nasledujuca obrazovka textu a  jazdec
+                             je na zaciatku prveho riadku obrazovky.
+   symbol shift/enter      - vypise sa nova obrazovka textu tak, ze  riadok,
+                             na  ktorom  bol  jazdec, sa stane prvym riadkom
+                             obrazovky
+   caps shift/symbol shift - vymaze sa riadok, na ktorom bol jazdec a zbytok
+                             obrazovky  sa posunie hore.  v tomto pripade sa
+                             neanalyzuje syntakticka spravnost  riadku.   ak
+                             je  jazdec  za  poslednym riadkom textu ozve sa
+                             zvukovy signal a nic sa nevykona.
+   caps shift/enter        - za riadok, na ktorom  je  nastaveny  jazdec  sa
+                             vytvori jeho kopia.
+   enter                   - text na obrazovke pocnuc riadkom, na ktorom  je
+                             jazdec,  sa posunie smerom dole, cim sa vytvori
+                             miesto  pre  vlozenie  noveho  riadku.   ak  je
+    popis prace s jednotlivymi modulmi                                  strana 2-9
+ 
+ 
+ 
+                             jazdec  na  poslednom  riadku  obrazovky,  toto
+                             miesto sa vytvori posunom celeho textu o riadok
+                             hore.  ak je jazdec za poslednym riadkom textu,
+                             ozve sa zvukovy signal a nic sa nevykona.
+   caps shift/medzera      - editor vypise text edi> do dialogoveho riadku a
+                             prejde do prikazoveho rezimu.
+ 
+   odoslanie inych riadiacich znakov ma za nasledok zvukovy signal a nic  sa
+nevykona.   kazdy  klaves  ma  opakovaciu  schopnost,  to  znamena,  ze jeho
+podrzanie ma rovnaky vysledok, ako keby sa opaetovne stlacal.
+ 
+ 
+ 
+2.3.4  chybove hlasenia
+ 
+   na velku vacsinu  chybnych  akcii  reaguje  editor  zvukovym  signalom  a
+pripadne  nastavenim  jazdca  na  chybnu polozku.  existuju vsak dva chybove
+stavy, nasledkom ktorych  editor  vypise  chybove  hlasenie  do  dialogoveho
+riadku a po stlaceni klavesu enter sa riadenie vrati systemu mrs.
+ 
+   mem full - tento vypis znamena,  ze  pamat,  urcena  na  zapis  textu  sa
+              zaplnila.   nutne  je  text skratit, pripadne vymazat moduly z
+              binarnej  kniznici  (pozri  program  na   obsluhu   kniznice).
+              prakticky  je ale tento stav zriedkavy, pretoze velkost volnej
+              pamati staci na cca 6000 riadkov zdrojoveho textu.  ak doslo k
+              preplneniu  pamati  uzivatel vyvola opat editor, prikazom ln=0
+              prejde do obrazovkoveho rezimu, klavesom cs/ss vymaze  riadok,
+              pri  ktorom  doslo  k  preplneniu  a  klavesom ss/enter obnovi
+              obrazovku.
+ 
+                 iny dovod na vypis tohto oznamu je, ked sa  zaplni  tabulka
+              symbolov.   tato  tabulka  je ulozena za textom a dynamicky sa
+              rozsiruje.   jej  maximalna  kapacita  je  vsak  255  navesti.
+              navestia,  ktore  sa  nepouziju  pri  preklade  sa automaticky
+              vymazu.   po  skonceni  prekladu.   (pozri  popis   prekladaca
+              zostavovacieho jazyka).
+ 
+ 
+ 
+2.4  prekladac zostavovacieho jazyka
+ 
+ 
+ 
+2.4.1  spustenie prekladu
+ 
+   prekladac zostavovacieho jazyka (v dalsom texte tiez assembler) sa vyvola
+prikazom  asm,  za  ktorym  ako  dalsi parameter nasleduje meno prekladaneho
+modulu.  assembler vyhlada dany modul v binarnej kniznici  a  zdrojovy  text
+prelozi  na  miesto  povodneho  modulu.   ak  taky  modul v kniznici nie je,
+assembler prelozi zdrojovy text ako  novy  modul  a  pripoji  ho  na  koniec
+kniznice.
+ 
+   ak v prikaze asm meno modulu chyba, vytvori sa modul s prazdnym menom  na
+konci kniznice.  takyto modul je v kniznici len docasne, kazdy dalsi preklad
+ho vymaze.
+ 
+   inymi slovami, uzivatel by mal prelozit a odladit modul najprv bez mena a
+az ked je vsetko v poriadku, zaradit modul do kniznice prikazom asm meno.
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-10
+ 
+ 
+ 
+   assembler v kazdom  pripade  sleduje  hranice  pamati,  ktora  je  modulu
+priradena  uz  velkostou miesta, ktore zaberal povodny modul alebo velkostou
+miesta od konca kniznice po koniec volnej pamati.
+ 
+   assembler preklada text pripraveny editorom do  prislusnej  pamati  a  na
+obrazovke vytvara vypis prekladu.  riadok vypisu sa vypise do dvoch az troch
+riadkov obrazovky nasledovne:
+ 
+   1.  az 5.  znak - poradove cislo riadku
+ 
+   7.  znak - obsahuje medzeru alebo kod chyby.  chybove  kody  su  popisane
+   dalej.
+ 
+   9.  az 12.  znak - hexadecimalny vypis hodnoty citaca adries.
+ 
+   14. az 21. znak - hexadecimalny vypis kodu
+ 
+ 
+   druhy a v pripade poznamky  aj  treti  riadok  obrazovky  obsahuje  vypis
+zdrojoveho textu.
+ 
+   vypis je mozne  kedykolvek  zastavit  klavesom  cs/s  a  potom  opaetovne
+spustit  klavesom  cs/q.  po skonceni prekladu vypise assembler informaciu o
+pocte   chyb
+ 
+                               errors: n
+ 
+kde n je pocet zistenych chyb.
+ 
+   pokial  sa  pocas  prekladu  vyskytli  chyby,  modul   sa   do   kniznice
+nezaradi.treba si uvedomit, ze ked sme chceli prelozit text cez modul, ktory
+uz v kniznici  bol,  je  tento  povodny  modul  chybnym  prekladom  zniceny.
+pravda,funkcie ostatnych modulov su zachovane.
+ 
+   pokial sa prelozil cely text (to  znamena,  ze  pseudoinstrukcia  end  je
+poslednym riadkom textu), prezrie sa tabulka symbolov a v preklade nepouzite
+symboly sa vymazu.
+ 
+   na zaver prekladu, ak bol pozadovany vystup vsetkych riadkov prikazom  *a
+(pozri  odsek  2.4.2),  sa  vypise  tabulka  pouzitych navesti.  navestia su
+usporiadane podla abecedy a za menom navestia  nasleduje  jeho  hodnota  ako
+hexadecimalne cislo.  navestia popisane pseudoinstrukciou ext maju na mieste
+hodnoty, ktora moze byt este neznama, znaky xxxx.
+ 
+ 
+ 
+2.4.2  vyhodnotenie vyrazov
+ 
+   vyraz v poli  adresy  sa  vyhodnoti  beznym  sposobom.   to  znamena,  ze
+decimalna  a hexadecimalna konstanta ma hodnotu danu svojim zapisom, znakova
+konstanta ma hodnotu danu hodnotou ascii  znaku,  ktory  ju  reprezentuje  a
+hodnota  navestia je dana velkostou citaca adries v okamihu, ked sa navestie
+vyskytlo v poli navestia.
+ 
+   specialne unarne  vyrazy  su  >symbol,  ktory  definuje  hodnotu  vyssich
+8 bitov  zo  16-bitovej  hodnoty  a  <symbol, ktory definuje hodnotu nizsich
+8 bitov 16-bi tovej hodnoty.  napr.ak chceme zistit, ci l register sa  rovna
+nizsim 8 bitom navestia adresa, mozno to vykonat nasledovne:
+ 
+        ld   a,l
+        cp   <adresa
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-11
+ 
+ 
+ 
+   ina moznost, ako priradit navestiu hodnotu je pseudoinstrukcia equ (pozri
+dalej).
+ 
+   symbol $ nadobuda pocas prekladu hodnotu citaca instrukcii.
+ 
+ 
+ 
+2.4.3  riadenie prekladu pseudoinstrukciami a direktivami
+ 
+   pseudoinstrukcie riadia  preklad  zdrojoveho  textu  a  direktivy  riadia
+vlastnu  cinost  prekladaca.   pseudoinstrukcie  uz  boli  spomenute v casti
+venovanej editoru.  tu rozoberieme ich funkciu vzhladom k assembleru.
+ 
+   org - riadi velkost citaca adries.  vyraz v poli adresy  sa  vyhodnoti  a
+         jeho  hodnota  sa  priradi  citacu  adries.  prvky vyrazu musia byt
+         zname uz pri prvom prechode.  to znamena, ze sucastou vyrazu nesmie
+         byt navestie, ktore sa predtym nevyskytlo v poli navestia.
+ 
+   ds  - riadi velkost citaca adries.  citac adries sa zvysi o hodnotu  danu
+         vyrazom  v  poli adresy, cim sa vlastne v programe rezervuje pamat.
+         podobne ako v pripade pseudoinstrukcie org musi byt hodnota  vyrazu
+         znama uz v prvom prechode.
+ 
+   db  - uklada do pamati hodnoty  urcene  vyrazmi  v  poli  adresy.   tieto
+         hodnoty sa musia zmestit do 1 byte.  ak je v adresnej casti retazec
+         znakov v apostrofoch, tak sa do pamati postupne  ulozia  ich  ascii
+         hodnoty.
+ 
+   dw  - uklada do pamati  hodnoty  urcene  vyrazmi  v  poli  adresy,  kazda
+         hodnota zabera dva byty.
+ 
+   equ - priradi navestiu v  poli  navestia  hodnotu  danu  vyrazom  v  poli
+         adresy.  aj tato hodnota musi byt znama uz v prvom prechode.
+ 
+   ent - popisuje navestia v poli  adresy  ako  bod  vstupu  (entry  point).
+         vyznam  tejto  pseudoinstrukcie  je  objasneny  v  casti  spojovaci
+         program.
+ 
+   ext - popisuje navestia v  poli  adresy  ako  vonkajsi  symbol  (external
+         point).    vyznam   tejto  pseudoinstrukcie  je  popisany  v  casti
+         spojovaci program.
+ 
+   end - tato pseudoinstrukcia ukoncuje prekladanu cast textu, teda text  sa
+         preklada od zaciatku po pseudoinstrukciu end.
+ 
+ 
+   pseudoinstrukcie ent a ext sa mozu pouzit, len ak je  v  pamati  pritomna
+kniznica  binarnych modulov (aspon zakladny modul sysmod), v opacnom pripade
+ich pouzitie ma nedefinovany vysledok.
+ 
+   na riadenie prace prekladaca sa vyuzivaju specialne riadky, a sice  take,
+ktore  zacinaju  znakom  *.   v  tomto  pripade assembler predpoklada, ze za
+znakom * nasleduje niektory z tychto prikazov:
+ 
+   a - znamena, ze sa ma na  vystupnom  zariadeni  vytvarat  vypis  vsetkych
+       riadkov.   ak  chce uzivatel ziskat len vypis tabulky symbolov (pozri
+       odsek  2.4.1),  musi  vlozit  pred  riadok  s  pseudoinstrukciou  end
+       direktivu *a.
+ 
+   e - znamena, ze sa ma na vystupnom zariadeni vytvarat len vypis  chybnych
+       riadkov.  tato hodnota je preddefinovana na zaciatku prekladu.
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-12
+ 
+ 
+ 
+   l - znamena, ze pocas prekladu  sa  vytvara  vypis  na  tlaciaren  (pozri
+       blizsie v odseku 2.4.5).
+ 
+   p - ma zmysel len v spojeni s direktivou l.  pomocou direktivy p  vysleme
+       na  tlaciaren  riadiaci  znak  nova  strana  (#0c).   ak  za znakom p
+       nasleduje decimalna konstanta, tak sa znak nova strana vysle vzdy  po
+       vytlaceni daneho poctu riadkov.
+ 
+   t - vypis sa bude vytvarat na terminal.  tato  hodnota  je  nastavena  na
+       zaciatku prekladu.
+ 
+ 
+   platnost direktiv zacina dalsim riadkom a trva po vyskyt dalsieho prikazu
+vcitane.
+ 
+   cnnnn - (kde nnnn je hexadecimalna konstanta) znamena,  ze  hoci  preklad
+           pokracuje  normalnym  sposobom,  vysledny  kod sa zacne ukladat v
+           pamati od adresy nnnn.  tymto sposobom mozno  vytvorit  v  pamati
+           kod,  ktory je schopny prace az po presunuti na patricne miesto v
+           pamati.  ak nnnn=0, binarny kod sa v pamati nevytvara vobec.  tak
+           je  mozne  ziskat  vypis programu bez narusenia pamati.  platnost
+           prikazu cnnnn sa zrusi pri vyskyte pseudoinstrukcie org.
+ 
+ 
+ 
+2.4.4  ulozenie modulu do kniznice - pseudoinstrukcia org
+ 
+   prelozeny  modul  sa  spravidla  preklada  na  koniec  kniznice  a  okrem
+vlastneho  binarneho kodu sa do kniznice ulozia aj informacie o mene a dlzke
+modulu (tieto sa ulozia pred zacatim  prekladu)  a  informacie  o  vstupnych
+(ent)  a  vystupnych  (ext)  navestiach.   tato akcia je korektna, pokial sa
+pocas prekladu nevyskytla pseudoinstrukcia org alebo  direktiva  *cnnnn.   v
+opacnom  pripade  sa  neda  zarucit  integrita kniznice.  pri beznom sposobe
+prace teda uzivatel pseudoinstrukciu org nepouziva.
+ 
+   napriek tomu bola do prekladaca zaradena a s jej pomocou je mozne  riadit
+preklad  tak,  aby sa binarny kod ulozil na presne stanovene miesto pamati a
+aby sa nic ine neprepisalo.  to  je  mozne  dosiahnut  aj  vhodnym  pouzitim
+direktivy *cnnnn.  v oboch pripadoch je nutne, aby
+ 
+   - preklad bol bez mena, teda za prikazom asm uz nic nenasledovalo
+   - pseudoinstrukciou org sa nastavil citac adries na pozadovanu hodnotu
+   - v programe sa nesmu vyskytovat pseudoinstrukcie ent a ext,  aby  sa  za
+     program nezacali ukladat prislusne navestia
+ 
+   este raz zdoraznujeme, ze pouzitie pseudoinstrukcie org je v systeme  mrs
+nestandardne.   uzivatel  spravidla  nemusi  vediet, kde sa jeho kod ulozil,
+pretoze sa v kazdom pripade moze obracat na navestia a vstupne body.
+ 
+ 
+ 
+2.4.5  pouzitie tlaciarne
+ 
+   ako uz bolo spomenute,vyskyt riadku *l  sposobi,  ze  sa  zacne  vytvarat
+vypis  na  pripojenej tlaciarni.  system je dodavany bez obsluzneho programu
+pre tlaciaren, pretoze sposoby pripojenia tlaciarne k  pocitacu  zx spectrum
+su  velmi rozmanite.  v kniznici sysmod je vsak zaradeny vstupny bod pntchr,
+kde je instrukcia skoku (c3 .. ..).  normalne je v jej adresnej  casti  skok
+na  instrukciu  ret.   ak si uzivatel napise vlastny obsluzny podprogram pre
+vytlacenie jedneho znaku (a pripadne aj pre inicializaciu tlaciarne), zaradi
+ho  do kniznice a zodpovedajucim sposobom modifikuje adresnu cast instrukcie
+skoku  na  adrese  pntchr,  ziska  moznost  tlacit  vystup   z   prekladaca.
+    popis prace s jednotlivymi modulmi                                 strana 2-13
+ 
+ 
+ 
+uzivatelsky  obsluzny  podprogram  prebera  kod znaku v registri a, registre
+moze menit.  ako riadiace znaky sa vyskytuju kody #0d (cr), #0a (lf)  a  #0c
+(prechod na novu stranu).
+ 
+ 
+ 
+2.4.6  chybove oznamy
+ 
+   chybove oznamy mozno rozdelit na dve skupiny.  jednak su to vazne  chyby,
+ktore okamzite ukoncia preklad a sice:
+ 
+   no end   - prekladac nenasiel pseudoinstrukciu end,  ktora  musi  ukoncit
+              prekladany zdrojovy text
+ 
+   mem full - pokus o ulozenie kodu  mimo  pamat  vyhradenu  pren.   bud  je
+              prelozeny  binarny kod prilis dlhy, alebo sa nespravne pouzila
+              pseudoinstrukcia org, pripadne direktiva *cnnnn.   tato  chyba
+              vznika  az  pri  skutocnom  pokuse o zapis do pamati.  vhodnym
+              pouzitim direktivy *cnnnn a naslednym posunutim binarneho kodu
+              na  spravne  miesto  je mozne prelozit kod na lubovolne miesto
+              pamati.
+ 
+   prerusenie prekladu - ak   uzivatel   pocas   prekladu   stlaci    klaves
+              cs/medzera,  preklad  sa  prerusi,  do  dialogoveho  riadku sa
+              vypise text
+ 
+                                        break
+ 
+              a po stlaceni klavesy enter sa riadenie vrati systemu mrs.
+ 
+   druha skupina tvoria  chyby  zistene  pocas  prekladu.   tieto  chyby  su
+indikovane  kodom  chyby  v  znaku  pred  polom  navestia.  chybne riadky sa
+zobrazia na obrazovke vzdy, nie je mozne to potlacit.
+ 
+   u - v adresnej casti sa vyskytuje navestie, ktore nebolo definovane, teda
+       nevyskytlo sa v poli navestia ani nebolo definovane pseudoinstrukciou
+       ext.  navestia v adresnej casti pseudonstrukcii musia byt  definovane
+       prv,  ako  sa  vyskytnu v adresnej casti, teda musia byt definovane v
+       prvom prechode prekladu.   navestie,  ktore  bolo  raz  oznacene  ako
+       nedefinovane,  je  tak  oznacene  pri  kazdom  vyskyte,  aj  ked bolo
+       pripadne neskor v texte najdene v poli navestia.
+ 
+   m - v poli navestia sa vyskytuje navestie, ktore uz bolo  definovane,teda
+       uz  sa  vyskytlo  v  poli navestia.  tymto chybovym kodom je oznaceny
+       jeho kazdy vyskyt.  tato chyba sa vyskytne aj vtedy, ked ako  vstupne
+       navestie  bolo popisane navestie, ktore sa ako vstupny bod v kniznici
+       uz vyskytuje, alebo  je  ako  vonkajsie  navestie  popisane  niektore
+       navestie programu.
+ 
+   d - v  adresnej  casti  sa  vyskytlo  navestie,   ktore   bolo   viackrat
+       definovane,  teda  jeho  vyskyt v poli navestia bol oznaceny chybovym
+       kodom m.  tento oznam ma v podstate informativny charakter.  ulahcuje
+       uzivatelovi opravu chyby m.
+ 
+   r - vyraz v adresnom poli instrukcie, ktora pripusta len 8-bitovu hodnotu
+       prekrocil rozsah 1 bytu (0-255).
+ 
+   e - navestie popisane ako external sa vyskytlo ako sucast vyrazu alebo je
+       v  adresnej  casti  instrukcie, ktora pripusta len 8-bitovu hodnotu v
+       adresnej casti.
+ 
+   z - pri pouziti operacie delenia doslo k pokusu o delenie 0.
+    popis prace s jednotlivymi modulmi                                 strana 2-14
+ 
+ 
+ 
+   vyraz, pri spracovani ktoreho bola zistena chyba ma hodnotu 0.  ak  sa  v
+adresnej  casti  instrukcie vyskytuje navestie popisane ako vonkajsie, tak v
+binarnom kode sa pocas prekladu  ukladaju  informacie,  ktore  prekladac  na
+zaver pouzije na pripravu tabulky potrebnej pre pracu spojovacieho programu.
+vo vypise prekladu sa teda  objavia  hodnoty,  ktore  pre  uzivatela  nemaju
+zmysel.
+ 
+ 
+ 
+2.4.7  pouzitie relativnych skokov
+ 
+   pokial sa v adresnej casti instrukcie relativneho  skoku  vyskytne  vyraz
+obsahujuci  navestie,  tak vysledna hodnota sa automaticky upravi.  ak sa vo
+vyraze navestie nevyskytuje, vysledna hodnota vyrazu  sa  priamo  zapise  do
+adresnej  casti instrukcie.  teda napr.  instrukcia jr label+4 ma v adresnom
+poli hodnotu label+4-$-2, kde $ je hodnota citaca instrukcii v case prekladu
+instrukcie.  instrukcia jr #10 ma po preklade v adresnej casti hodnotu #10.
+ 
+ 
+ 
+2.5  spojovaci program
+ 
+   spojovaci  program  sa  vyvolava  prikazom  lnk,  za  ktorym  nenasleduje
+parameter.   uloha  spojovacieho  programu  je  velmi jedoducha, kedze velku
+vacsinu jeho prace vykona uz  prekladac.   spojovaci  program  len  prehlada
+zoznam  vonkajsich navesti v celej binarnej kniznici, ku kazdemu vonkajsiemu
+navestiu najde zodpovedajuce vstupne navestie a jeho hodnotu ulozi na vsetky
+miesta  binarneho  kodu,  kde  sa  toto  navestie vyskytne v adresnej casti.
+vonkajsie navestie, ktore sa medzi vstupnymi navestiami kniznice nenajde, sa
+vypise na obrazovku pod hlavicku
+ 
+                          undefined externals:
+ 
+a na zaver sa vypise informacia o pocte takychto navesti vypisom
+ 
+                                errors:n
+ 
+   ak bol spojovaci program spusteny prikazom lnk, riadenie sa vrati  modulu
+mrs.   ak  bol  spojovaci  program  spusteny prikazom ald, riadenie sa vrati
+editoru (ak sa vyskytli nedefinovane vonkajsie  navestia),  alebo  ladiacemu
+programu.
+ 
+   inymi slovami, navestia  v  programe,  ktore  maju  byt  volane  z  inych
+samostatne  prekladanych  modulov, sa popisu v module, v ktorom sa vyskytuju
+pseudoinstrukciou  ent  a  v  ostatnych  moduloch   pseudoinstrukciou   ext.
+navestia  definovane  pomocou  ext  musia  reprezentovat 16-bitovu hodnotu a
+nesmu byt sucastou vyrazu.  spojovaci program spravne doplni adresne  casti,
+v  ktorych  sa vyskytuju navestia popisane pomocou ext a tak vlastne prepoji
+viac modulov do jedneho celku.
+ 
+   upozornujeme, ze sa nesmie  spustit  program,  ktory  obsahuje  vonkajsie
+navestia,  ale  nebol  spojeny  spojovacim  programom,  alebo ktory obsahuje
+nedefinovane vonkajsie body, pretoze adresna cast prislusnej  instrukcie  po
+preklade obsahuje nedefinovanu hodnotu.
+ 
+ 
+ 
+2.6  program na obsluhu binarnej kniznice
+ 
+ 
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-15
+ 
+ 
+ 
+2.6.1  ovladanie programu na obsluhu kniznic
+ 
+   tento program sa spusta prikazom  lib  bez  parametra.   po  spusteni  sa
+prihlasi vypisom
+ 
+        lib>
+ 
+do dialogoveho riadku a ocakava jeden z tychto prikazov
+ 
+   lst - vypise zoznam modulov ulozenych v kniznici.  pre kazdy  modul  tiez
+         vypise  zoznam  vstupnych  navesti s ich hodnotami v hexadecimalnom
+         tvare.  rovnako ako pri vypise, ktory robi prekladac je mozne tento
+         vypis  zastavovat  a  spustat  klavesami cs/s a cs/q alebo prerusit
+         klavesom cs/medzera.  vtedy system  vypise  do  dialogoveho  riadku
+         text
+                                      break
+ 
+         a po stlaceni klavesy enter sa vrati riadenie riadiacemu modulu.
+ 
+   del - vymaze z kniznice posledny modul.   moduly  z  vnutra  kniznice  sa
+         nedaju  vymazat  tak,  aby  sa  usetrilo  miesto  (aby  sa  urobila
+         kompresia kniznice), kedze su  prelozene  v  absolutnych  adresach.
+         vymazanie  vnutorneho  modulu  bez  usetrenia  pamate (napriklad ak
+         chceme pouzit vstupne navestia, ktore su v nom definovane,  v  inom
+         module)  je  mozne,  ak  prelozime  prazdny  modul (pozostavajuci z
+         pseudoinstrukcie end) s rovnakym menom.  posledny modul bez mena sa
+         automaticky  vymaze  na  zaciatku kazdeho prekladu.  zakladny modul
+         kniznice sysmod nie je mozne vymazat.
+ 
+   sav - rovnako, ako pri  ukladani  zdrojoveho  textu  tento  prikaz  ulozi
+         binarnu  kniznicu  na  magnetofonovu  pasku.   pred  jeho odoslanim
+         uzivatel zapne magnetofon a po ulozeni kniznice  sa  prihlasi  opat
+         modul  lib.   v  poslednych  2  bytoch  hlavicky su zapisane 0, cim
+         system rozozna moduly kniznice od inych modulov s  rovnakym  menom.
+         pred ulozenim kniznice sa vymaze pripadny modul bez mena.
+ 
+   loa - sluzi na nahranie binarnej kniznice z magnetofonu.   nahravanie  sa
+         vykona  rovnakym  sposobom  ako  v  pripade zdrojoveho textu (pozri
+         tam).   program  kontroluje,  ci  sa  nahranim  kniznice  neprepise
+         pripadny zdrojovy text.  v takom pripade vypise chybove hlasenie
+ 
+                                    mem full
+ 
+         a po stlaceni klavesy enter sa riadenie vrati modulu mrs.
+ 
+            nova kniznica vzdy nahradi staru.
+ 
+   ent - za prikazom nasleduje navestie, ktore je v  kniznici  popisane  ako
+         vstupny  bod.   od  tohto navestia sa potom spusti program prikazom
+         run.  pokial uzivatel  este  nepouzil  prikaz  ent,  alebo  za  nim
+         neuviedol  ziadne  navestie,  prikaz  run  vrati  riadenie okamzite
+         systemu mrs.
+ 
+   run - tymto prikazom sa spusti uzivatelsky program od navestia popisaneho
+         prikazom  ent.   posledna  instrukcia  ret  v uzivatelskom programe
+         vrati riadenie systemu mrs.
+ 
+   mon
+   edi
+   asm
+   lnk
+   ald
+    popis prace s jednotlivymi modulmi                                 strana 2-16
+ 
+ 
+ 
+   dbg - ukoncia pracu programu lib a riadenie sa vrati prislusnemu modulu
+ 
+ 
+ 
+2.6.2  zakladny modul kniznice
+ 
+   tento modul sa vola sysmod a musi byt v kniznici vzdy pritomny.  obsahuje
+rozne  podprogramy systemu mrs popisane ako vstupne navestia.  uzivatel teda
+nemusi vediet na akych absolutnych adresach sa moduly  nachadzaju,  ale  ich
+oznacuje  menami  pomocou pseudoinstrukcie ext.  modul sysmod obsahuje tieto
+vstupne navestia:
+ 
+   memory - obsahuje adresu prvej volnej pamatovej bunky za kniznicou.  tato
+            hodnota sa inicializuje az pri vstupe do ladiaceho programu.
+ 
+   memtop - obsahuje adresu  prvej  obsadenej  pamatovej  bunky.   memory  a
+            memtop  umoznuju  pracu s dynamickou pamatou.  inymi slovami, ak
+            uzivatel v programe vykona instrukcie
+ 
+                      ext  memory,memtop
+                      ld   de,(memory)
+                      ld   hl,(memtop)
+ 
+            tak ziska v registroch <de> a <hl> hranice pouzitelnej pamati  -
+            beziaci program ma k dispozicii pamat od <de> do <hl>-1
+ 
+   dcbn   - konverzia  retazca  decimalnych  cislic  na  16-bitovu   binarnu
+            hodnotu
+            vstup:  <hl> = adresa retazca
+            vystup: <hl> = adresa konca retazca  (retazec  konci  lubovolnym
+            symbolom mimo cislic 0-9.
+                    <de> = konvertovana binarna hodnota
+                    <a>  = ukoncovaci znak
+            meni sa:  <af>, <de>, <hl>
+   hxbn   - konverzia retazca hexadecimalnych cislic  na  16-bitovu  binarnu
+            hodnotu.
+            vstup:  <hl> = adresa retazca
+            vystup: <hl> = adresa konca retazca  (retazec  konci  lubovolnym
+            symbolom mimo cislic 0-9 a pismen a-f.
+                    <de> = konvertovana binarna hodnota
+            meni sa:  <af>, <de>, <hl>
+ 
+   bnhx   - konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+            vstup:  <a> = konvertovane cislo
+                    <hl> = adresa  pamati,  kde  sa  ma  vysledok  konverzie
+            ulozit
+            vystup: <hl> = adresa pamati za ulozenou dvojicou znakov
+            meni sa:  <af>, <hl>
+ 
+   bndc   - konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+            vstup:  <bc> = konvertovane cislo
+                    <hl> = adresa pamati, kde sa ma vysledok ulozit
+            vystup: <hl> = adresa pamati,  za  retazcom  decimalnych  cislic
+            cislo je ulozene v pamati ako retazec ascii znakov, predradene 0
+            sa vypustia
+            meni sa:  <af>, <bc>, <de>, <hl>
+ 
+   inkey  - citanie jedneho znaku z klavesnice  s  automatickym  opakovanim.
+            modul  caka,  kym  nie je stlaceny klaves.  po opaetovnom volani
+            vykonava  automaticke  opakovanie,  teda  podrzanie  klavesu  ma
+            rovnaky  ucinok  ako jej opaetovne stlacanie.  stlacenie klavesu
+            je indikovane zvukom.
+    popis prace s jednotlivymi modulmi                                 strana 2-17
+ 
+ 
+ 
+            vstup:
+            vystup: <a> = ascii kod stlacenej klavesy
+            meni sa:  <af>
+ 
+   scan   - ohmatanie  klavesnice.   modul  zisti,  ci  je  niektory  klaves
+            stlaceny
+            vstup:
+            vystup: <a> = 0 ak nie je nic stlacene,  alebo  ak  je  stlacena
+            nelegalna kombinacia klaves (napr ss alebo ss/a)
+            meni sa:  <af>
+ 
+   clear  - vymazanie obrazovky.
+            vstup:
+            vystup:
+            meni sa:  vsetko
+ 
+   outchr - vypisuje znak na  poziciu  oznacenu  jazdcom  a  jazdca  posunie
+            doprava.   na  konci  riadku  prejde  na  novy  riadok, na konci
+            obrazovky posunie obrazovku hore.  outchr spravne  osetri  tieto
+            riadiace znaky:
+ 
+              #19 - posun jazdca vlavo
+              #18 - posun jazdca vpravo
+              #0d - ukoncenie riadku a prechod na novy riadok
+ 
+            na obrazovke sa jazdec nezobrazi, (zabezpecuje to modul  setcrs)
+            modifikuje sa len premenna cursor.
+            vstup:  <a> = kod znaku
+            vystup:
+            meni sa:  <af>
+ 
+   cursor - adresa pamati, ktora obsahuje poziciu jazdca  na  obrazovke  pre
+            modul  outchr.  su to dva byty, v prvom sa uchovava cislo stlpca
+            (0-31), v druhom cislo riadku (0-23).
+ 
+   setcrs - na povodnom mieste sa jazdec (blikajuci  stvorcek)  zmaze  a  na
+            pozicii, ktoru udava premenna cursor sa objavi.
+            vstup:  cursor = nova pozicia jazdca
+            vystup:
+            meni sa:<af>
+ 
+   mrs    - praca s dialogovym riadkom.  modul  vypise  pozadovany  text  do
+            dialogoveho  riadku,  nacita  vstupny text a podla poziadavky ho
+            analyzuje na trojznakove prikazy.   vyvolanim  tohto  modulu  ma
+            uzivatel  k dispozicii vsetky funkcie, ktore su popisane v opise
+            prace s modulom mrs.  to znamena,  ze  na  editovanie  textu  je
+            mozne   vyuzit   klavesy  caps shift/5,8,9,0  vstup  textu  vzdy
+            ukoncuje klavesa enter
+            vstup:  <a> = cislo pozicie v dialogovom riadku, od ktorej sa ma
+            vypisat pozadovany text (0-31)
+                    <hl> = adresa vypisovaneho textu
+                    <b> = dlzka vypisovaneho textu.  ak  <b>  =  0  text  sa
+            nevypisuje
+                    <c> = 0 nic sa necita.  inac sa cita text z klavesnice a
+            uklada sa do bufra od adresy #fe00.
+                    <de> = adresa tabulky trojznakovych prikazov.  ak <de> =
+            0  , nacitany text sa neanalyzuje.  v tabulke nasleduju za sebou
+            vzdy trojznakova skratka prikazu a adresa  obsluzneho  programu.
+            tabulka  je zakoncena binarnou 0.  ak je pozadovana tato analyza
+            modul nevrati riadenie,  kym  uzivatel  nenapise  riadok,  ktory
+            zacina pripustnym prikazom.
+            vystup: <b> = pocet  nacitanych  znakov  bez  enter.    nacitany
+    popis prace s jednotlivymi modulmi                                 strana 2-18
+ 
+ 
+ 
+            retazec je ukonceny binarnou 0.
+                    <de> = adresa   nacitaneho   retazca.     pokial    bola
+            pozadovana  analyza trojznakovych prikazov, ukazuje <de> na prvy
+            znak za prikazom.
+                    <hl> = ak   bola   pozadovana   analyza    trojznakovych
+            prikazov, obsahuje adresu prislusneho podprogramu.
+            meni sa:  <af>, <bc>, <de>, <hl>
+ 
+   mrs2   - umozni opravit text nacitany modulom mrs.  musi  mu  predchadzat
+            volanie modulu mrs s citanim retazca.
+            vstup:  pouzije informacie ziskane pri praci modulu mrs.   modul
+            mrs2 sa !!!!!!  musi volat instrukciou jp mrs2 !!!!!!
+            vystup:  rovnaky ako pri module mrs
+            meni sa:  <af>, <bc>, <de>, <hl>
+ 
+   schent - vyhlada vstupny bod v kniznici.  da sa vyuzit  ak  napr.   jeden
+            program  produkuje  data, ktore ma spracovat iny modul kniznice.
+            pomocou schent moze dany program najst tabulku  v  inom  module,
+            kam ma ulozit vystupne data.
+            vstup:  <hl> = adresa retazca, ktory  udava  pozadovane  vstupne
+            navestie.  retazec musi koncit binarnou nulou.
+            vystup:<z flag> = 1 - chybna syntax alebo v kniznici nie je take
+            meno.  inac
+                    <hl> = adresa mena v kniznici.  na  tejto  adrese  je  6
+            znakov  meno a dalsie dva znaky adresa, ktoru toto meno oznacuje
+            (napr.  adresa tabulky, ktorej meno je popisane ako ent).
+            meni sa:  <af>, <bc>, <de>, <hl>
+ 
+   pntchr - vytlacenie jedneho znaku na tlaciaren.  vysvetlenie tohto modulu
+            pozri v odseku 2.4.5 praca s tlaciarnou
+            vstup:  <a> - kod tlaceneho znaku.
+            vystup:
+            meni sa:  <af>
+ 
+   invpix - invertuje znak obrazovky.
+            vstup:  <h> - riadok <0-23>
+                    <l> - stlpec <0-31>
+            vystup:
+            meni sa:  <af>
+ 
+   ii     - zoznam ilegalnych isntrukcii.  pozri odsek 2.7.4.
+ 
+ 
+   vyuzitie modulu sysmod moze spociatku robit tazkosti, kedze  v  obdobnych
+systemoch sa nevyskytuje.  je to vsak velmi pohodlny a silny prostriedok ako
+dokumentuje nasledujuci priklad:
+ 
+   chceme vymazat obrazovku  a  v  cykle  nacitat  znak,  zobrazit  znak  na
+obrazovku, kym nie je nacitany znak !.
+ 
+        ext     cursor,outchr,inkey,clear
+start   call    clear
+        ld      hl,0
+        ld      (cursor),hl
+loop    call    inkey
+        push    af
+        call    outchr
+        pop     af
+        cp      '!'
+        jr      nz,loop
+        ret
+        end
+    popis prace s jednotlivymi modulmi                                 strana 2-19
+ 
+ 
+ 
+   po prelozeni (prikazom asm) a spojeni (prikazom lnk) programu,  tento  je
+pripraveny k praci.  vidime, ze sa nemusime starat o adresy danych modulov a
+program nemusime modifikovat, aj ked sa system mrs zmeni.   zmeni  sa  totiz
+zodpovedajucim sposobom aj modul sysmod.
+ 
+   ak neskor chceme odstranit zavislost  programu  na  systeme  mrs,  mozeme
+prikazom  dis  modulu  edi  vlozit prislusne casti kodu programu mrs, ako to
+bolo prv popisane.  preto je sucastou tejto  prirucky  aj  vypis  zdrojoveho
+programu niektorych modulov.
+ 
+ 
+ 
+2.7  ladiaci program
+ 
+ 
+ 
+2.7.1  uvod
+ 
+   ladiaci program sa spusta prikazom dbg bez parametra.  navrhu modulu  dbg
+bola venovana velka starostlivost, pretoze ladenie programov je najcastejsia
+cinnost  programatora.   po  spusteni  modul  dbg  vypise  zakladnu  stavovu
+informaciu do spodnych dvoch riadkov v tvare
+ 
+x pcpc instrukcia          szapc
+aa bbcc ddee hhll xhxl yhyl spsp
+ 
+    x     - status.  status je jeden znak, ktorym je uzivatel informovany  o
+            stave ladiaceho programu, spravidla x je medzera
+ 
+    pcpc  - hexadecimalna hodnota registra pc
+ 
+   instrukcia vytvori vypis instrukcie, ktora sa ma vykonat,  v  symbolickom
+tvare.   hodnota  adresnej  casti  je vyjadrena ako hexadecimalna konstanta.
+toto pole je na obrazovke vypisane inverzne.
+ 
+    szapc  - indikatory  (sign,  zero,  auxiliari  cary,   parity,   carry).
+            prislusne  pismeno  znamena, ze zodpovedajuci indikator je rovny
+            1, inac je na danej pozicii znak -.
+    aa    - hexadecimalna hodnota registra a
+ 
+    bbcc  - hexadecimalna hodnota registrov bc (v tomto poradi)
+ 
+    ddee  - hexadecimalna hodnota registrov de (v tomto poradi)
+ 
+    hhll  - hexadecimalna hodnota registrov hl (v tomto poradi)
+ 
+    xhxl  - hexadecimalna hodnota registra ix
+ 
+    yhyl  - hexadecimalna hodnota registra iy
+ 
+    spsp  - hexadecimalna hodnota registra sp
+ 
+   zakladna informacia sa vypisuje vzdy  do  dialogoveho  riadku.   uzivatel
+vsak  moze zabezpecit opis dialogoveho riadku do obrazovky pomocou klavesy l
+tak, ako je to popisane dalej.
+ 
+ 
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-20
+ 
+ 
+ 
+2.7.2  zadavanie hodnoty veliciny pre ladiaci program
+ 
+   vo vsetkych pripadoch ked uzivatel zadava hodnotu nejakej veliciny  ma  k
+dispozicii tieto moznosti
+ 
+   - decimalna konstanta
+   - hexadecimalna konstanta
+   - navestie
+   - lubovolna kombinacia uvedenych  troch  prvkov  spajanych  operaciami  +
+     alebo  -  s  vynimkou, ked navestie oznacuje vstupny bod v kniznici.  v
+     tomto pripade musi byt navestie posledny clen vyrazu.
+ 
+        pritom na syntax zapisu su kladene rovnake poziadavky ako pri pisani
+     symbolu  v  module  edi.   syntakticky  nespravny zapis ladiaci program
+     odmietne zvukovym signalom a da moznost ho opravit.
+ 
+        ak uzivatel  udal  hodnotu  ako  navestie,  ladiaci  program  najprv
+     prezrie  tabulku  symbolov  posledne prekladaneho zdrojoveho textu a ak
+     tam dany  symbol  nenajde,  tak  prehlada  tabulku  vstupnych  bodov  v
+     binarnej  kniznici.   ak  sa  ani  tam  dany symbol nevyskytuje, zaznie
+     zvukovy signal a je mozne chybny symbol opravit.  dana  velicina  ziska
+     hodnotu prislusneho symbolu, inymi slovami napriklad register pc mozeme
+     nastavit na adresu lubovolneho navestia v posledne  prekladanom  module
+     alebo  na  adresu  lubovolneho vstupneho bodu pomocou jeho symbolickeho
+     mena a bez toho, aby sme sa museli starat o ulozenie programu v pamati.
+ 
+        na editovanie vstupu mozno vyuzit rovnake prostriedky ako pri  praci
+     s dialogovym riadkom.
+ 
+        ak sa odosle prazdny riadok  prislusna  velicina  sa  nemeni  (pozri
+     napr.  prikaz pre modifikovanie pamate m).
+ 
+ 
+ 
+2.7.3  prikazy pre ladiaci program
+ 
+   prikazy pre ladiaci program su jednopismenove.  po  napisani  prislusneho
+znaku  sa  prikaz  hned  vykona,  nie  je  teda mozne opravit chybny prikaz.
+odoslanie znaku, ktoremu nie je priradeny ziaden prikaz nevykona nic.
+ 
+   nasleduje popis prikazov.  sposob ich pouzitia pozri v odseku 2.7.4.
+ 
+   r - prikaz pre nastavenie hodnot  registrov.   po  jeho  napisani  system
+       ocakava  meno registra, teda jeden zo znakov p, a, b, d, x, y, s.  ak
+       napise iny znak, ladiaci program reaguje zvukovym signalom a  ocakava
+       dalsi  prikaz.   po  napisani  spravneho  mena  registra sa dialogovy
+       riadok vymaze, vypise sa
+ 
+                                      rn:
+ 
+       kde n je meno registra, ktory sa bude modifikovat.  modifikovat mozno
+       len  16-bitove  registre  (napr.   nie  len c register, ale vzdy celu
+       dvojicu bc).   ak  sa  odosle  prazdny  riadok,  hodnota  prislusneho
+       registra sa nezmeni.
+ 
+          pokial  uzivatel   inicializuje   register   p,   automaticky   sa
+       inicializuje  aj  register  sp  na  hodnotu,  ktoru  mal pri spusteni
+       ladiaceho programu.
+ 
+   i - prikaz pre  nastavenie  bodu  prerusenia.   ladiaci  program  ocakava
+       hodnotu  zadanu  podla  budu  2.7.2  a  na adresu danu touto hodnotou
+       nasadi bod prerusenia.  potom do dialogoveho riadku vypise
+    popis prace s jednotlivymi modulmi                                 strana 2-21
+ 
+ 
+ 
+                                      n:
+ 
+       a ocakava decimalne cislo, ktore udava kolkokrat musi program  prejst
+       cez  bod  prerusenia, kym sa jeho vykonavanie zastavi.  ak sa hodnota
+       neuda, program sa prerusi hned, ked narazi na bod prerusenia.  ak  sa
+       uda  napr  1000  tak  sa program prerusi ked narazi na bod prerusenia
+       1001 krat.  okrem  toho  sa  pri  kazdom  prechode  bodom  prerusenia
+       testuje  klaves  cs/medzera  a ak je stlaceny vykonavanie programu sa
+       prerusi.
+ 
+          pri  preruseni  sa  riadenie  odovzda  ladiacemu  programu,  ktory
+       pokracuje  vypisom  zakladneho  stavu  a citanim prikazu.  pri vypise
+       zakladneho  stavu  je  na  prvej  pozicii  znak  'b'  (break),  ktory
+       signalizuje,  ze  program  narazil  na bod prerusenia.  vo vykonavani
+       programu mozno pokracovat bud po odstraneni bodu prerusenia  prikazom
+       o  alebo  po  vykonani jednej instrukcie prikazom s (pozri dalej).  v
+       druhom pripade bod prerusenia v  programe  ostal  a  ak  program  pri
+       dalsom  vykonavani  nan  narazi,  opat  sa  prerusi jeho vykonavanie.
+       pocet prechodov bodom prerusenia musime  opat  specifikovat,  pretoze
+       ostal nastaveny na hodnotu 0.
+ 
+          uzivatel moze specifikovat  najviac  jeden  bod  prerusenia.   pri
+       zadani noveho sa stary automaticky vymaze.
+ 
+          na bod prerusenia program reaguje bez ohladu na sposob,  akym  bol
+       spusteny,  pravda  pri  prikaze  g  len  pre programy, ktore nie su v
+       pamati rom.
+ 
+          bod prerusenia je realizovany pomocou instrukcie rst 10 a  vyuziva
+       systemovu  premennu  curchl  na  adrese #5c51.  pre uzivatela je teda
+       tato premenna pri praci s ladiacim programom nepouzitelna.
+ 
+   o - prikaz pre odstranenie bodu prerusenia.
+ 
+   g - prikaz na spustenie programu.  registre sa inicializuju  na  hodnoty,
+       ktore  vidno  pri  vypise  zakladneho  stavu a program sa odstartuje.
+       pokial program uspesne prebehne az po  poslednu  instrukciu  navratu,
+       riadenie  sa vrati ladiacemu programu.  register pc je nastaveny opat
+       na zaciatok programu, cize program mozno opatovne spustit prikazom g.
+ 
+cs/g - prikaz ma rovnaku funkciu ako prikaz g, ale vykonavanie  programu  sa
+       prerusi  pri  prvom  prechode  bodom  prerusenia  bez ohladu na pocet
+       prechodov.
+ 
+****************************************************************************
+system  mrs  bezi  so zakazanymi preruseniami a pracu s klaviaturou vykonava
+vlastnym modulom.  preto po prikaze g musi uzivatel sam  vykonat  instrukciu
+ei,  pokial  je  to  potrebne.   pri  navrate  do ladiaceho programu sa opat
+prerusenia zakazu.  upozornujeme, ze pri povolenych  preruseniach  musi  byt
+register  iy  rovny #5c3a a na tuto hodnotu ho ladiaci program inicializuje.
+****************************************************************************
+ 
+   s - prikaz na vykonanie jednej instrukcie.  vykona sa jedna instrukcia  s
+       hodnotami  registrov  ake  vidno pri vypise zakladneho stavu.  po jej
+       vykonani sa riadenie  vrati  ladiacemu  programu.   vypis  zakladneho
+       stavu  zacina  znakom  's' (step), ktory signalizuje krokovaci rezim.
+       ak uzivatel zabezpeci opis dialogoveho riadku do obrazovky  (klavesom
+       l), ziska podrobny prehlad o vykonavani svojho programu.
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-22
+ 
+ 
+ 
+          pred vykonanim sa instrukcia analyzuje,  ci  neporusuje  niektoru,
+       uzivatelom stanovenu ochranu (pozri odsek 2.7.4).
+ 
+          analyzovanie instrukcie typu ldir moze trvat az 20 sekund,  je  to
+       mozne   odstranit  krokovanim  pomocou  klavesu  caps shift/s  (pozri
+       dalej).
+ 
+          krokovat mozno aj programy v pamati rom
+ 
+cs/s - krokovanie programu s ignorovanim ochran (pozri odsek 2.7.4.).
+ 
+   c - prikaz ma rovnaku funkciu ako prikaz s  ale  krokovanie  programu  sa
+       vykona  tak, ze za instrukciu sa vlozi bod prerusenia a instrukcia sa
+       vykona normalne.  tento  interny  bod  prerusenia  nesuvisi  s  bodom
+       prerusenia,  ktory  zadal  uzivatel  okrem pripadu, ze bod prerusenia
+       zadany uzivatelom je v podprograme, ktory krokujeme  prikazom  c.   v
+       tomto  pripade  sa vykonavanie programu prerusi v podprograme, ale uz
+       nie po vystupe z neho.
+ 
+          vyznam prikazu je predovsetkym  v  tom,  ze  odladene  podprogramy
+       volane  instrukciou  call  sa  vykonaju  v  normalnom  rychlo rezime.
+       podobne ako pri prikaze i (insert break) sa funkcia  neda  pouzit  na
+       programy v pamati rom.
+ 
+          rovnako ako pri krokovani prikazom s sa instrukcia pred  vykonanim
+       analyzuje.
+ 
+cs/c - ma rovnaku funkciu ako prikaz c, ale  instrukcia  sa  vykona  aj  ked
+       analyza zistila narusenie niektorej ochrany.
+ 
+cs/j - tymto prikazom sa instrukcie vypisuju, ale nevykonavaju sa  (v  tomto
+       pripade  sa samozrejme ani nic nekontroluje).  register pc sa nastavi
+       na dalsiu instrukciu.  prikaz cs/j sluzi na  preskocenie  instrukcii,
+       ktore  sa  nemaju  vykonat  (napr.   chceme  ukoncit predcasne prikaz
+       cyklu, teda nevykoname instrukciu djnz, ale  ju  preskocime  prikazom
+       cs/j).
+ 
+   t - program  sa  vykonava  v  sledovacom  rezime.   jedna  sa  vlastne  o
+       opakovany  krokovaci  rezim.   ladiaci  program kazdu instrukciu pred
+       vykonanim interpretuje a zisti ci je pripustna.  pripustne instrukcie
+       vykona,  vypise  zakladny  stav do dialogoveho riadku, ale bez vypisu
+       instrukcie v symbolickom stave, pretoze tuto informaciu v  sledovacom
+       rezime  nestihne  uzivatel  v  dialogovom riadku sledovat.  pravda ak
+       poziada o opis dialogoveho riadku do obrazovky (klavesom l), zacinaju
+       tieto  riadky znakom 't' (trace), ktory signalizuje sledovaci rezim a
+       obsahuju aj vypis instrukcie v symbolickom  tvare.   popis  moznosti,
+       ktore poskytuje sledovaci rezim pozri v odseku 2.7.4
+ 
+   n - program sa vykonava v zrychlenom sledovacom rezime.   moznosti  tohto
+       rezimu  su  rovnake  ako pri prikaze t, len sa po vykonani instrukcie
+       nevypisuje  zakladny  stav,  cim  sa   znacne   urychli   vykonavanie
+       sledovaneho programu.
+ 
+   w - prikaz umoznuje nastavit pamatove okna a okna pre  register  pc.   po
+       zadani  prikazu ladiaci program ocakava znak 'm' (memory), ak sa budu
+       definovat pamatove okna alebo znak 'p' (program counter), ak sa  budu
+       definovat okna pre register pc.  ak uzivatel napise iny znak, ladiaci
+       program prejde do zakladneho stavu, inac vypise  hodnoty  prislusnych
+       okien   -  styri  dvojice  hexadecimalnych  cisel,kde  kazda  dvojica
+       definuje jedno okno.  ak  chce  uzivatel  zmenit  niektore  z  tychto
+       osmych cisel, zada jeho poradove cislo pomocou cislice v rozsahu 1-8.
+       po napisani ineho znaku prejde ladiaci program do  zakladneho  stavu,
+    popis prace s jednotlivymi modulmi                                 strana 2-23
+ 
+ 
+ 
+       inac  ocakava  hodnotu prislusnej hranice, ktora sa zada podla odseku
+       2.7.2.  po jej napisani prejde ladiaci program do zakladneho stavu.
+ 
+          funkcia pamatovych okien je vysvetlena v odseku 2.7.4.
+ 
+   p - prikaz na zobrazenie pamatoveho  okna.   ladiaci  program  vypise  do
+       dialogoveho riadku text
+ 
+                                      p:
+ 
+       a caka hodnotu podla zasad popisanych v odseku 2.7.2.  potom vypise
+ 
+                                      l:
+ 
+       a ocakava desiatkove cislo.  adresa definuje zaciatok pamatoveho okna
+       a  cislo  l udava jeho dlzku v stvoriciach bytov (inymi slovami pocte
+       riadkov vypisu pamate).  ak sa v lubovolnom sledovacom rezime  rezime
+       zmeni  obsah  tohto  pamatoveho  okna  zobrazi  sa na obrazovku vypis
+       pamate od danej adresy l riadkov (pozri tiez prikaz d).
+ 
+          ak sa namiesto cisla stlaci len enter rusi sa funkcia zobrazovania
+       paamatoveho okna.
+ 
+   m - prikaz na modifikovanie obsahu pamati.   ladiaci  program  vypise  do
+       dialogoveho riadku text
+ 
+                                      m:
+ 
+       a caka hodnotu podla zasad  popisanych  v  odseku  2.7.2.   potom  do
+       dialogoveho  riadku  vypise  adresu  a  obsah 4 bytov od tejto adresy
+       vratane.  vypis je jednak hexadecimalny a jednak  znakovy.   uzivatel
+       moze  modifikovat  pamat zadavanim hexadecimalnych konstant a vyuziva
+       nasledujuce riadiace klavesy:
+ 
+       - caps shift/5 - prechod  na  predchadzajuci  znak.   medzery,  ktore
+                        oddeluju  byty sa automaticky skacu, ak je jazdec na
+                        prvom znaku posunie sa vypis o jeden znak  smerom  k
+                        nizsej adrese.
+ 
+       - caps shift/8 - prechod  na  nasledujuci   znak.    medzery,   ktore
+                        oddeluju byty sa automaticky skacu.  ak je jazdec na
+                        poslednom znaku,  posunie  sa  vypis  o  jeden  znak
+                        smerom k vyssim adresam
+ 
+       - caps shift/1 - zobrazia a modifikuju sa predchadzajuce 4 byty.
+ 
+       - caps shift/4 - zobrazia a modifikuju sa nasledujuce 4 byty.
+ 
+       - caps shift/symbol shift - byty modifikovane na obrazovke sa  vratia
+                        do  povodneho  stavu.  vseobecne do pamati sa zapise
+                        modifikovana svorica znakov az vtedy, ked sa  posunu
+                        po  obrazovke  tak,  ze  niektory  z  nich  zmizne z
+                        obrazovky.
+ 
+       - enter          modifikovane byty sa ulozia do pamati a riadenie  sa
+                        vrati ladiacemu programu, ktory vypise zakladny stav
+ 
+       - ascii znak     reprezentujuci  hexadecimalnu  cislicu   (0-9   a-f)
+                        prepise  cislicu,  na  ktorej  je jazdec.  jazdec sa
+                        posunie o jednu poziciu pricom sa medzery skacu.
+ 
+       - medzera        tento znak je akceptovany len ked je jazdec na prvom
+    popis prace s jednotlivymi modulmi                                 strana 2-24
+ 
+ 
+ 
+                        znaku  dvojice.   system  po nom ocakava dalsi znak.
+                        jeho kod sa ulozi na miesto oznacene jazdcom.
+ 
+       - stlacenie inej klavesy je chyba.  zaznie zvukovy signal  a  nic  sa
+                        nevykona.
+ 
+       prikaz m (a prikaz d) najcastejsie vyuziva tu  vlastnost  vstupu,  ze
+       odoslanie  prazdneho riadku nezmeni citanu hodnotu.  inymi slovami ak
+       napr.  prikazom m:#4000 prezerame  pamat  od  adresy  #4000,  tak  ak
+       najblizsie  prikaz  m:  ukoncime hned klavesom enter, opat sa zobrazi
+       pamat od #4000.
+ 
+   d - prikaz na zobrazenie pamate.  system vypise do dialogoveho riadku
+ 
+                                      d:
+ 
+       a zobrazi na obrazovku hexadecimalny a  znakovy  vypis  64  bytov  od
+       adresy,  ktoru  zadal  uzivatel.   ak  odoslal prazdny riadok, tak sa
+       pouzije  naposledy  zadana  adresa.   vypis  riadi  uzivatel   tymito
+       klavesami
+ 
+               klavesom caps shift/6 sa zobrazi nasledujucich 64 bytov
+               klavesom caps shift/7 sa zobrazi predchadzajucich 64 bytov
+               klavesom a specifikuje znakovy retazec (pozri dalej)
+               klavesom  h  specifikuje  retazec  hexadecimalnych   konstant
+       (pozri dalej)
+               klavesom enter sa riadenie vrati ladiacemu programu.
+ 
+       ine klavesy su povazovane za chybne.
+ 
+ 
+          ak  uzivatel  pouzije  prikaz  a  (resp.   h)  system  vypise   do
+       dialogoveho riadku
+ 
+                                 a: (resp. h:)
+ 
+       a ocakava retazec znakov (resp.  hexadecimalnych konstant).  pri  ich
+       zadavani  je  mozne  opravovat chyby klavesom cs/0, retazec sa ukonci
+       klavesom enter.  pri chybne zadanom retazci zaznie zvukovy signal.
+ 
+          editor vyhlada retazec v pamati a urobi jej  vypis  na  obrazovku.
+       ak sa dany retazec v pamati nenajde zaznie zvukovy signal.  ak sa pri
+       hladani retazca zisti koniec pamate system automaticky  pokracuje  od
+       zaciatku.
+ 
+          ak sa zada  prazdny  retazec  system  vyhladava  novy  vyskyt  prv
+       zadaneho  retazca.   ak  este  nebol  retazec  zadany hlada sa vyskyt
+       prveho bytu vypisu pamate.
+ 
+   a - prikaz na spaetny preklad s vypisom  na  obrazovku.   do  dialogoveho
+       riadku sa vypise text
+                                      a:
+ 
+       a na obrazovku sa zobrazi spaetny preklad 21 riadkov od adresy, ktoru
+       zada  uzivatel.   opatovnym  stlacanim klavesu a sa vypise vzdy dalsi
+       riadok spatneho prekladu.  stlacenim klavesu enter sa system vrati do
+       zakladneho stavu.
+ 
+   x - tento klaves sluzi ako prepinac.  jeho opaetovnym stlacanim vymiename
+       sadu  registrov  za  alternativne  registre.  inymi slovami stlacenim
+       klavesu x vykoname instrukcie exx aj ex  af,af'.
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-25
+ 
+ 
+ 
+   l - tymto prikazom  urci  uzivatel,  kolko  riadkov  sa  ma  zobrazit  na
+       obrazovke.  system do dialogoveho riadku vypise
+ 
+                                      n:
+ 
+       a ocakava pocet riadkov.  pred  vypisom  zakladneho  stavu  sa  potom
+       posuva  obrazovka  o  2  riadky  hore,  cim sa predchadzajuci stavovy
+       riadok opise do obrazovky pricom  sa  na  to  vyuzije  n  dvojriadkov
+       obrazovky.  ak n=0 pouziva sa len dialogovy riadok, ale v rezime t sa
+       vypisuje aj instrukcia v  zdrojovom  tvare.   ak  sa  namiesto  cisla
+       stlaci enter tak sa tato vlastnost zrusi.
+ 
+ 
+ 
+ 
+2.7.4  ladenie programov
+ 
+   sledovaci rezim (prikazy t alebo n) je velmi silny prostriedok na ladenie
+programov.   pri  jeho  navrhu  bol  sledovany  hlavny  ciel  -  uzivatel  v
+sledovacom rezime nesmie stratit vladu nad svojim programom.   kontrolu  nad
+programom moze stratit tromi sposobmi:
+ 
+   - prepisanim pamati
+   - vykonanim zakazanej instrukcie
+   - zacyklenim programu
+ 
+   ladiaci program teda musi poskytnut uzivatelovi moznost chranit lubovolnu
+cast  pamate  pred  prepisanim,  filtrovat  niektore  instrukcie  a  umoznit
+prerusenie programu.  toto je dosiahnute nasledovne:
+ 
+   - v sledovacom rezime nie je  mozne  prepisat  adresy  pamate,  ktore  sa
+     nachadzaju  v niektorom pamatovom okne.  ak teda mame niektore pamatove
+     okno nastavene ako interval aaaa bbbb,  tak  adresy  od  aaaa  do  bbbb
+     vcitane  nie  je  mozne v sledovacom rezime prepisat.  pri pokuse o ich
+     modifikovanie  sa  riadenie  vrati  ladiacemu  programu,  ktory  vypise
+     zakladny   stav.   tento  vypis  zacina  znakom  'm',  (memory),  ktory
+     signalizuje, ze doslo k pokusu modifikovat chranenu pamat.
+ 
+        ak uzivatel spustil program pomocou prikazu  editora  ald,  je  prve
+     pamatove   okno  inicializovane  tak,  ze  je  chraneny  zdrojovy  text
+     uzivatela.
+ 
+   - v zakladnom module kniznice je 16 bytov, pomocou ktorych uzivatel  moze
+     definovat  ilegalne  instrukcie.   ak  pri vykonavani programu prikazom
+     s,c,t alebo n ladiaci program zisti, ze ma vykonat instrukciu, ktora je
+     v  tomto  zozname  ,vykonavanie  programu  sa  prerusi a do dialogoveho
+     riadku sa vypise zakladny stav, pricom sa nastavi status='i' (illegal).
+ 
+        uvedenych 16 bytov je pod vstupnym bodom ii, teda uzivatel  definuje
+     ilegalne instrukcie normalne prikazom modify (m:ii).  zoznam ilegalnych
+     instrukcii musi byt zakonceny instrukciou nop (00), ktora  teda  nemoze
+     byt ilegalna.
+ 
+        instrukcie  sa  zadavaju  jednym  bytom  (operacnym  znakom),  okrem
+     instrukcii  s  prefixom  #ed, ktore sa zadavaju dvoma bytmi (teda #ed a
+     este jeden byte).  teda ako ilegalnu instrukciu  mozno  definovat  celu
+     triedu  instrukcii  s  prefixom  #cb (rotacie, posuny bitove operacie),
+     instrukcie, ktore pracuju z registrom ix (prefix  #dd),  ale  aj  napr.
+     konkretne  instrukciu  ldir  (byty  #ed,#b0) alebo instrukciu exx (byte
+     #d9)
+ 
+    popis prace s jednotlivymi modulmi                                 strana 2-26
+ 
+ 
+ 
+        v zakladnom module sysmod je ako ilegalna definovana instrukcia halt
+     (#76).
+ 
+        instrukcie definovane ako ilegalne mozno vykonat prikazmi cs/s alebo
+     cs/c.
+ 
+        okrem ilegalnych  instrukcii  definovanych  uzivatelom  sa  rovnakym
+     sposobom  vyhodnocuju  byty,  ktorych  kombinacia nema pre procesor z80
+     vyznam (napr.  byty #dd,#fd).  v takomto  pripade  je  tiez  status  vo
+     vypise  ladiaceho  programu  'i' (illegal), ale krokovanim s vypustenim
+     kontroly (prikazmi cs/s  alebo  cs/c)  sa  takato  ilegalna  instrukcia
+     nevykona, ale sa preskoci jej prvy byte.
+ 
+   - pred vykonanim kazdej instrukcie v sledovacom  rezime  zistuje  ladiaci
+     program,  ci  nebol  stlaceny  klaves  cs/medzera.  ak ano, vykonavanie
+     programu sa prerusi a  ladiaci  program  prejde  do  zakladneho  stavu.
+     tymto  klavesom  je  teda  mozne  prerusit  program pocas vykonavania a
+     pokracovat dalej krokovanim alebo spustit normalne program prikazom g.
+ 
+   - obdobnu funkciu ako pamatove okna maju aj okna pre  register  pc.   ich
+     vyuzitie  nie  je  take  kriticke  ako vyuzitie pamatovych okien, kedze
+     ladiaci program vie sledovat alebo krokovat aj programy v  pamati  rom.
+     to  znamena,  ze  aj ked ma register pc akukolvek hodnotu, neznamena to
+     stratu kontroly nad  programom.   aj  tak  je  pouzitie  okien  pre  pc
+     uzitocne, uzivatel pomocou nich moze realizovat dalsie body, ba dokonca
+     cele  oblasti  prerusenia.   na  rozdiel  od  pamatovych  okien,  ktore
+     zakazuju   vykonanie  instrukcie,  okna  pre  register  pc  ich  naopak
+     povoluju.  to znamena, ze instrukcia sa vykona len  vtedy,  ak  hodnota
+     registra pc padne aspon do jedneho okna.  pri spusteni programu je prve
+     okno  pre  register  pc  inicializovane  na  interval  0000-ffff,  teda
+     register pc moze nadobudat akekolvek hodnoty.
+ 
+ 
+ 
+ 
+ 
+                                 kapitola  3
+ 
+                                   zaver
+ 
+ 
+ 
+   system  mrs  bol  vyvinuty  na  ustave  aplikovanej  kybernetiky  a  jeho
+vlastnikom  je  tento  ustav.   pre  zx spectrum  je  volne  pristupny,  ale
+distribuovat je povolene len verziu oficialne schvalenu a len  za  podmienok
+uvedenych v copyrighte (program zadarmo).
+ 
+   rovnako je zakazane prenasat program na ine systemy  bez  suhlasu  ustavu
+aplikovanej   kybernetiky.    autori  mrs  su  ochotni  preniest  programove
+vybavenie do ineho technickeho prostredia za predpokladu,  ze  dany  pocitac
+bude  zapozicany  na  ustav  aplikovanej kybernetiky a ze je moznost prenosu
+suborov do tohto pocitaca ci uz cez seriovy alebo paralelny interface  alebo
+nejake nosne medium.
+ 
+   este mi pripada mila povinnost spomenut  vsetkych,  ktori  sa  na  tvorbe
+systemu podielali, kedze inac nic z toho nemaju.
+ 
+   ivan jedlicka navrhol system a realizoval moduly edi, lnk a lib.
+ 
+   igor titka realizoval modul dbg.
+ 
+   milan tvarozek realizoval modul asm a tie casti modulu edi, ktore suvisia
+s  prekladacom  (vytvaranie zhusteneho formatu zdrojoveho textu a ich prevod
+do textoveho tvaru, spaetny preklad).
+ 
+   ivan fedorko realizoval modul prace s klaviaturou.
+ 
+   peter  ondris  a  marian  prikryl  realizovali  paralelny  interface  pre
+zx spectrum cim vlastne umoznili, aby sa mrs do spectra vobec dostal.
+ 
+   miroslav adamy nasiel v pracovnej verzii viac chyb ako hocikto iny.
+ 
+   robert vasicek dal uzivatelskej prirucke jej pekny tvar.
+ 
+   no a samozrejme aj vedenie ustavu  aplikovanej  kybernetiky,  ktore  celu
+pracu umoznilo.
+ 
+   pripadne dalsie informacie o  systeme  ako  aj  o  dalsich  realizovanych
+programoch moze podat
+ 
+ 
+                        rndr. ivan jedlicka
+                        ustav aplikovanej kybernetiky
+                        hanulova 5/a
+                 844 16 bratislava
+ 
+ 
+ 
+ 
+ 
+                                 priloha  a
+ 
+                               p r i l o h a
+ 
+ 
+ 
+;
+;                               b n d c
+;
+bndc:   ld      a,1
+bd0:    ld      d,b
+        ld      e,c
+        ld      c,a
+        ex      de,hl
+        push    bc
+bd1:    xor     a
+        ld      b,16
+bd2:    add     hl,hl
+        adc     a,a
+        cp      10
+        jr      c,bd3
+        sub     10
+        inc     l
+bd3:    dec     b
+        jr      nz,bd2
+        or      30h
+        push    af
+        ld      a,l
+        or      h
+        jr      nz,bd1
+        ex      de,hl
+        inc     a
+        cp      c
+        sbc     a,a
+        ld      b,a
+bd4:    pop     af
+        ret     c
+        ld      (hl),a
+        add     hl,bc
+        jr      bd4
+;
+bnhx2:  ld      a,d
+        call    bnhx
+        ld      a,e
+;
+;                               b n h x
+;
+bnhx:   push af
+        rrca
+        rrca
+        rrca
+        rrca
+        call    bnhx1
+        pop     af
+bnhx1:  and     #0f
+        add     a,#90
+        daa
+        adc     a,#40
+        daa
+        or      #20
+dnum:   ld      (hl),a
+    p r i l o h a                                                       strana a-2
+ 
+ 
+ 
+        inc     hl
+        ret
+;
+;                               h x b n
+;
+hxbn:   ld      de,0
+        ld      a,(hl)
+        call    hxbn1
+        ret     c
+        ex      de,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        ex      de,hl
+        or      e
+        ld      e,a
+        inc     hl
+        jr      hxbn+3
+hxbn1:  add     a,#c6
+        jr      c,hxbn2
+        sub     #f6
+        ret
+hxbn2:  and     #df
+        sub     7
+        ret     c
+        add     a,#fa
+        ret     c
+        sub     #f0
+        ret
+;
+;                               d c b n
+;
+dcbn:   ld      de,0
+        ld      a,(hl)
+        cp      #3a
+        ret     nc
+        sub     #30
+        ret     c
+        ex      de,hl
+        push    bc
+        add     hl,hl
+        ld      b,h
+        ld      c,l
+        add     hl,hl
+        add     hl,hl
+        add     hl,bc
+        ld      c,a
+        ld      b,0
+        add     hl,bc
+        pop     bc
+        ex      de,hl
+        inc     hl
+        jr      dcbn+3
+;
+;k o n s t a n t y   a   d a t a   p r e   d a l s i e   m o d u l y
+;
+kport   equ     #fe
+shf1    equ     1
+shf2    equ     37
+maxc    equ     64
+maxcs   equ     31
+    p r i l o h a                                                       strana a-3
+ 
+ 
+ 
+maxr    equ     23
+chleft  equ     #19
+chrght  equ     #18
+crlf    equ     #0d
+pe      equ     #0c
+lf      equ     #0a
+sysbep  equ     #3b5
+krept:  db      0
+lastk:  db      0
+ktab0:  db      0,'zxcvasdfgqwert12345'
+        db      '09876poiuy',0dh,'lkjh'
+        db      ' ',0,'mnb'
+ktab1:  db      0,'zxcvasdfgqwert'
+        db      #1e,#1f,#1c,#1d,#19
+        db      #13,#12,#18,#17,#1a
+        db      'poiuy',5,'lkjh'
+        db      #11,#07,'mnb'
+ktab2:  db      0,#3a,0,#3f,#2f,0,0,0,0,0
+        db      0,0,0,#3c,#3e,'!@#$%'
+        db      '_)(',#27,'&";',0,0,0
+        db      3,'=+-^',#14,0,'.,*'
+poscur: dw      #5800
+cursor:
+row:    ds      1
+column: ds      1
+;
+;r o z n e   p o m o c n e   p o d p r o g r a m y
+;
+abscrs: ld      a,h
+        rrca
+        rrca
+        rrca
+        and     #e0
+        or      l
+        ld      l,a
+        ld      a,h
+        and     #18
+        or      #40
+        ld      h,a
+        ret
+;
+setchr: ld      hl,(cursor)
+setch0: push    af
+        call    abscrs
+        pop     af
+;
+pixel:  push    hl
+        push    de
+        push    bc
+        ex      de,hl
+        ld      l,a
+        ld      h,0
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        ld      bc,#3c00
+        add     hl,bc
+        ld      b,8
+px1:    ld      a,(hl)
+        ld      (de),a
+        inc     d
+        inc     hl
+    p r i l o h a                                                       strana a-4
+ 
+ 
+ 
+        djnz    px1
+        pop     bc
+        pop     de
+        pop     hl
+        ret
+;
+iiid:   push    hl
+        push    bc
+        ld      a,8
+iid1:   ld      bc,32
+        push    de
+        push    hl
+        ldir
+        pop     hl
+        pop     de
+        inc     h
+        inc     d
+        dec     a
+        jr      nz,iid1
+        pop     bc
+        pop     hl
+        ret
+;
+idelln: ld      hl,(cursor)
+        sub     h
+        ret     z
+        ld      b,a
+        ld      l,0
+        call    abscrs
+ii0:    ld      d,h
+        ld      a,l
+        add     a,32
+        ld      e,l
+        ld      l,a
+        jr      nz,ii1
+        ld      a,8
+        add     a,h
+        ld      h,a
+ii1:    call    iiid
+        djnz    ii0
+        ret
+;
+iinsln: ld      a,maxr-1
+        ld      hl,(cursor)
+        sub     h
+        ret     z
+        ret     c
+        ld      hl,#50a0
+        ld      de,#50c0
+        ld      b,a
+id0:    call    iiid
+        ex      de,hl
+        ld      a,e
+        sub     32
+        ld      l,a
+        ld      h,d
+        jr      nc,id1
+        ld      a,d
+        sub     8
+        ld      h,a
+id1:    djnz    id0
+        ret
+    p r i l o h a                                                       strana a-5
+ 
+ 
+ 
+;
+scroll: ld      hl,(cursor)
+scrol1: ld      a,maxr
+        push    hl
+        push    de
+        ld      hl,0
+        ld      (cursor),hl
+        call    idelln
+        pop     de
+        pop     hl
+        ld      (cursor),hl
+        ret
+;
+;                               s c a n
+;
+scan:   push    bc
+        ld      bc,kport
+        in      a,(c)
+        pop     bc
+        cpl
+        and     #1f
+        ret     z
+        push    bc
+        push    de
+        push    hl
+        ld      bc,kport+#fe00
+        ld      hl,0
+        ld      e,1
+ks3:    in      a,(c)
+        ld      d,5
+ks4:    rrca
+        jr      c,ks1
+        inc     h
+        dec     h
+        jr      nz,kerr
+        ld      h,l
+        ld      l,e
+ks1:    inc     e
+        dec     d
+        jr      nz,ks4
+        rlc     b
+        jr      c,ks3
+        ex      de,hl
+        ld      hl,ktab0-1
+        inc     d
+        dec     d
+        jr      z,kte
+        inc     e
+        dec     e
+        jr      z,addd
+        ld      hl,ktab1-1
+        ld      a,shf1
+        cp      d
+        jr      z,adde
+        cp      e
+        jr      z,addd
+        ld      hl,ktab2-1
+        ld      a,shf2
+        cp      d
+        jr      z,adde
+        cp      e
+        jr      z,addd
+    p r i l o h a                                                       strana a-6
+ 
+ 
+ 
+kerr:   xor     a
+kret:   pop     hl
+        pop     de
+        pop     bc
+        ret
+addd:   ld      e,d
+adde:   ld      d,0
+        add     hl,de
+        ld      a,(hl)
+        jr      kret
+kte:    inc     e
+        dec     e
+        jr      z,kerr
+        jr      adde
+;
+;                               i n k e y
+;
+inkey:  push    bc
+inkey1: call    scan
+        or      a
+        jr      nz,in3
+        ld      (lastk),a
+        jr      inkey1
+in3:    ld      bc,#1000
+wait1:  dec     c
+        jr      nz,wait1
+        djnz    wait1
+        ld      c,a
+        call    scan
+        cp      c
+        jr      nz,inkey1
+        ld      a,(lastk)
+        cp      c
+        jr      z,repeat
+        ld      a,250
+        jr      sin1
+repeat: ld      a,(krept)
+        ld      b,a
+rep1:   xor     a
+rep2:   dec     a
+        jr      nz,rep2
+        call    scan
+        cp      c
+        jr      nz,inkey1
+        djnz    rep1
+        ld      a,25
+sin1:   ld      (krept),a
+        ld      a,c
+        ld      (lastk),a
+        push    hl
+        push    de
+        push    af
+        ld      hl,80
+        ld      de,20
+        call    sysbep
+        pop     af
+        pop     de
+        pop     hl
+        pop     bc
+        ret
+;
+;
+    p r i l o h a                                                       strana a-7
+ 
+ 
+ 
+;                               o u t c h r
+;
+outchr: cp      lf
+        ret     z
+        cp      pe
+        ret     z
+        push    hl
+        ld      hl,(cursor)
+        cp      #20
+        jp      c,spec
+        push    hl
+        call    setchr
+        pop     hl
+        inc     l
+        ld      a,maxcs+1
+        sub     l
+        jr      nz,newc
+newl:   ld      l,a
+        ld      a,h
+        sub     maxr-1
+        adc     a,maxr-1
+        ld      h,a
+        call    nc,scrol1
+newc:   ld      (cursor),hl
+        pop     hl
+        ret
+spec:   sub     crlf
+        jr      z,newl
+        ld      de,newc
+        push    de
+        sub     chleft-crlf
+        jr      z,lvlavo
+        sub     chrght-chleft
+        ret     nz
+        ld      a,maxc-2
+        cp      l
+        ret     c
+        inc     l
+        ret
+lvlavo: dec     l
+        ret     p
+        inc     l
+        ret
+;
+;                               i n v p i x
+;
+invpix: push    hl
+        push    bc
+        call    abscrs
+        ld      b,8
+ipx1:   ld      a,(hl)
+        cpl
+        ld      (hl),a
+        inc     h
+        djnz    ipx1
+        pop     bc
+        pop     hl
+        ret
+;
+;                               s e t c r s
+;
+setcrs: push    hl
+    p r i l o h a                                                       strana a-8
+ 
+ 
+ 
+        ld      hl,(poscur)
+        res     7,(hl)
+        pop     hl
+        push    hl
+        push    de
+        ld      a,l
+        cp      maxcs+1
+        jr      c,scr1
+        ld      a,maxcs
+scr1:   ld      d,#58
+        ld      e,a
+        ld      l,h
+        ld      h,0
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,hl
+        add     hl,de
+        pop     de
+        ld      (poscur),hl
+        set     7,(hl)
+        pop     hl
+        ld      (cursor),hl
+        ret
+;
+;                               c l e a r
+;
+clear:  ld      hl,#4000
+        ld      de,#4001
+        ld      bc,#1800
+        ld      (hl),0
+        ldir
+        ld      (poscur),hl
+        ld      (hl),#38
+        ld      bc,#300-1
+        ldir
+        ret
+ 
+ 
+ 
+ 
+ 
+ 
+                                   obsah
+ 
+ 
+ 
+1.  uvod  . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .  1-1
+ 
+2.  popis prace s jednotlivymi modulmi  . . . . . . . . . . . . . . . .  2-1
+ 
+    2.1  spustenie systemu  . . . . . . . . . . . . . . . . . . . . . .  2-1
+    2.2  riadiaci modul . . . . . . . . . . . . . . . . . . . . . . . .  2-1
+    2.3  editor . . . . . . . . . . . . . . . . . . . . . . . . . . . .  2-2
+         2.3.1  prikazovy rezim . . . . . . . . . . . . . . . . . . . .  2-2
+         2.3.2  obrazovkovy rezim . . . . . . . . . . . . . . . . . . .  2-5
+         2.3.3  pisanie riadku  . . . . . . . . . . . . . . . . . . . .  2-7
+         2.3.4  chybove hlasenia  . . . . . . . . . . . . . . . . . . .  2-9
+    2.4  prekladac zostavovacieho jazyka  . . . . . . . . . . . . . . .  2-9
+         2.4.1  spustenie prekladu  . . . . . . . . . . . . . . . . . .  2-9
+         2.4.2  vyhodnotenie vyrazov  . . . . . . . . . . . . . . . . . 2-10
+         2.4.3  riadenie prekladu pseudoinstrukciami a direktivami  . . 2-11
+         2.4.4  ulozenie modulu do kniznice - pseudoinstrukcia org  . . 2-12
+         2.4.5  pouzitie tlaciarne  . . . . . . . . . . . . . . . . . . 2-12
+         2.4.6  chybove oznamy  . . . . . . . . . . . . . . . . . . . . 2-13
+         2.4.7  pouzitie relativnych skokov . . . . . . . . . . . . . . 2-14
+    2.5  spojovaci program  . . . . . . . . . . . . . . . . . . . . . . 2-14
+    2.6  program na obsluhu binarnej kniznice . . . . . . . . . . . . . 2-14
+         2.6.1  ovladanie programu na obsluhu kniznic . . . . . . . . . 2-15
+         2.6.2  zakladny modul kniznice . . . . . . . . . . . . . . . . 2-16
+    2.7  ladiaci program  . . . . . . . . . . . . . . . . . . . . . . . 2-19
+         2.7.1  uvod  . . . . . . . . . . . . . . . . . . . . . . . . . 2-19
+         2.7.2  zadavanie hodnoty veliciny pre ladiaci program  . . . . 2-20
+         2.7.3  prikazy pre ladiaci program . . . . . . . . . . . . . . 2-20
+         2.7.4  ladenie programov . . . . . . . . . . . . . . . . . . . 2-25
+ 
+3.  zaver . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .  3-1
+ 
+a.  p r i l o h a . . . . . . . . . . . . . . . . . . . . . . . . . . .  a-1
+

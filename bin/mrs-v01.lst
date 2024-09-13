@@ -1,0 +1,11 @@
+
+ZX Spectrum TAP format analyzer 1.04 (c) 1996 Busy soft
+
+File: MRS-V01.TAP  (length 10799 bytes)
+  Offset     Len Flg Type Name          Len   Add   Bas
+ ------- ------- --- ---- ---------- ------ ----- -----
+       0      17   0 prog mrs            88     0    88 
+     113      17   0 code mrs.V01     10459 54528 32768 
+   10597      17   0 code sysmod        177 24576     0 
+ ------- ------- --- ---- ---------- ------ ----- -----
+   10799   10787 End of MRS-V01.TAP   10724 Items:6

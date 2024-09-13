@@ -1,0 +1,583 @@
+           Ukazme si pouzitie strojoveho kodu a systemu MRS na  jednom
+      ucelenom  priklade.  Pri  jeho  vybere  som  sa snazil zohladnit
+      niekolko  protirecivych  kriterii.   Program  by  mal   priniest
+      prakticky  uzitok,  mal  by  dokumentovat vyhody strojoveho kodu
+      pred Basicom, mal by  byt dostatocne jednoduchy, ale  zaroven aj
+      primerane zlozity.
+ 
+           Po dlhsich uvahach som nakoniec vybral program na triedenie
+      textovych  retazcov  podla  abecedy.  To  je  problem,  ktory sa
+      pomerne casto vyskytuje a triedenie napisane v jazyku BASIC trva
+      neznesitelne  dlho.  Existuju  rozne  algoritmy,  ale  najvecsie
+      zrychlenie dosiahneme ak dany modul napiseme v strojovom kode. V
+      dalsom texte  je niekolko  malo umyselnych  chyb, aby  som mohol
+      ukazat postup pri ich odhalovani a opravovani.
+ 
+           Vyvoj  kazdeho  programu  prebieha  v  troch etapach: navrh
+      algoritmu, jeho  zapis vo  zvolenom programovacom  jazyku a jeho
+      napisanie  a  odladenie  na  prislusnom  pocitaci.  Nas  ciel je
+      vytvorit  modul,  ktory  bude  volatelny  z  jazyka BASIC a bude
+      triedit   udaje,   ktore   budu   v   tomto   jazyku  vytvorene.
+      Predpokladame,  ze  je  definovane  pole  retazcov  prikazom DIM
+      A$(N,M), cim je definovane  pole N textovych retazcov,  kazdy ma
+      dlzku  M  znakov.  Podla  informacii  z prirucky pre ZX Spectrum
+      (kapitola 24), su premenne  v pameti Spectra ulozene  od adresy,
+      ktorej  hodnota  je  ulozena  na  adrese VARS=23627. Bez ujmy na
+      vseobecnosti mozme predpokladat, ze premenna A$(N,M) je  ulozena
+      ako prva, staci  ak ju ako  prvu definujeme v  nasom programe. Z
+      tvaru ulozenia tejto premennej,  tak ako je popisany  v kapitole
+      24 vyplyva,  ze na  adrese (VARS)+4  je v  dvoch bytoch  ulozena
+      hodnota N=pocet retazcov a na adrese (VARS)+6 je v dvoch  bytoch
+      ulozena hodnota M=dlzka retazca.  Od adresy (VARS)+8 su  ulozene
+      za sebou jednotlive retazce. Pripominam este, ze zapisom  (VARS)
+      oznacujem 2-bytovu hodnotu ulozenu na adrese VARS.
+ 
+           Na   triedenie   retazcov   pouzijeme   velmi    jednoduchy
+      algoritmus. Prechadzame  postupne mnozinu  retazcov a  porovname
+      vzdy dva  susedne. Pritom  sa vyuzije  skutocnost, ze  ASCII kod
+      znaku  je  priamo  umerny  jeho  poradiu  v abecede, porovnavame
+      vlastne numericke hodnoty dvojic znakov na rovnakych poziciach v
+      porovnavanej dvojici retazcov.  Prva dvojica vzajomne  odlisnych
+      znakov   uda   zaroven   aj   porovnanie   retazcov  v abecednom
+      usporiadani.
+ 
+           Ak pre porovnavanu  dvojicu retazcov zistime  inverziu, tak
+      tieto dva retazce vzajomne vymenime, tento fakt si poznacime  do
+      nejakej  premennej  a  pokracujeme  v  porovnavanie nasledujucej
+      dvojice   retazcov.   Ked   prejdeme   celu   mnozinu   retazcov
+      skontrolujeme, ci sme v  tomto prechode vykonali nejaku  vymenu.
+      Ak ano zopakujeme cely cyklus znova, inac su retazce zotriedene.
+ 
+           Tento velmi jednoduchy postup doplnime jednou fintou, ktora
+      nas  program  trochu  skomplikuje,  ale  najme triedenie dlhsich
+      retazcov  sa  vyznamne  zrychli.  Pre  dane retazce si vytvorime
+      zoznam adries, na ktorych sa nachadzaju. Prechadzat budeme potom
+      tento zoznam adries  a namiesto vymeny  dvoch retazcov (co  mozu
+      byt i stovky bytov) budeme vymienat len dvojbytove adresy. Pocas
+      triedenia sa teda poprehadzuju len tieto adresy, ktore na  konci
+      obsahuju informacie.
+ 
+           V  zozname  adries  je  vlastne  adresa  i-teho  retazca  v
+      abecednom triedeni. Na zaklade tychto informacii  poprehadzujeme
+      retazce  v  poli  A$(N,M).  Ak  nechceme  pre zotriedene retazce
+      rezervovat  nove  miesto  v  pameti,  musime si trosku ponamahat
+      rozum a vymysliet algoritmus, ako ich vymienat v povodnom  poli,
+      s pouzitim len jedneho pomocneho retazca. Tato cast algoritmu je
+      z celeho programu najzlozitejsia, doporucujem citatelovi, aby sa
+      pokusil problem pochopit a vyriesit samostatne a az potom  citat
+      dalej.
+ 
+         Body 1 - 4 opakujem pre i=1 az N-1, kde N je pocet retazcov.
+ 
+      1. Vezmem i-tu  hodnotu so  zoznamu adries,  tato hodnota  udava
+         teda adresu retazca,  ktory je na  i-tej pozicii v  abecednom
+         triedeni.
+      2. Retazec  na  tejto  adrese  vymenim  s  i-tym retazcom v poli
+         A$(N,M).
+      3. V zostavajucich adresach v zozname adries, teda na  poziciach
+         i+1 az N najdem adresu i-teho retazca z pola A$(N,M).
+      4. Namiesto  tejto  hodnoty  zapisem  i-tu  hodnotu  zo  zoznamu
+         adries.  Takym  sposobom  zoznam  adries  zachyti stav, ktory
+         vznikol v poli A$(N,M) vymenou dvojice retazcov.
+ 
+           Nesmieme zabudnut, ze vzdy musi platit, ze hodnota na i-tej
+      pozicii v  zozname adries  musi udavat  adresu i-teho  retazca v
+      abecednom triedeni.
+ 
+           Napisme  teraz  uvedeny  algoritmus  v  zostavovacom jazyku
+      procesora Z80. Hlavny program sa  sklada z troch casti a  jednej
+      samostatnej  procedury  na  porovnavanie  retazcov. Ako pracovne
+      pametove bunky potrebuje premenne FLAG, LENGTH, COUNT a  ADDSTR,
+      ktore definujeme prikazmi prekladaca DS. Premenne v jazyku BASIC
+      su ulozene od adresy, ktorej  hodnota je na adrese VARS.  Zoznam
+      adries budeme vytvarat na zaciatku volnej pameti, adresa  volnej
+      pameti je na adrese RAMTOP a ako pracovnu pamet pouzijeme  pamet
+      pouzivanu na pracu s tlaciarnou,  ktora je na adrese 23296  a ma
+      dlzku 256 bytov. Na tuto dlzku teda obmedzime dlzku  sortovanych
+      retazcov. V  dalsom budeme  vlastny text  programu pisat velkymi
+      pismenami, ak ho  chce citatel prepisat  do Spectra musi  pouzit
+      male pismena, lebo len tieto pismena system MRS pozna. Teda uvod
+      nasho programu moze vyzerat takto:
+ 
+      ;
+      ;SSORT - USPORIADANIE RETAZCOV V POLI A$(N,M) PODLA ABECEDY
+      ;
+      ;VSTUP: POLE A$(N,M), KTORE MUSI BYT DEFINOVANE AKO PRVA
+      ;       PREMENNA V PROGRAME V JAZYKU BASIC, DLZKA RETAZCA
+      ;       (HODNOTA M) MAXIMALNE 256.
+      ;
+      ;VYSTUP: RETAZCE V POLI A$(N,M) SU ZORADENE PODLA ABECEDY
+      ;
+      TMPBUF EQU  23296               ADRESA PRACOVNEJ PAMATE
+      VARS   EQU  23627               ADRESA ADRESY PREMENNYCH
+      RAMTOP EQU  23730               ADRESA ADRESY VOLNEJ PAMATE
+      FLAG   DS   1                   INDIKATOR VYMENY RETAZCOV
+      LENGTH DS   2                   DLZKA RETAZCA
+      COUNT  DS   2                   POCET RETAZCOV
+      ADDSTR DS   2                   ADRESA ULOZENIA RETAZCOV
+ 
+           Napisme  najprv  proceduru  porovnavanie  retazcov s nazvom
+      CMPS. Vstup do procedury su adresy dvoch porovnavanych  retazcov
+      v registrovych paroch BC, DE, dlzka retazca je na adrese  LENGTH
+      a vystup procedury bude v priznaku Cy.
+ 
+      ;
+      ;CMPS - PROCEDURA NA POROVNANIE DVOJICE RETAZCOV
+      ;
+      ;VSTUP: <BC>,<DE> - ADRESY RETAZCOV
+      ;VYSTUP: Cy=1 RETAZEC NA ADRESE <DE> JE ZA RETAZCOM NA ADRESE
+      ;             <BC> V ABECEDNOM USPORIADANI
+      ;MENI SA: <AF>
+      ;
+      CMPS   PUSH HL                  UCHOVANIE REGISTROV
+             PUSH DE
+             PUSH BC
+             LD   HL,(LENGTH)
+             EX   DE,HL
+      ;
+      ;<BC>,<HL> - ADRESY RETAZCOV, <DE> - DLZKA RETAZCA
+      ;
+      D1     LD  A,(BC)
+             CP  (HL)                 POROVNAJ DVOJICE ZNAKOV
+             JR  NZ,D1                ZNAKY SA NEROVNAJU
+             INC HL                   <HL> A  <BC>  UKAZUJU
+             INC BC                   NA DALSIU DVOJICU ZNAKOV.
+             DEC DE                   ZNIZ A OTESTUJ POCITADLO
+             LD  A,D                  POROVNANYCH ZNAKOV
+             OR  E                    <DE> = 0 ?
+             JR  NZ,D1                NIE, POKRACUJ DALSOU DVOJICOU
+      D2     POP BC                   OBNOV REGISTRE
+             POP DE
+             POP HL
+      ;
+      ;CY = 1 AK HODNOTA ZNAKU NA ADRESE <HL> JE VACSIA AKO NA
+      ;       HODNOTA ZNAKU NA ADRESE <BC>.
+      ;CY = 0 AK SU RETAZCE ROVNAKE ALEBO HODNOTA ZNAKU NA ADRESE
+      ;       <HL> JE MENSIA AKO HODNOTA ZNAKU NA ADRESE <BC>.
+ 
+             RET
+ 
+           Prva  cast  programu   pripravi  pole  adries   a  prevezme
+      informacie  o  pocte  a  dlzke  retazcov. Zoznam adries retazcov
+      zakoncime  dvoma  nulovymi  bytmi  (teda  adresou 0), ktora bude
+      sluzit ako zarazka. Ak pri prezerani zoznamu adries narazime  na
+      adresu 0 znamena to, ze sme presli cely zoznam.
+ 
+      SSORT  LD   HL,(RAMTOP)
+             INC  HL
+             PUSH HL                  TU SA VYTVORI ZOZNAM ADRIES
+             LD   HL,(VARS+4)
+             LD   (COUNT),HL          POCET RETAZCOV
+             LD   HL,(VARS+6)
+             LD   (LENGTH),HL         DLZKA RETAZCA
+             LD   HL,VARS+8
+             LD   (ADDSTR),HL         ADRESA PRVEHO RETAZCA
+      ;
+      ;STACK - ADRESA ZOZNAMU ADRIES, BC - DLZKA RETAZCA
+      ;HL - ADRESA PRVEHO RETAZCA, DE - POCET RETAZCOV
+      ;
+      A1     EX   DE,HL               HL-POCET, DE-ADRESA RETAZCOV
+             EX   (SP),HL             HL-ADRESA ZOZNAMU, STACK-POCET
+             LD   (HL),E              DO ZOZNAMU SA ULOZI
+             INC  HL                  ADRESA DALSIEHO RETAZCA
+             LD   (HL),D              NAJPRV NIZSI, POTOM VYSSI BYTE
+             INC  HL
+             EX   (SP),HL             HL-POCET, STACK-ADRESA ZOZNAMU
+             EX   DE,HL               DE-POCET, HL-ADRESA RETAZCOV
+             ADD  HL,BC               HL NA DALSI RETAZEC
+             DEC  DE                  ZNIZ POCITADLO RETAZCOV
+             LD   A,D                 TESTUJ POCITADLO DE
+             OR   E                   NA 0
+             JR   NZ,A1               ZOZNAM ADRIES NEUPLNY
+             POP  HL                  HL-ADRESA KONCA ZOZAMU ADRIES
+             LD   (HL),A              ZOZNAM ADRIES ZAKONCIME
+             INC  HL                  DVOMA NULOVYMI BYTMI
+             LD   (HL),A              VYUZIJEME, ZE A=0
+ 
+           Druha  cast  programu  vykona  vlastne  triedenie retazcov,
+      pricom ich usporiadanie sa zachyti v poli adries.
+ 
+      B1     XOR  A                   VYNULUJ A
+             LD   (FLAG),A            NASTAV INDIKATOR VYMENY
+             LD   HL,(RAMTOP)
+             INC  HL                  HL-ADRESA ZOZNAMU ADRIES
+             LD   C,(HL)              BC-ADRESA PRVEHO RETAZCA
+             INC  HL
+             LD   B,(HL)
+             INC  HL
+      B2     LD   D,B                 DE-ADRESA PRVEHO
+             LD   E,C                 POROVNAVANEHO RETAZCA
+      B3     LD   C,(HL)              BC-ADRESA DRUHEHO
+             INC  HL
+             LD   B,(HL)              POROVNAVANEHO RETAZCA
+             INC  HL
+             LD   A,B                 AK ADRESA DRUHEHO RETAZCA=0
+             OR   C                   TAK JE ZOZNAM ADRIES VYCERPANY
+             JR   Z,B4                POKRACUJ TESTOM PREMENNEJ FLAG
+             CALL CMPS                INAC POROVNAJ RETAZCE
+      ;
+      ;AK CY=0 VYMENA ADRIES RETAZCOV V ZOZNAME ADRIES SA NEVYKONA
+      ;A PROGRAM POKRACUJE NA NAVESTI B2, KDE SA ADRESA DRUHEHO
+      ;RETAZCA (OBSAH REGISTRA BC) PRESUNIE NA MIESTO ADRESY PRVEHO
+      ;RETAZCA (DO REGISTRA DE), REGISTER BC SA NAPLNI ADRESOU
+      ;DALSIEHO RETAZCA A POKRACUJE SA V CYKLE POROVNAVANIA.
+      ;INAC SA RETAZCE V ZOZNAME VYMENIA, REGISTER DE TYM OBSAHUJE
+      ;ADRESU PRVEHO RETAZCA A STACI POKRACOVAT NA NAVESTI B3, KDE
+      ;SA REGISTER BC NAPLNI ADRESOU DALSIEHO RETAZCA.
+      ;
+             JR   NC,B2               VYMENA ADRIES SA NEVYKONA
+             LD   A,1
+             LD   (FLAG),A            POZNAC VYMENU ADRIES RETAZCOV
+             PUSH HL                  ULOZ ADRESU DO ZOZNAMU ADRIES
+             DEC  HL
+             LD   (HL),D              ULOZ ADRESY DO ZOZNAMU
+             DEC  HL                  V OBRATENOM PORADI, NAJPRV DE
+             LD   (HL),E              POTOM BC.
+             DEC  HL                  KEDZE SA DO PAMATI UKLADA
+             LD   (HL),B              ZHORA DOLE UKLADA SA
+             DEC  HL                  NAJPRV VYSSI A POTOM NIZSI BYTE
+             LD   (HL),C
+             POP  HL                  OBNOV ADRESU DO ZOZNAMU ADRIES
+             JR   B3                  A POKRACUJ
+      B4     LD   A,(FLAG)            KONIEC JEDNEHO PRECHODU
+             OR   A                   BOLA V NOM VYKONANA VYMENA ?
+             JR   NZ,B1               ANO - POKRACUJ NOVYM PRECHODOM
+ 
+           V  tretej  casti  programu  sa  usporiadaju  retazce v poli
+      A$(N,M)  podla  informacii  v  obsiahnutych  v  zozname  adries,
+      realizuje sa teda algoritmus popisany bodmi 1. az 4.
+ 
+             LD   BC,(ADDSTR)         BC UKAZUJE NA RETAZCE V POLI A$
+             LD   HL,(RAMTOP)         HL UKAZUJE NA ADRESY RETAZCOV
+             INC  HL                  V ZOZNAME ADRIES
+      C1     LD   E,(HL)              DE-ADRESA RETAZCA, KTORY JE
+             INC  HL                  NA I-TOM MIESTE V USPORIADANI
+             LD   D,(HL)              RETAZCOV PODLA ABECEDY
+             INC  HL                  AK JE NASLEDUJUCA ADRESA 0
+             LD   A,(HL)              TAK SA ALGORITMUS VYKONAL
+             INC  HL                  PRE I=1 AZ N-1
+             OR   (HL)                A RETAZCE SU USPORIADANE
+             RET  Z                   RIADENIE SA VRATI DO BASICU
+             PUSH HL                  ULOZ ADRESU DO ZOZNAMU ADRIES
+      ;
+      ;NASLEDUJE VYMENA RETAZCOV, KTORYCH ADRESY SU V REGISTROCH BC
+      ;A DE (BOD 2. ALGORITMU). NA VYMENU SA POUZIJE PRACOVNA PAMAT
+      ;NA ADRESE TMPBUF. NA ZACIATKU SA UCHOVA OBSAH REGISTROV HL, BC
+      ;A DE, KTORE SU POTREBNE PRI REALIZACII BODOV 3. A 4.
+      ;VLASTNA VYMENA RETAZCOV DALEJ NEBUDE KOMENTOVANA, DOPORUCUJEM
+      ;CITATELOVI, ABY STAROSTLIVO SLEDOVAL OBSAHY REGISTROV PRED
+      ;POUZITIM INSTRUKCIE LDIR.
+      ;
+             PUSH HL
+             PUSH DE
+             PUSH BC
+             PUSH DE                  TU ZACINA VYMENA RETAZCOV
+             LD   BC,(LENGTH)
+             PUSH BC
+             LD   HL,TMPBUF
+             EX   DE,HL
+             LDIR
+             POP  BC
+             POP  DE
+             POP  HL
+             PUSH HL
+             PUSH BC
+             LDIR
+             POP  BC
+             POP  DE
+             PUSH DE
+             LD   HL,TMPBUF
+             LDIR                     VYMENA RETAZCOV SKONCENA
+             EX   DE,HL
+             POP  BC
+             POP  DE
+             EX   (SP),HL
+      ;
+      ;REGISTER BC OBSAHUJE ADRESU RETAZCA V POLI A$, REGISTER DE
+      ;OBSAHUJE ADRESU RETAZCA SO ZOZNAMU ADRIES, REGISTER HL
+      ;OBSAHUJE ADRESU NASLEDUJUCEJ ADRESY ZO ZOZNAMU ADRIES (DE
+      ;JE HODNOTA SO ZOZNAMU A HL JE UKAZOVATEL DO ZOZNAMU).
+      ;V STACKU SU ULOZENE ADRESY NA DALSI RETAZEC V POLI A$ A
+      ;ADRESA NA DALSIU ADRESU V ZOZNAME ADRIES. TIETO HODNOTY SU
+      ;POTREBNE PRE OPAKOVANIE BODOV 1. AZ 4.
+      ;   REALIZOVAT BODY 3. A 4. ZNAMENA NAJST V ZOZNAME ADRIES,
+      ;KTOREHO ZACIATOK JE V HL HODNOTU, KTORA JE V BC A PREPISAT
+      ;JU HODNOTOU, KTORA JE V DE
+      ;
+      C3     LD   A,(HL)
+             CP   C                   POROVNANIE NIZSICH BYTOV
+             INC  HL                  PRV NEZ SA VYKONA PRIPADNY SKOK
+             LD   A,(HL)              TREBA PRECITAT AJ VYSSI BYTE,
+             INC  HL                  ABY HL BOL NA DALSEJ ADRESE
+             JR   NZ,C3               NIZSIE BYTY SU ROZNE
+             CP   B                   INAC POROVNAJ VYSSIE BYTY
+             JR   NZ,C3               POKRACUJ V HLADANI
+             DEC  HL                  INAC PREPIS NAJDENU HODNOTU
+             LD   (HL),D              HODNOTU V REGISTRI DE
+             DEC  HL
+             LD   (HL),E
+             POP  BC                  BC-ADRESA NA DALSI RETAZEC V A$
+             POP  HL                  HL-NA DALSIU ADRESU V ZOZNAME
+             JR   C1                  POKRACUJ BODMI 1. AZ 4.
+             END                      KONIEC TEXTU PROGRAMU
+ 
+           Program  je  na  papieri,  nasleduje  tretia  cast  -  jeho
+      ulozenie do pocitaca. Z kazety nahrame program MRS, prikazom EDI
+      vyvolame editor, prikazom INI prejdeme do obrazovkoveho rezimu a
+      uvedeny text starostlivo opiseme (komentare mozme vynechat).
+ 
+           Vecsinu chyb, ktore urobime pri opise system zachyti, ak sa
+      dalej  vyskytnu  ine  tazkosti,  nez  tu  popisane,  je potrebne
+      odstranit chyby, ktore vznikli pri prepise.
+ 
+           Po napisani celeho textu  sa vratime so prikazoveho  rezimu
+      (klavesom  BREAK)  a  program  prelozime  prikazom  ASM.   Volat
+      spojovaci program prikazom LNK je zbytocne, kedze sme  nevyuzili
+      pseudoinstrukcie  EXT  a  ENT.  Pripadne  chyby, ktore modul ASM
+      odhali opravime a prikazom SAV SSORT modulu EDI ulozime zdrojovy
+      text na pasku, aby sme ho pocas ladenia nahodou nevymazali.
+ 
+           Ladenie zacneme  od procedury  CMPS. Vstupne  data pre tuto
+      proceduru  pripravime  niekde  v  pameti  prikazom M modulu DBG.
+      Vyvolame modul DBG a napiseme text
+ 
+      m #8000<enter>
+      j a n o j o z o<enter>
+ 
+           tak  od  adresy  #8000  ulozime  ASCII  kody dvoch retazcov
+      'jano' a 'jozo'. Prikazmi
+ 
+      rb#8000<enter>
+      rd#8004<enter>
+      rpcmps<enter>
+      m length<enter>0400<enter>
+ 
+           ulozime do registrov BC  a DE adresy retazcov,  do registra
+      PC  adresu   procedury  CMPS   a  do   premennej  LENGTH   dlzku
+      porovnavanych retazcov (4). Prikazom N spustime proceduru CMPS a
+      ladiaci modul vypise za  chvilu zakladny stav zacinajuci  znakom
+      E. Procedura  teda prebehla  uspesne, skontrolujeme  este, ze sa
+      registre BC,  DE, HL  nezmenili a  ze Cy  flag obsahuje  spravnu
+      hodnotu. V nasom pripade musi byt Cy=1 lebo retazec na adrese DE
+      'jozo' je  za retazcom  na adrese  BC 'jano'.  Rovnakym sposobom
+      overime  funkciu  procedury  v  pripade,  ze su retazce vymenene
+      alebo sa porovnavaju dva totozne retazce. Kedze vsetky testy  su
+      uspesne, povazujeme proceduru za odladenu.
+ 
+           Aby sme mohli odskusat prvu cast programu musime  pripravit
+      pole A$ v jazyku BASIC.  Prikazom mon vrati riadenie system  MRS
+      programu BASIC.
+ 
+           Vyraz  za  prikazom  CLEAR  opravime na 6*4096+7*256-1, cim
+      vytvorime na zaciatku volnej pameti priestor 256 bytov pouzivany
+      v programe SSORT na zoznam adries. Riadok, v ktorom sa nahravaju
+      binarne moduly systemu MRS nahradime napr. riadkom:
+ 
+      20 DIM A$(5,4):LET A$(1)="IVAN":LET A$(2)="RUDO":
+         LET A$(3)="JANO":LET A$(4)="PALO":LET A$(5)="ADAM"
+ 
+           a  riadok  30  preventivne  vymazeme,  aby  sa pri spusteni
+      prikazom RUN nevymazal zdrojovy text (teply start). Potom system
+      MRS opet spustime  pomocou RUN a  prikazom DBG vyvolame  ladiaci
+      program. Prikazmi:
+ 
+      rpssort<enter>
+      sssssssss
+ 
+           vykoname  prvych  devet  instrukcii,  ktorymi  by  sa  mali
+      prevziat parametre  pola A$.  Register BC  by mal  mat hodnotu 4
+      (dlzka retazca) a register DE hodnotu 5 (pocet retazcov). Pohlad
+      na obrazovku nas  vsak presvedci, ze  v prvej casti  programu je
+      nieco chybne, registre BC a DE maju velmi zvlastne hodnoty.
+ 
+           Ked sa blizsie pozrieme napr. na instrukciu LD  BC,(VARS+4)
+      vidime, ze do registra BC davame hodnotu z adresy (VARS+4),  ale
+      pozadovana hodnota je  na adrese (VARS)+4,  co je rozdiel.  Tato
+      velmi typicka chyba sa tyka  rovnako obsahov registrov DE a  HL.
+      Prve tri riadky pocnuc navestim SSORT su v poriadku, ale dalsich
+      pet riadkov vymazeme a nahradime ich riadkami
+ 
+      LD   HL,(VARS)
+      INC  HL
+      INC  HL
+      INC  HL
+      INC  HL
+      LD   E,(HL)
+      INC  HL
+      LD   D,(HL)
+      INC  HL
+      LD   C,(HL)
+      INC  HL
+      LD   B,(HL)
+      INC  HL
+      LD   (LENGTH),BC
+      LD   (COUNT),DE
+ 
+           Prikazom q  ukoncime pracu  ladiaceho modulu,  prikazom EDI
+      vyvolame  editor.  Prikazom  ln=ssort  sa  nastavime na zaciatok
+      programu a opravime  ho. Program opet  prelozime, aby sa  oprava
+      premietla aj do binarneho kodu a opet ho vyskusame. Pre zmenu to
+      mozeme vykonat tak,  ze prikazom DBG  vyvolame ladiaci modul,  a
+      prikazmi:
+ 
+      rpssort<enter>
+      ib1<enter>
+      n
+ 
+           nastavime PC register na zaciatok programu, bod  prerusenia
+      na navestie  b1 a  program po  tento bod  vykoname v  sledovacom
+      rezime. Prikazmi
+ 
+      mlength<enter>
+      <enter>mcount<enter>
+      <enter>maddstr<enter>
+ 
+           skontrolujeme  postupne  obsah  premennych  count, length a
+      addstr. V  prvom pripade  je obsah  prvych dvoch  bytov 04 00, v
+      druhom pripade 05  00 a v  tretom pripade 26  5f. Teda length=4,
+      count=5 a skontrolujeme este  hodnoty na adrese #5f26.  Klavesom
+      <enter> ukoncime prikaz m a prikazom
+ 
+      d#5f26<enter><enter>
+ 
+           zobrazime obsah pamete od adresy  #5f26. Aj tu je vsetko  v
+      poriadku, na adrese #5f26 su nase retazce definovane v  programe
+      BASIC. Ostava este  overit, ci od  adresy (ramtop)+1 su  ulozene
+      adresy tychto retazcov zakoncene dvoma nulami. Napiseme teda
+ 
+      d#6700<enter><enter>
+ 
+           a skutocne od adresy #6700 su hodnoty 26 5f 2a 5f 2e 5f  32
+      5f 36 5f 00 00 tak, ako to ma byt.
+ 
+           Rovnakym sposobom overme  cinnost programu po  navestie c1,
+      teda vlastne triedenie. Prikazmi
+ 
+      ic1<enter>
+      n
+ 
+           vykoname  program  po  navestie  c1  v  sledovacom  rezime.
+      Program sa uspesne na toto  miesto dostane a nam ostava  overit,
+      ci  hodnoty  na  adrese  #6700  obsahuju  informacie  nutne   na
+      usporiadanie  retazcov  podla  abecedy.  Kedze adresa #6700 bola
+      ostatna, ktoru sme prikazom d zobrazili staci napisat prikaz
+ 
+      d<enter><enter>
+ 
+           Na adrese #6700 su  hodnoty 36 5f 26  5f 2e 5f 32  5f 2a 5f
+      00. Prikazom
+ 
+      m#5f36<enter>
+ 
+           vidime, ze text na adrese #5f36 je ADAM. Rovnakym  sposobom
+      overime, aj ostatne adresy, cim si potvrdime, ze adresa na i-tej
+      pozicii je  adresa i-teho  retazca v  usporiadani podla abecedy.
+      Ladenie  programu  teda  uspesne  pokracuje,  ostava   otestovat
+      zaverecnu cast programu. Nie  je nutne nastavit bod  prerusenia,
+      pretoze  posledna  instrukcia  RET  vrati  riadenie  modulu DBG.
+      Pustme progam dalej prikazom
+ 
+      n<enter>
+ 
+           ale program sa ani po 10 sekundach (co je ozaj dost pre tak
+      jednoduchy kod) neprihlasi. Prerusime jeho vykonavanie  klavesom
+      BREAK a pokracujeme v jeho vykonavani krokovanim prikazom s, aby
+      sme zistili, kde sa zamotal.
+ 
+           Program  stale  vykonava  instrukcie  pocnuc  navestim  c3,
+      ktorymi  hlada  hodnotu  registra  BC  v  zozname  adries,   ako
+      ukazovatel sluzi register  HL. A register  HL ma uz  hodnotu cez
+      #7000, hoci  zoznam adries  je v  intervale #6700-#670b.  Teda z
+      nejakeho  dovodu  sa  hodnota  v  BC registri nenasla. Pohlad na
+      obrazovku  nam  prezradi,  ze  BC  register  ma  velkost #5f2e a
+      prikazom
+ 
+      m#5f2e<enter>
+ 
+           zistime, ze sa jedna o  retazec JANO. Cim je tento  retazec
+      zvlastny? Mnoho rozmyslania si usetrime ak zbadame, ze  register
+      DE, ktoreho hodnotou mame najdenu hodnotu v zozname prepisat  ma
+      tiez hodnotu #5f2e. To vlastne znamena, ze retazec JANO sa nikam
+      neposuva.  Tento  retazec  bol  povodne  na  tretom  mieste a po
+      usporiadani na tretom mieste  ostane. Kedze jeho adresu  hladame
+      az od  stvrtej pozicie,  je jasne,  ze ju  nemozme najst. Bod 3.
+      opravime na
+ 
+           V  zostavajucich  adresach   v  zozname  adries,   teda  na
+      poziciach i az N najdeme adresu i-teho retazca z pola A$(N,M).
+ 
+           Pre  program  v  zostavovacom  jazyku  to  znamena, ze pred
+      prehladavanim zoznamu adries, ukazovatel (hodnotu HL) znizime  o
+      2. Prikazom q ukoncime  pracu modulu DBG, prikazom  edi vyvolame
+      editor a prikazom  ln=c3 sa nastavime  na riadok s  navestim c3.
+      Pred tento riadok vlozime dvakrat  riadok dec hl a program  opet
+      prelozime. Kedze cast retazcov  uz bola posunuta, mozme  pole A$
+      obnovit  tak,  ze  prikazom  mon  vratime  riadenie  do BASICu a
+      program  spustime  prikazom  RUN.  Potom  prikazom  dbg zavolame
+      ladiaci modul a prikazmi
+ 
+      rpssort<enter>
+      n
+ 
+           vykoname cely program v sledovacom rezime. Program po malej
+      chvili skonci navratom do ladiaceho modulu a nam ostava prikazom
+ 
+      d#5f26<enter><enter>
+ 
+           overit, ze retazce  su naozaj usporiadane.  Predpokladajme,
+      ze  program  je  tymto  odladeny,  hoci  v  praxi  by  to chcelo
+      dokladnejsie testovanie. Ostava uz len jedno, pripravit  program
+      tak, aby sluzil ako univerzalny program bez pritomnosti  systemu
+      MRS. Ako  logicke miesto  v pameti  sa nuka  priestor od  adresy
+      #fe00  a  tak  zdrojovy  text  upravime  tak,  ze za prvy riadok
+      (obsahujuci len  ;) vlozime  riadok ORG  #fe00. Aby  sme zistili
+      dlzku  programu  doplnme  este  posledny  riadok  s  textom  END
+      lubovolnym navestim napr. na KONIEC END.
+ 
+           Ak sa vsak program pokusime prelozit prikazom asm,  preklad
+      skonci vypisom mem  full. Na adrese  #fe00 je totiz  kod systemu
+      MRS a prekladac ho  nedovoli prepisat. Na stastie  MRS poskytuje
+      prostriedok  proti  tejto  komplikacii.  Za  riadok s textom ORG
+      vlozime instrukciu  riadenia prekladu  v tvare  napr. *c8e00. Ak
+      prelozime takto upraveny  program, tak sa  vlastny kod ulozi  od
+      adresy #8e00, ale vykonavat sa da az po jeho presunuti na adresu
+      #fe00. Ako  ukazeme, tento  presun mozno  urobit pomocou  jazyka
+      BASIC.  Po  preklade  este  urcime  rozsah  a startovaciu adresu
+      programu. Vieme, ze program  bude zacinat na adrese  #fe00=65024
+      koncovu adresu a startovaciu  adresu zistime pomocou modulu  dbg
+      prikazmi
+ 
+      mkoniec<enter>
+      <enter>mssort<enter>
+ 
+           V nasom pripade  to je koniec=#fec2  program ma teda  dlzku
+      #1c=194  bytov  a  ssort=#fe1d=65053  co  je hodnota startovacej
+      adresy. Klavesom <enter>  ukoncime prikaz m  a prikazmi q  a mon
+      vratime  riadenie  programu  BASIC  a  ulozime program na pasku.
+      Pritom musime  zohladnit, ze  vlastny kod  je ulozeny  od adresy
+      #8e00=36352. Ulozime ho teda prikazom
+ 
+      SAVE "SSORT"CODE 36352,194
+ 
+           Pred jeho pouzitim musime nastavit RAMTOP aspon na  hodnotu
+      #fe00-2*pocet retazcov-1, pretoze od (RAMTOP)+1 sa uklada zoznam
+      adries. Potom nahrame binarny kod do pameti prikazom
+ 
+      LOAD "SSORT"CODE 65024
+ 
+           a pokial je premenna A$(N,M) prva v nasom programe tak  jej
+      retazce zoradime podla abecedy prikazom
+ 
+      RANDOMIZE USR 65053
+ 
+           Na zaver  este jedno  upozornenie. AK  pole A$  nahravame z
+      pasky, tak sa  povodna definicia prikazom  DIM vymaze a  pole uz
+      nebude prva premenna.  Znamena to, ze  v tomto pripade  musi byt
+      prikaz LOAD "MENO"STRING A$() prv, ako sa definuje ina premenna.
+ 
+           Schopny  citatel  s  pomocou  prirucky  k pocitacu Spectrum
+      lahko upravi  program tak,  aby vedel  vyhladat danu  premennu v
+      zozname premennych. Potom moze byt meno pola vstupnym parametrom
+      pre podprogram, toto meno sa moze ulozit prikazom POKE na  pevne
+      miesto v pameti a podprogram SSORT ho odtial precita.
+
