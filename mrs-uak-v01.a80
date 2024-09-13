@@ -1,0 +1,9494 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;				;;
+;;    Memory resident system	;;
+;;				;;
+;;	    Verzia  01		;;
+;;				;;
+;;	(c) UAK	Bratislava	;;
+;;				;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Konverzia: Busy soft 13.09.2024
+;
+; Zdrojovy text	pre SjASMPlus 1.20.2
+;
+; Kompilacia vygeneruje	vsetky
+; binarky a finalny TAP	subor
+
+    DEFINE tap_file MRS-V01.TAP
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    DEVICE ZXSPECTRUM48
+
+rom_0:		ds 8			
+rst08:		ds 4Ah			
+return:		ds 363h			
+sysbep:		ds 111h			
+save_4C6:	ds 9Ch			
+load_562:	ds 19F2h		
+brktst:		ds 1CACh		
+rom_font:	ds 400h			
+ram:		ds 1C51h
+rst10_vektor:	ds 2			
+		ds 78h
+
+; Basic	loader
+;
+; 10 REM  mrs -	program	nahrany	8.10.1986
+; 20 LOAD ""CODE : LOAD ""CODE
+; 30 RANDOMIZE USR 54867
+; 40 RANDOMIZE USR 54870
+
+    OUTPUT Basic-loader.bas
+
+basic:		db    0
+		db  0Ah
+		db  22h	; "
+		db    0
+		db 0EAh	; 		; REM
+		db  20h
+		db  6Dh	; m
+		db  72h	; r
+		db  73h	; s
+		db  20h
+		db  2Dh	; -
+		db  20h
+		db  70h	; p
+		db  72h	; r
+		db  6Fh	; o
+		db  67h	; g
+		db  72h	; r
+		db  61h	; a
+		db  6Dh	; m
+		db  20h
+		db  6Eh	; n
+		db  61h	; a
+		db  68h	; h
+		db  72h	; r
+		db  61h	; a
+		db  6Eh	; n
+		db  79h	; y
+		db  20h
+		db  38h	; 8
+		db  2Eh	; .
+		db  31h	; 1
+		db  30h	; 0
+		db  2Eh	; .
+		db  31h	; 1
+		db  39h	; 9
+		db  38h	; 8
+		db  36h	; 6
+		db  0Dh
+		db    0
+		db  14h
+		db  0Ah
+		db    0
+		db 0EFh	; 		; LOAD
+		db  22h	; "
+		db  22h	; "
+		db 0AFh	; 		; CODE
+		db  3Ah	; :
+		db 0EFh	; 		; LOAD
+		db  22h	; "
+		db  22h	; "
+		db 0AFh	; 		; CODE
+		db  0Dh
+		db    0
+		db  1Eh
+		db  0Eh
+		db    0
+		db 0F9h	; 		; RANDOMIZE
+		db 0C0h	; 		; USR
+		db  35h	; 5
+		db  34h	; 4
+		db  38h	; 8
+		db  36h	; 6
+		db  37h	; 7
+		db  0Eh
+		db    0
+		db    0
+		db  53h	; S
+		db 0D6h	; 
+		db    0
+		db  0Dh
+		db    0
+		db  28h	; (
+		db  0Eh
+		db    0
+		db 0F9h	; 		; RANDOMIZE
+		db 0C0h	; 		; USR
+		db  35h	; 5
+		db  34h	; 4
+		db  38h	; 8
+		db  37h	; 7
+		db  30h	; 0
+		db  0Eh
+		db    0
+		db    0
+		db  56h	; V
+		db 0D6h	; 
+		db    0
+		db  0Dh
+
+    OUTEND
+
+basend:		ds 2DDh
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    OUTPUT Sysmod-#6000.cod
+
+sysmod:					
+					
+		jp	return
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+libtop:		dw fremem		
+libbeg:		db  73h	; s		
+		db  79h	; y
+		db  73h	; s
+		db  6Dh	; m
+		db  6Fh	; o
+		db  64h	; d
+		dw fremem
+		dw entpnt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ii:					
+		halt
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+entpnt:		db  12h			
+		db  6Dh	; m
+		db  65h	; e
+		db  6Dh	; m
+		db  6Fh	; o
+		db  72h	; r
+		db  79h	; y
+memory:		dw fremem		
+		db  6Dh	; m
+		db  65h	; e
+		db  6Dh	; m
+		db  74h	; t
+		db  6Fh	; o
+		db  70h	; p
+memtop:		dw 0			
+		db  64h	; d
+		db  63h	; c
+		db  62h	; b
+		db  6Eh	; n
+		db  20h
+		db  20h
+		dw dcbn
+		db  68h	; h
+		db  78h	; x
+		db  62h	; b
+		db  6Eh	; n
+		db  20h
+		db  20h
+		dw hxbn
+		db  62h	; b
+		db  6Eh	; n
+		db  64h	; d
+		db  63h	; c
+		db  20h
+		db  20h
+		dw bndc
+		db  62h	; b
+		db  6Eh	; n
+		db  68h	; h
+		db  78h	; x
+		db  20h
+		db  20h
+		dw bnhx
+		db  63h	; c
+		db  6Ch	; l
+		db  65h	; e
+		db  61h	; a
+		db  72h	; r
+		db  20h
+		dw clear
+		db  69h	; i
+		db  6Eh	; n
+		db  6Bh	; k
+		db  65h	; e
+		db  79h	; y
+		db  20h
+		dw inkey
+		db  73h	; s
+		db  63h	; c
+		db  61h	; a
+		db  6Eh	; n
+		db  20h
+		db  20h
+		dw scan
+		db  6Fh	; o
+		db  75h	; u
+		db  74h	; t
+		db  63h	; c
+		db  68h	; h
+		db  72h	; r
+		dw outchr
+		db  63h	; c
+		db  75h	; u
+		db  72h	; r
+		db  73h	; s
+		db  6Fh	; o
+		db  72h	; r
+		dw cursor
+		db  73h	; s
+		db  65h	; e
+		db  74h	; t
+		db  63h	; c
+		db  72h	; r
+		db  73h	; s
+		dw setcrs
+		db  69h	; i
+		db  6Eh	; n
+		db  76h	; v
+		db  70h	; p
+		db  69h	; i
+		db  78h	; x
+		dw invpix
+		db  6Dh	; m
+		db  72h	; r
+		db  73h	; s
+		db  20h
+		db  20h
+		db  20h
+		dw mrsp
+		db  6Dh	; m
+		db  72h	; r
+		db  73h	; s
+		db  32h	; 2
+		db  20h
+		db  20h
+		dw mrs2
+		db  73h	; s
+		db  63h	; c
+		db  68h	; h
+		db  65h	; e
+		db  6Eh	; n
+		db  74h	; t
+		dw schent
+		db  69h	; i
+		db  69h	; i
+		db  20h
+		db  20h
+		db  20h
+		db  20h
+		dw ii
+		db  70h	; p
+		db  6Eh	; n
+		db  74h	; t
+		db  63h	; c
+		db  68h	; h
+		db  72h	; r
+		dw pntchr
+		db    0
+
+    OUTEND
+
+fremem:		ds 1			
+		ds 7438h
+ramtop:		ds 1			
+lastln:		ds 2			
+adstab:		ds 2			
+lnnumb:		ds 2			
+curent:		ds 2			
+oldchr:		ds 2			
+atabr:		ds 2			
+anavp:		ds 2			
+leftm1:		ds 1			
+adzero:		ds 2			
+stack:		ds 2			
+newpag:		ds 1			
+page:		ds 1			
+
+    OUTPUT Maincd-#D500.cod
+
+tmf:		db  6Dh	; m		
+		db  65h	; e
+		db  6Dh	; m
+		db  20h
+		db  66h	; f
+		db  75h	; u
+		db  6Ch	; l
+		db  6Ch	; l
+tioer:		db  69h	; i		
+		db  6Fh	; o
+		db  20h
+		db  65h	; e
+		db  72h	; r
+		db  72h	; r
+		db  6Fh	; o
+		db  72h	; r
+tbreak:		db  62h	; b		
+		db  72h	; r
+		db  65h	; e
+		db  61h	; a
+		db  6Bh	; k
+		db  20h
+		db  20h
+		db  20h
+cchar:		db  18h			
+		dw right
+		db  19h
+		dw left
+		db  1Dh
+		dw tabr
+		db  1Eh
+		dw tabl
+		db  14h
+		dw endadr
+		db  12h
+		dw insert
+		db  13h
+		dw delete
+		db  0Dh
+		dw eol
+		db    7
+		dw delln
+		db  17h
+		dw prevln
+		db  1Ah
+		dw nextln
+		db  1Ch
+		dw previm
+		db  1Fh
+		dw nxtvim
+		db  11h
+		dw edi
+		db    3
+		dw homeim
+		db    5
+		dw copyln
+startf:		db 0
+startf_1:	db 7			
+		db 0Ch
+		db 20h
+		db 40h
+newcur:		dw 1700h		
+aldind:		db 0
+ldind:		db 0			
+insyes:		db 0			
+ktab0:		db    0
+		db  7Ah	; z
+		db  78h	; x
+		db  63h	; c
+		db  76h	; v
+		db  61h	; a
+		db  73h	; s
+		db  64h	; d
+		db  66h	; f
+		db  67h	; g
+		db  71h	; q
+		db  77h	; w
+		db  65h	; e
+		db  72h	; r
+		db  74h	; t
+		db  31h	; 1
+		db  32h	; 2
+		db  33h	; 3
+		db  34h	; 4
+		db  35h	; 5
+		db  30h	; 0
+		db  39h	; 9
+		db  38h	; 8
+		db  37h	; 7
+		db  36h	; 6
+		db  70h	; p
+		db  6Fh	; o
+		db  69h	; i
+		db  75h	; u
+		db  79h	; y
+		db  0Dh
+		db  6Ch	; l
+		db  6Bh	; k
+		db  6Ah	; j
+		db  68h	; h
+		db  20h
+		db    0
+		db  6Dh	; m
+		db  6Eh	; n
+ktab1_1:	db  62h	; b		
+ktab1:		db    0
+		db  5Ah	; Z
+		db  58h	; X
+		db  43h	; C
+		db  56h	; V
+		db  41h	; A
+		db  53h	; S
+		db  44h	; D
+		db  46h	; F
+		db  47h	; G
+		db  51h	; Q
+		db  57h	; W
+		db  45h	; E
+		db  52h	; R
+		db  54h	; T
+		db  1Eh
+		db  1Fh
+		db  1Ch
+		db  1Dh
+		db  19h
+		db  13h
+		db  12h
+		db  18h
+		db  17h
+		db  1Ah
+		db  50h	; P
+		db  4Fh	; O
+		db  49h	; I
+		db  55h	; U
+		db  59h	; Y
+		db    5
+		db  4Ch	; L
+		db  4Bh	; K
+		db  4Ah	; J
+		db  48h	; H
+		db  11h
+		db    7
+		db  4Dh	; M
+		db  4Eh	; N
+ktab2_1:	db  42h	; B		
+ktab2:		db    0
+		db  3Ah	; :
+		db    0
+		db  3Fh	; ?
+		db  2Fh	; /
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db  3Ch	; <
+		db  3Eh	; >
+		db  21h	; !
+		db  40h	; @
+		db  23h	; #
+		db  24h	; $
+		db  25h	; %
+		db  5Fh	; _
+		db  29h	; )
+		db  28h	; (
+		db  27h	; '
+		db  26h	; &
+		db  22h	; "
+		db  3Bh	; ;
+		db    0
+		db    0
+		db    0
+		db    3
+		db  3Dh	; =
+		db  2Bh	; +
+		db  2Dh	; -
+		db  5Eh	; ^
+		db  14h
+		db    0
+		db  2Eh	; .
+		db  2Ch	; ,
+		db  2Ah	; *
+tedi:		db  65h	; e		
+		db  64h	; d
+		db  69h	; i
+		db  3Eh	; >
+cedi:		db  6Dh	; m		
+		db  65h	; e
+		db  72h	; r
+		dw mertxt
+		db  73h	; s
+		db  61h	; a
+		db  76h	; v
+		dw savtxt
+		db  6Ch	; l
+		db  6Fh	; o
+		db  61h	; a
+		dw loatxt
+		db  64h	; d
+		db  69h	; i
+		db  73h	; s
+		dw dis
+		db  69h	; i
+		db  6Eh	; n
+		db  73h	; s
+		dw instxt
+		db  69h	; i
+		db  6Eh	; n
+		db  69h	; i
+		dw begedi
+		db  6Ch	; l
+		db  6Eh	; n
+		db  3Dh	; =
+		dw lclneq
+		db  6Ch	; l
+		db  6Eh	; n
+		db  2Bh	; +
+		dw lclnpl
+		db  6Ch	; l
+		db  6Eh	; n
+		db  2Dh	; -
+		dw lclnmi
+		db  64h	; d
+		db  6Ch	; l
+		db  62h	; b
+		dw delblk
+		db  63h	; c
+		db  70h	; p
+		db  62h	; b
+		dw cpyblk
+		db 0FFh
+tmonit:		db  6Dh	; m		
+		db  72h	; r
+		db  73h	; s
+		db  3Eh	; >
+cmonit:		db  65h	; e		
+		db  64h	; d
+		db  69h	; i
+		dw edi
+		db  61h	; a
+		db  73h	; s
+		db  6Dh	; m
+		dw asm
+		db  64h	; d
+		db  62h	; b
+		db  67h	; g
+		dw dbg
+		db  6Ch	; l
+		db  6Eh	; n
+		db  6Bh	; k
+		dw lnk
+		db  6Ch	; l
+		db  69h	; i
+		db  62h	; b
+		dw lib
+		db  61h	; a
+		db  6Ch	; l
+		db  64h	; d
+		dw ald
+		db  6Dh	; m
+		db  6Fh	; o
+		db  6Eh	; n
+		dw exit
+		db  72h	; r
+		db  75h	; u
+		db  6Eh	; n
+		dw run
+		db    0
+cright:		db  70h	; p		
+		db  72h	; r
+		db  6Fh	; o
+		db  67h	; g
+		db  72h	; r
+		db  61h	; a
+		db  6Dh	; m
+		db  20h
+		db  7Ah	; z
+		db  61h	; a
+		db  64h	; d
+		db  61h	; a
+		db  72h	; r
+		db  6Dh	; m
+		db  6Fh	; o
+		db  20h
+		db  7Fh	; 
+		db  20h
+		db  55h	; U
+		db  41h	; A
+		db  4Bh	; K
+		db  20h
+		db  42h	; B
+		db  72h	; r
+		db  61h	; a
+		db  74h	; t
+		db  69h	; i
+		db  73h	; s
+		db  6Ch	; l
+		db  61h	; a
+		db  76h	; v
+		db  61h	; a
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Studeny start	MRS po nahradi do pameti
+; Inicializuje a zmaze zdrojovy	text
+
+cold_start:
+		call	inival
+
+; Teply	start MRS
+; Nemaze zdrojovy text
+
+warm_start:
+		di
+		ld	sp, stack_init
+		call	clear
+		call	bbc
+		ld	(stack), sp
+		ld	hl, 2027h
+		ld	(sent),	hl
+		ld	hl, 5800h
+		ld	(poscur), hl
+		ld	h, 0
+		ld	(krept), hl
+
+;;;;;;;;;;;;;;;;;;;;
+;;		  ;;
+;;  Modul "mrs>"  ;;
+;;		  ;;
+;;;;;;;;;;;;;;;;;;;;
+
+monit:					
+		ld	hl, 50E0h
+		ld	de, cright
+		call	loutb
+		ld	h, 3
+		call	wmg
+		ld	hl, tmonit
+		ld	de, cmonit
+
+ctrl:					
+		ld	bc, 401h
+		call	mrs
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+run:					
+		call	getend
+		dec	de
+		ld	(memtop), de
+		call	sysmod
+		jr	monit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;
+;;		  ;;
+;;  Modul "edi>"  ;;
+;;		  ;;
+;;;;;;;;;;;;;;;;;;;;
+
+edi:					
+		xor	a
+		ld	(ldind), a
+		ld	(insyes), a
+		ld	hl, tedi
+		ld	de, cedi
+		jp	ctrl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inival:					
+		call	slnini
+		ld	(lastln), hl
+		ld	(hl), a
+		dec	hl
+		ld	(adstab), hl
+		ld	(hl), a
+		ld	h, a
+		ld	l, a
+		ld	(cursor), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Navrat do basicu
+
+exit:					
+		ld	iy, 5C3Ah
+		ei
+		rst	8
+		rst	38h
+
+begedi:					
+		call	clear
+		call	inival
+		jr	edit2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit0:					
+		call	beep
+
+edit1:					
+					
+		ld	a, (insyes)
+		or	a
+		call	z, unpln0
+		jr	z, edit3
+		call	iinsln
+
+edit2:					
+		call	blank
+
+edit3:					
+					
+		xor	a
+		ld	(newcur), a
+		ld	l, a
+		call	wlnnum
+		ld	a, 9
+
+wrrow1:					
+		ld	(ed3+1), a
+
+wrrow:					
+					
+		ld	a, (row)
+		ld	h, a
+		call	setcrs
+		call	outbf0
+		ld	h, 0FEh	; ''
+		call	inkey
+		ld	de, wrrow
+		push	de
+		ld	b, a
+		cp	80h ; ''
+		jr	nc, ctrlch
+		cp	20h ; ' '
+		jp	nc, ascii
+
+ctrlch:					
+		push	hl
+		ld	bc, 3
+		ld	de, 1007h
+		ld	hl, cchar
+
+ed1a:					
+		cp	(hl)
+		jr	z, ed2
+		add	hl, bc
+		dec	e
+		dec	d
+		jr	nz, ed1a
+
+ed2:					
+		inc	hl
+		ld	c, (hl)
+		inc	hl
+		ld	b, (hl)
+		pop	hl
+		dec	e
+		push	bc
+		ret	p
+		pop	bc
+		pop	af
+
+ed3:					
+					
+		jr	$
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ld	a, d
+		sub	9
+		jr	nz, cherr
+		ld	(newcur), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		dec	d
+		jp	m, cherr
+		ld	a, d
+		cp	7
+		push	bc
+		ret	z
+		call	chblk
+		jr	nz, ed4
+		ld	hl, (curent)
+		ld	a, (hl)
+		or	a
+
+ed4:					
+		call	nz, pln
+		jr	z, ed5
+
+cherr0:
+		ld	l, a
+		pop	af
+
+cherr:					
+		call	beep
+		jp	wrrow
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ed5:					
+		ld	(insyes), a
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pln:					
+
+		call	packln
+		ret	nz
+		ld	hl, pdline
+		bit	7, (hl)
+		dec	hl
+		jr	nz, pc0
+		ld	a, (hl)
+		sub	0Dh
+		jr	nz, pc0_1
+		cp	(hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pc0:					
+		dec	hl
+
+pc0_1:					
+		ld	a, (hl)
+		rra
+		jr	c, pc3
+		and	70h ; 'p'
+		jr	z, pc3
+		dec	hl
+		jp	po, pc2
+		ld	a, (hl)
+		and	7
+
+pc1:					
+		cp	6
+		ld	a, 0Ch
+		ret	nz
+		jr	pc3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pc2:					
+		cp	10h
+		jr	z, pc3
+		ld	a, (hl)
+		cp	0EBh ; ''
+		jr	z, pc1
+
+pc3:					
+		call	tstend
+		jp	nc, wtmf
+		ld	de, buffer
+		ld	bc, 40h	; '@'
+		ex	de, hl
+		ldir
+		push	de
+		ld	hl, pdline
+		call	unpln
+		pop	de
+		ld	hl, buffer_end
+
+pc4:					
+		dec	de
+		ld	a, (de)
+		cp	(hl)
+		ld	a, l
+
+rnznop:					
+		ret	nz
+		dec	l
+		jp	p, pc4
+		ld	a, (insyes)
+		or	a
+		jr	nz, rw2
+		ld	hl, (curent)
+		or	(hl)
+		jr	z, rw2
+		ld	de, pdline
+		ld	a, (de)
+		and	7Fh ; ''
+		ld	c, a
+
+rw1:					
+		dec	c
+		jp	m, rw3
+		ld	a, (de)
+		cp	(hl)
+		dec	hl
+		dec	de
+		jr	z, rw1
+		call	mdelln
+
+rw2:					
+		call	minsln
+
+rw3:					
+		ld	hl, (cursor)
+		ld	a, 1Fh
+		cp	l
+		ld	l, 0
+		call	c, outbuf
+		xor	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outln:					
+		push	de
+		call	unpln0
+		pop	de
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outbf0:					
+		ld	hl, (cursor)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outbuf:					
+		push	bc
+		push	de
+		push	hl
+		ld	d, 0FEh	; ''
+		ld	a, l
+		ld	l, 20h ; ' '
+		cp	l
+		dec	l
+		ld	e, l
+		jr	c, ob1
+		ld	e, a
+
+ob1:					
+		ld	a, (de)
+		push	hl
+		call	setch0
+		pop	hl
+		dec	e
+		dec	l
+		jp	p, ob1
+		pop	hl
+		pop	de
+		pop	bc
+		xor	a
+		inc	a
+
+expnt:					
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tstend:					
+		call	getend
+		ld	hl, -40h
+		add	hl, de
+		ld	de, (libtop)
+		ld	a, e
+		sub	l
+		ld	a, d
+		sbc	a, h
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+abscps:					
+		ld	a, h
+		rrca
+		rrca
+		rrca
+		and	0E0h ; ''
+		or	l
+		ld	l, a
+		ld	a, h
+		and	18h
+		or	40h ; '@'
+		ld	h, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+setchr:					
+		ld	hl, (cursor)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+setch0:					
+		push	af
+		call	abscps
+		pop	af
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pixel:					
+		push	hl
+		push	de
+		push	bc
+		ex	de, hl
+		ld	l, a
+		ld	h, 0
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		ld	bc, rom_font
+		add	hl, bc
+		ld	b, 8
+
+px1:					
+		ld	a, (hl)
+		ld	(de), a
+		inc	d
+		inc	hl
+		djnz	px1
+		pop	bc
+		pop	de
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+invpix:					
+					
+		push	hl
+		push	bc
+		call	abscps
+		ld	b, 8
+
+ipx1:					
+		ld	a, (hl)
+		cpl
+		ld	(hl), a
+		inc	h
+		djnz	ipx1
+		pop	bc
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+setcrs:					
+		push	hl
+		ld	hl, (poscur)
+		res	7, (hl)
+		pop	hl
+		push	hl
+		push	de
+		ld	a, l
+		cp	20h ; ' '
+		jr	c, scr1
+		ld	a, 1Fh
+
+scr1:					
+		ld	d, 58h ; 'X'
+		ld	e, a
+		ld	l, h
+		ld	h, 0
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, de
+		pop	de
+		ld	(poscur), hl
+		set	7, (hl)
+		pop	hl
+		ld	(cursor), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+clear:					
+		ld	hl, 4000h
+		ld	de, 4001h
+		ld	bc, 1800h
+		ld	(hl), 0
+		ldir
+		ld	(poscur), hl
+		ld	(hl), 38h ; '8'
+		ld	bc, 2FFh
+		ldir
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+iiid:					
+		push	hl
+		push	bc
+		ld	a, 8
+
+iid1:					
+		ld	bc, 20h	; ' '
+		push	de
+		push	hl
+		ldir
+		pop	hl
+		pop	de
+		inc	h
+		inc	d
+		dec	a
+		jr	nz, iid1
+		pop	bc
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+idelln:					
+		ld	hl, (cursor)
+
+idel:					
+		sub	h
+		ret	z
+		ld	b, a
+		ld	l, 0
+		call	abscps
+
+ii0:					
+		ld	d, h
+		ld	a, l
+		add	a, 20h ; ' '
+		ld	e, l
+		ld	l, a
+		jr	nz, ii1
+		ld	a, 8
+		add	a, h
+		ld	h, a
+
+ii1:					
+		call	iiid
+		djnz	ii0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+iinsln:					
+		ld	a, 16h
+		ld	hl, (cursor)
+		sub	h
+		ret	z
+		ret	c
+		ld	hl, 50A0h
+		ld	de, 50C0h
+		ld	b, a
+
+id0:					
+		call	iiid
+		ex	de, hl
+		ld	a, e
+		sub	20h ; ' '
+		ld	l, a
+		ld	h, d
+		jr	nc, id1
+		ld	a, d
+		sub	8
+		ld	h, a
+
+id1:					
+		djnz	id0
+		ret
+
+; Nacitanie stavu klavesnice
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+scan:					
+		push	bc
+		ld	bc, 0FEh ; ''
+		in	a, (c)
+		pop	bc
+		cpl
+		and	1Fh
+		ret	z
+		push	bc
+		push	de
+		push	hl
+		ld	bc, 0FEFEh
+		ld	hl, 0
+		ld	e, 1
+
+ks3:					
+		in	a, (c)
+		ld	d, 5
+
+ks4:					
+		rrca
+		jr	c, ks1
+		inc	h
+		dec	h
+		jr	nz, kerr
+		ld	h, l
+		ld	l, e
+
+ks1:					
+		inc	e
+		dec	d
+		jr	nz, ks4
+		rlc	b
+		jr	c, ks3
+		ex	de, hl
+		ld	hl, insyes
+		inc	d
+		dec	d
+		jr	z, kte
+		inc	e
+		dec	e
+		jr	z, addd
+		ld	hl, ktab1_1
+		ld	a, 1
+		cp	d
+		jr	z, adde
+		cp	e
+		jr	z, addd
+		ld	hl, ktab2_1
+		ld	a, 25h ; '%'
+		cp	d
+		jr	z, adde
+		cp	e
+		jr	z, addd
+
+kerr:					
+		xor	a
+
+kret:					
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+addd:					
+		ld	e, d
+
+adde:					
+		ld	d, 0
+		add	hl, de
+		ld	a, (hl)
+		jr	kret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+kte:					
+		inc	e
+		dec	e
+		jr	z, kerr
+		jr	adde
+
+; Obsluha klavesnice s autorepeatom
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inkey:					
+		push	bc
+
+inkey1:					
+		call	scan
+		or	a
+		jr	nz, in3
+		ld	(krept+1), a
+		jr	inkey1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+in3:					
+		ld	bc, 1000h
+
+wait1:					
+		dec	c
+		jr	nz, wait1
+		djnz	wait1
+		ld	c, a
+		call	scan
+		cp	c
+		jr	nz, inkey1
+		ld	a, (krept+1)
+		cp	c
+		jr	z, repeat
+		ld	a, 0FAh	; ''
+		jr	sin1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+repeat:					
+		ld	a, (krept)
+		ld	b, a
+
+rep1:					
+		xor	a
+
+rep2:					
+		dec	a
+		jr	nz, rep2
+		call	scan
+		cp	c
+		jr	nz, inkey1
+		djnz	rep1
+		ld	a, 19h
+
+sin1:					
+		ld	(krept), a
+		ld	a, c
+		ld	(krept+1), a
+		push	af
+		or	a
+		call	bbeep
+		pop	af
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+scroll:
+		ld	hl, (cursor)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+scrol1:					
+		ld	a, 17h
+		push	hl
+		push	de
+		ld	hl, 0
+		ld	(cursor), hl
+		call	idelln
+		pop	de
+		pop	hl
+		ld	(cursor), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+copyln:					
+		call	iinsln
+		scf
+
+eol:					
+		ld	a, 1
+		ld	(insyes), a
+
+nextln:					
+		ld	d, a
+		ld	hl, edit1
+		jr	nc, nl1
+		ld	hl, edit3
+
+nl1:					
+		push	hl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rollup:					
+		ld	hl, (curent)
+		call	skln
+		jp	z, beep
+		call	outcrl
+		ld	a, (insyes)
+		or	a
+		call	z, outln
+		dec	d
+		jr	nz, rollup
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prevln:					
+		ld	hl, edit1
+		push	hl
+
+rolldw:
+		ld	hl, (lnnumb)
+		ex	de, hl
+		dec	de
+		inc	d
+		jp	z, beep
+		dec	d
+		call	sline
+		ld	hl, row
+		dec	(hl)
+		ret	p
+		inc	(hl)
+		call	iinsln
+		jp	outln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lcln1:					
+		ex	de, hl
+		call	dcbn
+		ld	a, (hl)
+		or	a
+		jp	nz, mrs3
+		ld	a, d
+		or	e
+		ld	hl, cted
+		ex	(sp), hl
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lclneq:					
+		ex	de, hl
+		call	getlbl
+		jr	nc, lclnlb
+		call	dcbn
+		ld	a, (hl)
+		or	a
+		jp	nz, mrs2
+		ld	a, d
+		or	e
+		dec	de
+		jp	nz, cted
+
+homeim:					
+		ld	hl, (lnnumb)
+		ex	de, hl
+		jp	cted
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lclnlb:					
+		call	slnini
+		ld	e, c
+
+llb1:					
+		ld	a, (hl)
+		add	a, a
+		jp	z, mrs2
+		jr	nc, llb2
+		dec	hl
+		ld	a, (hl)
+		inc	hl
+		cp	e
+		jp	z, outscr
+
+llb2:					
+		call	skln
+		jr	llb1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lclnpl:					
+		call	lcln1
+		ld	hl, (lnnumb)
+		add	hl, de
+		jr	c, llp1
+		ex	de, hl
+		ret	nz
+
+llp1:					
+		ld	de, -1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lclnmi:					
+		call	lcln1
+		call	neg
+
+imctn:					
+		ld	hl, (lnnumb)
+		add	hl, de
+		ex	de, hl
+		ret	c
+		cp	l
+		ret	z
+		ld	de, 0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+previm:					
+		scf
+
+nxtvim:					
+		sbc	a, a
+		ld	d, a
+		xor	17h
+		sub	d
+		ld	hl, row
+		sub	(hl)
+		ld	e, a
+		sub	d
+		ld	hl, cted
+		push	hl
+		jr	imctn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+slnini:					
+		xor	a
+		ld	h, a
+		ld	l, a
+		ld	(lnnumb), hl
+
+crtnin:					
+		ld	hl, ramtop
+		ld	(curent), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sline:					
+		call	slnini
+
+sl1:					
+		ld	a, d
+		or	e
+		ret	z
+		call	skln
+		ret	z
+		dec	de
+		jr	sl1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cntedi:
+		call	slln
+		ld	d, a
+		ld	e, a
+
+cted:					
+					
+		call	sline
+
+outscr:					
+		call	clear
+		ld	hl, (lnnumb)
+		push	hl
+		ld	hl, 0
+		ld	(cursor), hl
+		push	hl
+		ld	hl, (curent)
+		push	hl
+		ld	d, 16h
+		call	rollup
+		pop	hl
+		ld	(curent), hl
+		pop	hl
+		ld	(cursor), hl
+		pop	hl
+		ld	(lnnumb), hl
+		jp	edit1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+slln0:					
+		pop	de
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+slln:					
+		ld	de, -1
+		call	sline
+		ld	(lastln), hl
+		dec	hl
+		ld	(adstab), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+negbc0:					
+		ld	a, (hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+negbc:					
+		and	7Fh ; ''
+		ld	b, 0FFh
+		cpl
+		ld	c, a
+		inc	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+neg:					
+		ld	a, e
+		cpl
+		ld	e, a
+		ld	a, d
+		cpl
+		ld	d, a
+		inc	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cmhlde:					
+		ld	a, h
+		cp	d
+		ret	nz
+		ld	a, l
+		cp	e
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+skln:					
+		ld	a, (hl)
+		or	a
+		ret	z
+		push	hl
+		ld	hl, (lnnumb)
+		inc	hl
+		ld	(lnnumb), hl
+		pop	hl
+
+skipln:					
+		call	negbc0
+		add	hl, bc
+		ld	(curent), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+chblk:					
+		ld	b, 40h ; '@'
+
+chblk1:
+		ld	l, b
+
+endad1:					
+		ld	h, 0FEh	; ''
+		ld	a, 20h ; ' '
+
+ea1:					
+		dec	l
+		ret	m
+		cp	(hl)
+		ret	nz
+		dec	b
+		jr	nz, ea1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mdelln:					
+		ld	a, (insyes)
+		or	a
+		ret	nz
+		call	getend
+		call	negbc0
+		ret	z
+
+md1:					
+		push	hl
+		add	hl, bc
+		call	cmhlde
+		ld	a, (hl)
+		pop	hl
+		ld	(hl), a
+		dec	hl
+		jr	nz, md1
+		ld	hl, (lastln)
+		sbc	hl, bc
+		ld	(lastln), hl
+		dec	hl
+		ld	(adstab), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+minsln:					
+		call	getend
+		ex	de, hl
+		dec	hl
+		ld	a, (pdline)
+		call	negbc
+		ret	z
+
+mi1:					
+		inc	hl
+		push	hl
+		ld	a, (hl)
+		add	hl, bc
+		ld	(hl), a
+		pop	hl
+		call	cmhlde
+		jr	nz, mi1
+		ld	hl, (lastln)
+		add	hl, bc
+		ld	(lastln), hl
+		dec	hl
+		ld	(adstab), hl
+		ld	hl, (curent)
+
+cpl2:
+		ld	de, pdline
+		push	de
+		ld	a, (de)
+		and	7Fh ; ''
+		ld	c, a
+
+mi2:					
+		ld	a, (de)
+		ld	(hl), a
+		dec	de
+		dec	hl
+		dec	c
+		jr	nz, mi2
+		pop	hl
+		ld	(hl), c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getend:					
+		ld	hl, (adstab)
+		ld	c, (hl)
+		call	vstoas
+		ld	hl, (curent)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+delln:					
+		ld	bc, 0
+		call	wlnnu0
+		call	chblk
+		ld	hl, (curent)
+		jr	nz, dl10
+		ld	a, (hl)
+		or	a
+		jp	z, edit0
+
+dl10:					
+		push	hl
+		ld	a, 16h
+		call	idelln
+		ld	hl, insyes
+		ld	d, (hl)
+		ld	(hl), 0
+		ld	a, (row)
+		pop	hl
+		cp	16h
+		jr	z, dl3
+		push	af
+		push	hl
+		add	a, d
+		ld	e, a
+
+dl1:					
+		call	skipln
+		ld	a, e
+		jr	z, dl2
+		inc	e
+		ld	a, 16h
+		cp	e
+		jr	nc, dl1
+
+dl2:					
+		ld	(row), a
+		call	outln
+		pop	hl
+		ld	(curent), hl
+		pop	af
+		ld	(row), a
+
+dl3:					
+		dec	d
+		call	m, mdelln
+		jp	edit1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outcrl:					
+		ld	a, 0Dh
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outchr:					
+					
+		cp	0Ah
+		ret	z
+		cp	0Ch
+		ret	z
+		push	hl
+		ld	hl, (cursor)
+		cp	20h ; ' '
+		jp	c, spec
+		push	hl
+		call	setchr
+		pop	hl
+		inc	l
+		ld	a, 20h ; ' '
+		sub	l
+		jr	nz, newc
+
+newl:					
+		ld	l, a
+		ld	a, h
+		sub	16h
+		adc	a, 16h
+		ld	h, a
+		call	nc, scrol1
+
+newc:					
+					
+		ld	(cursor), hl
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+spec:					
+		sub	0Dh
+		jr	z, newl
+		ld	de, newc
+		push	de
+		sub	0Ch
+		jr	z, lvlavo
+		sub	0FFh
+		ret	nz
+		ld	a, 3Eh ; '>'
+		cp	l
+		ret	c
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lvlavo:					
+		dec	l
+		ret	p
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+delete:					
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	nz, de1
+		ld	(hl), 0
+		push	hl
+		ld	l, 40h ; '@'
+
+de0:					
+		dec	l
+		cp	(hl)
+		jr	z, de0
+		inc	(hl)
+		dec	(hl)
+		pop	hl
+		ld	(hl), a
+		jr	nz, de1
+		ld	a, (newcur)
+		cp	l
+		ret	z
+		dec	l
+		ld	(hl), 20h ; ' '
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+de1:					
+		call	field0
+		ld	e, l
+
+de2:					
+		cp	l
+		ld	(hl), 20h ; ' '
+		ex	de, hl
+		ret	z
+		ex	de, hl
+		inc	l
+		ld	d, (hl)
+		dec	l
+		ld	(hl), d
+		inc	l
+		jr	de2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+insert:					
+		call	field0
+		ld	d, a
+		ld	a, l
+		ld	l, d
+
+in1:					
+		cp	l
+		ld	(hl), 20h ; ' '
+		ret	z
+		dec	l
+		ld	d, (hl)
+		inc	l
+		ld	(hl), d
+		dec	l
+		jr	in1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ascii:					
+		call	qcomst
+		jr	c, spctab
+		ld	(hl), b
+
+right:					
+		ld	a, 3Eh ; '>'
+		cp	l
+		jr	c, beep
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+spctab:					
+		inc	a
+
+st1:					
+		cp	l
+		ret	z
+		ld	(hl), 20h ; ' '
+		inc	l
+		jr	st1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+chcc:					
+		ld	a, (buffer)
+		cp	3Bh ; ';'
+		ret	z
+		cp	2Ah ; '*'
+		ret	z
+		ld	a, (row)
+		cp	17h
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabr:					
+		call	chcc
+		jr	z, beep
+		call	field
+		sub	3Fh ; '?'
+		adc	a, 3Fh ; '?'
+		cp	l
+		jr	z, beep
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabl:					
+		call	chcc
+		jr	z, beep
+		call	field
+		ld	a, l
+		or	a
+		jr	z, beep
+
+tl1:					
+		dec	de
+		ld	a, (de)
+		cp	l
+		ld	l, a
+		jr	z, tl1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+endadr:					
+		call	chcc
+		jr	z, beep
+		ld	a, (buffer)
+		ld	b, 20h ; ' '
+		ld	l, 20h ; ' '
+		jp	endad1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+left:					
+		ld	a, (newcur)
+		cp	l
+		jr	z, beep
+		dec	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+beep:					
+		push	af
+		scf
+		call	bbeep
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bbeep:					
+		push	hl
+		push	de
+		push	bc
+		push	iy
+		ld	iy, 5C3Ah
+		ld	hl, 64h	; 'd'
+		ld	de, 4Bh	; 'K'
+		jr	c, bbp
+		ld	hl, 50h	; 'P'
+		ld	de, 14h
+
+bbp:					
+		call	sysbep
+		di
+		pop	iy
+		pop	bc
+		pop	de
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+field0:					
+		call	chcc
+		ld	a, 3Fh ; '?'
+		ret	z
+
+field:					
+		ld	de, startf_1
+
+fd1:					
+		ld	a, (de)
+		dec	a
+		cp	l
+		ret	nc
+		inc	de
+		jr	fd1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+qcomst:					
+		sub	20h ; ' '
+		ret	nz
+		ld	a, (row)
+		cp	17h
+		ret	z
+
+qcoms0:
+		xor	a
+		sub	l
+		ccf
+		ld	a, 6
+		ret	c
+		call	field0
+		ret	z
+		cp	3Fh ; '?'
+		ret	z
+		cp	1Fh
+		ret	c
+		ld	de, buffer_params
+
+qc1:					
+		ccf
+		push	af
+
+qc2:					
+		ld	a, l
+		cp	e
+		jr	nz, qc3
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+qc3:					
+		ld	a, (de)
+		inc	de
+		cp	27h ; '''
+		jr	nz, qc2
+		pop	af
+		jr	qc1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrsb:					
+		ld	bc, 801h
+
+mrsd:					
+		ld	de, 0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrs:					
+		ld	a, 0Fh
+		out	(0FEh),	a
+		xor	a
+
+mrsp:					
+		push	hl
+		call	blank
+		pop	hl
+
+mrsin:					
+		push	de
+		ld	e, a
+		ld	d, 0FEh	; ''
+
+mrs1:					
+		ld	a, (hl)
+		ld	(de), a
+		inc	hl
+		inc	de
+		djnz	mrs1
+		ld	l, b
+		ld	h, 17h
+		call	outbuf
+		ld	a, e
+		pop	de
+		dec	c
+		ret	m
+		ld	(atabr), de
+		ld	(newcur), a
+		ld	(leftm1), a
+		pop	hl
+		ld	(anavp), hl
+
+znovu:					
+		push	hl
+		ld	hl, (cursor)
+		ld	(oldchr), hl
+		ld	hl, (newcur)
+		ld	(cursor), hl
+		xor	a
+		call	wrrow1
+		call	chblk
+		inc	l
+		ld	(hl), 0
+		ld	(adzero), hl
+		ld	hl, (oldchr)
+		ld	(cursor), hl
+		ld	hl, (atabr)
+		ld	a, h
+		or	l
+		ret	z
+		ld	d, 0FEh	; ''
+
+nextc:					
+		ld	a, (leftm1)
+		ld	e, a
+		ld	bc, 3
+
+nc3:					
+		ld	a, (de)
+		sub	(hl)
+		jr	nz, nc1
+		inc	hl
+		inc	e
+		dec	c
+		jr	nz, nc3
+		ld	c, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+nc1:					
+		inc	c
+		inc	c
+		add	hl, bc
+		xor	a
+		sub	(hl)
+		jp	m, nextc
+		ld	hl, cmonit
+		jr	nz, nextc
+
+mrs3:					
+		pop	af
+
+mrs2:					
+		call	beep
+		ld	a, (leftm1)
+		ld	(newcur), a
+		ld	hl, (adzero)
+		ld	(hl), 20h ; ' '
+		ld	hl, (anavp)
+		jr	znovu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pntchr:					
+		jp	expnt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+opschr:					
+		push	bc
+		push	hl
+
+opsch3:					
+		call	rom_0
+		call	scan
+		cp	11h
+
+break:					
+		ld	hl, tbreak
+		jp	z, wtmf_3
+		cp	53h ; 'S'
+		jr	nz, wt2
+
+wt1:					
+		call	scan
+		cp	51h ; 'Q'
+		jr	nz, wt1
+
+wt2:					
+		pop	hl
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+analax:					
+		push	de
+		push	hl
+		push	hl
+		call	chblk
+		inc	hl
+		ld	(hl), 0
+		ex	(sp), hl
+		inc	hl
+		ld	a, (hl)
+		inc	hl
+		cp	70h ; 'p'
+		jr	nz, ax0
+		call	dcbn
+		ld	a, d
+		or	a
+		jr	nz, ax6
+		ld	d, 1
+		ld	(newpag), de
+		jr	ax5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ax0:					
+		cp	63h ; 'c'
+		jr	nz, ax1
+		call	hxbn
+		ld	(pcode), de
+		jr	ax5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ax1:					
+		ld	bc, outchr
+		cp	74h ; 't'
+		jr	z, ax2
+		ld	bc, pntchr
+		cp	6Ch ; 'l'
+		jr	nz, ax3
+		ld	a, 87h ; ''
+
+ax2:					
+		sub	67h ; 'g'
+		ld	(scrlp+1), a
+		ld	(opsch3+1), bc
+		jr	ax5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ax3:					
+		sub	61h ; 'a'
+		jr	z, ax4
+		cp	4
+		jr	nz, ax6
+		ld	a, 2Ch ; ','
+
+ax4:					
+		add	a, 4
+		ld	(lind+1), a
+
+ax5:					
+		ld	a, (hl)
+		or	a
+
+ax6:					
+		pop	hl
+		ld	(hl), 20h ; ' '
+		pop	hl
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wmg:					
+		djnz	$
+		dec	hl
+		ld	a, h
+		or	l
+		jr	nz, wmg
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+savtxt:					
+		call	getend
+		ld	hl, lastln
+		ld	bc, edi
+		ld	a, 0FFh
+
+save:					
+		push	bc
+		ld	(ind_1+1), a
+		ld	bc, buffer_instr
+		push	bc
+		ld	a, (bc)
+		cp	20h ; ' '
+		jp	nz, mrs2
+		sbc	hl, de
+		ex	de, hl
+		ex	(sp), hl
+		ld	(hl), 3
+		xor	a
+
+sa1_edi:				
+		inc	hl
+		cp	(hl)
+		jr	nz, sa1_edi
+		ld	(hl), 20h ; ' '
+		ld	hl, 50E0h
+		call	blvst
+		ld	hl, buffer_dlzka
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		pop	de
+		inc	hl
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+
+ind_1:					
+		ld	a, 0
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(hl), a
+		xor	a
+		ld	de, 11h
+		ld	ix, buffer_instr
+		call	save_4C6
+		jr	nc, exsav
+		ld	hl, 500h
+		call	wmg
+		ld	de, (buffer_dlzka)
+		ld	ix, (buffer_adresa)
+		ld	a, 0FFh
+		call	save_4C6
+
+exsav:					
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loatxt:					
+		ld	hl, slln0
+		ld	a, 21h ; '!'
+		jr	lmtxt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mertxt:					
+		ld	hl, text
+		ld	a, 1
+
+lmtxt:					
+		ld	(ld10+1), hl
+		ld	(loamer), a
+		ld	a, 1
+		ld	hl, edi
+
+load:					
+		ld	(ldind), a
+		ld	a, (de)
+		inc	de
+		cp	20h ; ' '
+		jr	z, lo1
+		or	a
+		jp	nz, mrs2
+		dec	a
+		ld	(de), a
+
+lo1:					
+		push	hl
+		ld	hl, 50E0h
+		call	blvst
+
+lo2:					
+		call	brktst
+		ret	nc
+		xor	a
+		ld	de, 11h
+		ld	ix, buffer_comment
+		scf
+		call	mgld
+		jr	nc, lo2
+		ld	h, 17h
+		ld	l, 0
+		ld	(cursor), hl
+		ld	hl, buffer_comment
+		ld	a, (hl)
+		cp	3
+		jr	nz, lo2
+		inc	hl
+		ld	b, 0Ah
+		ld	c, b
+		ld	de, buffer_meno
+
+lo3:					
+		ld	a, (hl)
+		call	outchr
+		ld	a, (de)
+		inc	a
+		jr	z, lo52
+		dec	a
+		jr	nz, lo51
+		dec	de
+		ld	a, 20h ; ' '
+
+lo51:					
+		cp	(hl)
+		jr	z, lo5
+		ld	c, 1
+
+lo5:					
+		inc	de
+
+lo52:					
+		inc	hl
+		djnz	lo3
+		dec	c
+		jr	z, lo2
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		inc	hl
+		ld	c, (hl)
+		inc	hl
+		ld	b, (hl)
+		inc	hl
+		ld	a, (hl)
+		inc	hl
+		cp	(hl)
+		jr	nz, lo2
+		or	(hl)
+		jr	z, lo53
+		inc	a
+		jr	nz, lo2
+		inc	a
+
+lo53:					
+		ld	hl, ldind
+		cp	(hl)
+		jr	nz, lo2
+		ld	hl, ld10
+		ld	(hl), 0CDh ; ''
+		or	a
+		jr	nz, lo6
+		ld	(hl), 0C9h ; ''
+		ld	h, b
+		ld	l, c
+		push	de
+		push	hl
+		add	hl, de
+		ex	de, hl
+		ld	hl, (lastln)
+		ld	a, e
+		sub	l
+		ld	a, d
+		sbc	a, h
+		pop	hl
+		jr	lo7
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lo6:					
+		ld	hl, (lastln)
+		ld	bc, -852h
+		add	hl, bc
+
+loamer:					
+		ld	bc,  lastln+1
+		sbc	hl, de
+		jr	c, wtmf
+		push	de
+		ex	de, hl
+		ld	hl, (libtop)
+		ld	(memory), hl
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		ex	de, hl
+
+lo7:					
+		pop	de
+		jr	c, lo9
+
+wtmf:					
+		ld	hl, tmf
+
+wtmf_3:					
+		ld	sp, (stack)
+		call	mrsb
+		jp	monit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lo9:					
+		call	text
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db  20h
+		db  6Ch	; l
+		db  6Fh	; o
+		db  61h	; a
+		db  64h	; d
+		db  69h	; i
+		db  6Eh	; n
+		db  67h	; g
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		push	hl
+		pop	ix
+		add	hl, de
+		push	hl
+		scf
+		dec	a
+		call	mgld
+		pop	hl
+		jr	c, ld10
+		call	brktst
+		ret	nc
+		ld	hl, tioer
+		jp	mrsb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ld10:					
+					
+		call	text
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db  20h
+		db  77h	; w
+		db  61h	; a
+		db  69h	; i
+		db  74h	; t
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		dec	hl
+		ld	e, l
+		ld	d, h
+
+lo11:					
+		call	negbc0
+		add	hl, bc
+		jr	nz, lo11
+		dec	hl
+		ex	de, hl
+
+loains:					
+		ld	(calins+1), bc
+
+ld2:					
+		push	de
+		ld	a, 1
+		ld	(insyes), a
+		ld	a, (ldind)
+		dec	a
+		jr	z, ld3
+		push	hl
+		call	blank
+		call	tstend
+		pop	hl
+		pop	de
+		jr	nc, wtmf
+
+calins:					
+		call	rom_0
+		jp	c, edi
+		push	de
+		jr	ld4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ld3:					
+		ex	(sp), hl
+		ld	de, (adstab)
+		ld	(adstab), hl
+		ex	(sp), hl
+		push	de
+		call	unpln
+		pop	de
+		ld	(adstab), de
+
+ld4:					
+		push	hl
+
+ld5:					
+		xor	a
+		ld	(rnznop), a
+		call	pln
+		ld	a, 0C0h	; ''
+		ld	(rnznop), a
+		jr	z, ld6
+		ld	h, 3
+		call	wmg
+		call	brktst
+		jp	nc, break
+		call	wlnnum
+		xor	a
+		ld	(row), a
+		call	wrrow1
+		jr	ld5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ld6:					
+		ld	hl, (curent)
+		call	skln
+		pop	hl
+		pop	de
+		ld	a, (ldind)
+		dec	a
+		jr	nz, ld2
+		cp	(hl)
+		ret	z
+		jr	ld2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+instxt:					
+		ld	bc, hxbn
+		call	getli0
+		jp	nz, mrs2
+		ld	b, h
+		ld	c, l
+		ex	de, hl
+		jr	loains
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dis1h:					
+		ld	a, e
+		sub	l
+		ld	a, d
+		sbc	a, h
+		ret	c
+		push	de
+		call	disrow
+		pop	de
+		or	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mgld:					
+		inc	d
+		ex	af, af'
+		dec	d
+		di
+		ld	a, 0Fh
+		out	(0FEh),	a
+		jp	load_562
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+text:					
+					
+		ex	(sp), hl
+
+txt:					
+		ld	a, (hl)
+		inc	hl
+		or	a
+		jr	z, endtx
+		call	outchr
+		jr	txt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+endtx:					
+		ex	(sp), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getlim:					
+		ld	bc, dcbn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getli0:					
+		ld	a, (de)
+		cp	20h ; ' '
+		ret	nz
+		inc	de
+		ex	de, hl
+		call	dh
+		ld	a, (hl)
+		cp	2Dh ; '-'
+		ret	nz
+		push	de
+		inc	hl
+		call	dh
+		ld	a, (hl)
+		pop	hl
+		or	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dis:					
+		ld	bc, hxbn
+		call	getli0
+		jp	nz, mrs2
+		ld	bc, dis1h
+		jp	loains
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dh:					
+		push	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wlnnum:					
+		ld	bc, (lnnumb)
+		inc	bc
+
+wlnnu0:					
+		push	hl
+		ld	hl, edi_riadok
+		push	hl
+		ld	a, b
+		or	c
+		call	nz, bndc
+		pop	de
+		ld	hl, 50FCh
+
+wln1:					
+		ld	a, (de)
+		call	pixel
+		inc	l
+		inc	e
+		jr	nz, wln1
+		call	bbc
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+delblk:					
+		call	getlim
+		jp	nz, mrs2
+		cp	a
+		ex	de, hl
+		sbc	hl, de
+		jp	c, mrs2
+		push	hl
+		dec	de
+		call	sline
+
+dlb1:					
+		call	mdelln
+		pop	hl
+		ld	a, h
+		or	l
+		dec	hl
+		push	hl
+		jr	nz, dlb1
+		pop	hl
+		jp	edi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cpyblk:					
+		call	getlim
+		dec	de
+		dec	hl
+		ld	a, 13h
+		ld	(inc2),	a
+		ld	bc, (lnnumb)
+		ld	a, c
+		sub	l
+		ld	a, b
+		sbc	a, h
+		jr	c, cpb1
+		xor	a
+		ld	(inc2),	a
+		ld	a, e
+		sub	c
+		ld	a, d
+		sbc	a, b
+		jp	nc, mrs2
+
+cpb1:					
+		ccf
+		ex	de, hl
+		sbc	hl, de
+
+cpb2:					
+		push	hl
+		push	de
+		push	bc
+		call	sline
+		ld	de, pdline
+		ld	a, (hl)
+		and	7Fh ; ''
+		ld	c, a
+		jr	z, cpb3
+		ld	b, 0
+		lddr
+		call	tstend
+		jp	nc, wtmf
+		pop	de
+		push	de
+		call	sline
+		call	minsln
+
+cpb3:					
+		pop	bc
+		pop	de
+		pop	hl
+		inc	bc
+		inc	de
+
+inc2:					
+		nop
+		ld	a, h
+		or	l
+		dec	hl
+		jr	nz, cpb2
+		jp	edi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+code:		db 0			
+flags:		db 0			
+nxtadr:		dw 0			
+erradr:		dw 0			
+errind:		db 0			
+gstabh:		dw reg1
+		dw pair
+		dw _byte
+		dw word
+		dw cond
+		dw num
+		dw rest
+		dw regx
+		dw areg
+		dw dfreg
+		dw hlreg
+		dw spreg
+		dw agreg
+		dw shcnd
+		dw creg
+lastlb:		db 0			
+oprts:		db  2Bh	; +
+		db  2Dh	; -
+		db  2Ah	; *
+		db  2Fh	; /
+		db  26h	; &
+		db  21h	; !
+oprts_6:	db  40h	; @		
+regbse:		db  62h	; b
+		db  63h	; c
+		db  64h	; d
+		db  65h	; e
+		db  68h	; h
+		db  6Ch	; l
+		db    0
+regbse_7:	db  61h	; a		
+parbse:		db  62h	; b		
+		db  63h	; c
+		db  64h	; d
+		db  65h	; e
+		db  68h	; h
+		db  6Ch	; l
+		db  73h	; s
+		db  70h	; p
+		db  61h	; a
+		db  66h	; f
+		db  69h	; i
+		db  78h	; x
+		db  69h	; i
+		db  79h	; y
+cdrsf:		db  6Eh	; n		
+		db  7Ah	; z
+		db  7Ah	; z
+		db    0
+		db  6Eh	; n
+		db  63h	; c
+		db  63h	; c
+		db    0
+		db  70h	; p
+		db  6Fh	; o
+		db  70h	; p
+		db  65h	; e
+		db  70h	; p
+		db    0
+		db  6Dh	; m
+		db    0
+mstab:		db 0FFh
+		db 0C7h	; 
+		db 0CFh	; 
+		db 0FFh
+		db 0FFh
+		db 0C7h	; 
+		db 0C7h	; 
+		db 0C7h	; 
+		db 0F7h	; 
+		db 0FFh
+		db 0FFh
+		db 0FFh
+		db 0FFh
+		db 0FFh
+		db 0E7h	; 
+		db 0FFh
+insbse:		db  68h	; h		
+		db  6Ch	; l
+		db 0F4h	; 
+		db  80h	; 
+		db    0
+		db  76h	; v
+		db  6Ch	; l
+		db 0E4h	; 
+		db    1
+		db    1
+		db  40h	; @
+		db  29h	; )
+		db    8
+		db  57h	; W
+		db  28h	; (
+		db    9
+		db  47h	; G
+		db  0Ch
+		db  0Bh
+		db 0F9h	; 
+		db  0Bh
+		db  14h
+		db  2Ah	; *
+		db  14h
+		db  0Bh
+		db  22h	; "
+		db    9
+		db  12h
+		db  0Ah
+		db    9
+		db  14h
+		db  3Ah	; :
+		db    1
+		db    3
+		db    6
+		db  12h
+		db    9
+		db    2
+		db  22h	; "
+		db  14h
+		db  4Bh	; K
+		db    2
+		db    4
+		db    1
+		db  34h	; 4
+		db    2
+		db  43h	; C
+		db  94h	; 
+		db    9
+		db  32h	; 2
+		db  70h	; p
+		db  75h	; u
+		db  73h	; s
+		db 0E8h	; 
+		db  82h	; 
+		db    0
+		db 0C5h	; 
+		db  70h	; p
+		db  6Fh	; o
+		db 0F0h	; 
+		db  82h	; 
+		db    0
+		db 0C1h	; 
+		db  6Ah	; j
+		db 0F2h	; 
+		db  0Eh
+		db    3
+		db  20h
+		db  80h	; 
+		db    3
+		db  18h
+		db  64h	; d
+		db  6Ah	; j
+		db  6Eh	; n
+		db 0FAh	; 
+		db  80h	; 
+		db    3
+		db  10h
+		db  6Ah	; j
+		db 0F0h	; 
+		db    5
+		db    4
+		db 0C2h	; 
+		db  1Bh
+		db    0
+		db 0E9h	; 
+		db  80h	; 
+		db    4
+		db 0C3h	; 
+		db  63h	; c
+		db  61h	; a
+		db  6Ch	; l
+		db 0ECh	; 
+		db    5
+		db    4
+		db 0C4h	; 
+		db  80h	; 
+		db    4
+		db 0CDh	; 
+		db  72h	; r
+		db  65h	; e
+		db 0F4h	; 
+		db    5
+		db    0
+		db 0C0h	; 
+		db  80h	; 
+		db    0
+		db 0C9h	; 
+		db  69h	; i
+		db 0EEh	; 
+		db  21h	; !
+		db  1Fh
+		db  40h	; @
+		db  89h	; 
+		db  13h
+		db 0DBh	; 
+		db  6Fh	; o
+		db  75h	; u
+		db 0F4h	; 
+		db  3Fh	; ?
+		db  81h	; 
+		db  41h	; A
+		db  93h	; 
+		db    9
+		db 0D3h	; 
+		db  61h	; a
+		db  64h	; d
+		db 0E4h	; 
+		db    9
+		db    1
+		db  80h	; 
+		db    9
+		db    3
+		db 0C6h	; 
+		db  8Bh	; 
+		db    2
+		db    9
+		db  61h	; a
+		db  64h	; d
+		db 0E3h	; 
+		db    9
+		db    1
+		db  88h	; 
+		db    9
+		db    3
+		db 0CEh	; 
+		db 0ABh	; 
+		db    2
+		db  4Ah	; J
+		db  73h	; s
+		db  75h	; u
+		db 0E2h	; 
+		db    0
+		db    1
+		db  90h	; 
+		db  80h	; 
+		db    3
+		db 0D6h	; 
+		db  73h	; s
+		db  62h	; b
+		db 0E3h	; 
+		db    9
+		db    1
+		db  98h	; 
+		db    9
+		db    3
+		db 0DEh	; 
+		db 0ABh	; 
+		db    2
+		db  42h	; B
+		db  61h	; a
+		db  6Eh	; n
+		db 0E4h	; 
+		db    0
+		db    1
+		db 0A0h	; 
+		db  80h	; 
+		db    3
+		db 0E6h	; 
+		db  78h	; x
+		db  6Fh	; o
+		db 0F2h	; 
+		db    0
+		db    1
+		db 0A8h	; 
+		db  80h	; 
+		db    3
+		db 0EEh	; 
+		db  6Fh	; o
+		db 0F2h	; 
+		db    0
+		db    1
+		db 0B0h	; 
+		db  80h	; 
+		db    3
+		db 0F6h	; 
+		db  63h	; c
+		db 0F0h	; 
+		db    0
+		db    1
+		db 0B8h	; 
+		db  80h	; 
+		db    3
+		db 0FEh	; 
+		db  69h	; i
+		db  6Eh	; n
+		db 0E3h	; 
+		db    1
+		db    0
+		db    4
+		db  82h	; 
+		db    0
+		db    3
+		db  64h	; d
+		db  65h	; e
+		db 0E3h	; 
+		db    1
+		db    0
+		db    5
+		db  82h	; 
+		db    0
+		db  0Bh
+		db  65h	; e
+		db 0F8h	; 
+		db  1Ch
+		db  0Bh
+		db 0E3h	; 
+		db  0Dh
+		db  0Dh
+		db    8
+		db  8Ah	; 
+		db  0Bh
+		db 0EBh	; 
+		db  65h	; e
+		db  78h	; x
+		db 0F8h	; 
+		db  80h	; 
+		db    0
+		db 0D9h	; 
+		db  6Eh	; n
+		db  6Fh	; o
+		db 0F0h	; 
+		db  80h	; 
+		db    0
+		db    0
+		db  72h	; r
+		db  6Ch	; l
+		db  63h	; c
+		db 0E1h	; 
+		db  80h	; 
+		db    0
+		db    7
+		db  72h	; r
+		db  72h	; r
+		db  63h	; c
+		db 0E1h	; 
+		db  80h	; 
+		db    0
+		db  0Fh
+		db  72h	; r
+		db  6Ch	; l
+		db 0E1h	; 
+		db  80h	; 
+		db    0
+		db  17h
+		db  72h	; r
+		db  72h	; r
+		db 0E1h	; 
+		db  80h	; 
+		db    0
+		db  1Fh
+		db  64h	; d
+		db  61h	; a
+		db 0E1h	; 
+		db  80h	; 
+		db    0
+		db  27h	; '
+		db  63h	; c
+		db  70h	; p
+		db 0ECh	; 
+		db  80h	; 
+		db    0
+		db  2Fh	; /
+		db  73h	; s
+		db  63h	; c
+		db 0E6h	; 
+		db  80h	; 
+		db    0
+		db  37h	; 7
+		db  63h	; c
+		db  63h	; c
+		db 0E6h	; 
+		db  80h	; 
+		db    0
+		db  3Fh	; ?
+		db  65h	; e
+		db 0E9h	; 
+		db  80h	; 
+		db    0
+		db 0FBh	; 
+		db  64h	; d
+		db 0E9h	; 
+		db  80h	; 
+		db    0
+		db 0F3h	; 
+		db  62h	; b
+		db  69h	; i
+		db 0F4h	; 
+		db 0C6h	; 
+		db    1
+		db  40h	; @
+		db  73h	; s
+		db  65h	; e
+		db 0F4h	; 
+		db 0C6h	; 
+		db    1
+		db 0C0h	; 
+		db  72h	; r
+		db  65h	; e
+		db 0F3h	; 
+		db 0C6h	; 
+		db    1
+		db  80h	; 
+		db  72h	; r
+		db  6Ch	; l
+		db 0E3h	; 
+		db 0C0h	; 
+		db    1
+		db    0
+		db  72h	; r
+		db 0ECh	; 
+		db 0C0h	; 
+		db    1
+		db  10h
+		db  72h	; r
+		db  72h	; r
+		db 0E3h	; 
+		db 0C0h	; 
+		db    1
+		db    8
+		db  72h	; r
+		db 0F2h	; 
+		db 0C0h	; 
+		db    1
+		db  18h
+		db  73h	; s
+		db  6Ch	; l
+		db 0E1h	; 
+		db 0C0h	; 
+		db    1
+		db  20h
+		db  73h	; s
+		db  72h	; r
+		db 0E1h	; 
+		db 0C0h	; 
+		db    1
+		db  28h	; (
+		db  73h	; s
+		db  6Ch	; l
+		db 0ECh	; 
+		db 0C0h	; 
+		db    1
+		db  30h	; 0
+		db  73h	; s
+		db  72h	; r
+		db 0ECh	; 
+		db 0C0h	; 
+		db    1
+		db  38h	; 8
+		db  6Ch	; l
+		db  64h	; d
+		db 0E9h	; 
+		db 0A0h	; 
+		db    0
+		db 0A0h	; 
+		db  6Ch	; l
+		db  64h	; d
+		db  69h	; i
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B0h	; 
+		db  6Ch	; l
+		db  64h	; d
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db 0A8h	; 
+		db  6Ch	; l
+		db  64h	; d
+		db  64h	; d
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B8h	; 
+		db  63h	; c
+		db  70h	; p
+		db 0E9h	; 
+		db 0A0h	; 
+		db    0
+		db 0A1h	; 
+		db  63h	; c
+		db  70h	; p
+		db  69h	; i
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B1h	; 
+		db  63h	; c
+		db  70h	; p
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db 0A9h	; 
+		db  63h	; c
+		db  70h	; p
+		db  64h	; d
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B9h	; 
+		db  69h	; i
+		db  6Eh	; n
+		db 0E9h	; 
+		db 0A0h	; 
+		db    0
+		db 0A2h	; 
+		db  69h	; i
+		db  6Eh	; n
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db 0AAh	; 
+		db  69h	; i
+		db  6Eh	; n
+		db  69h	; i
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B2h	; 
+		db  69h	; i
+		db  6Eh	; n
+		db  64h	; d
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0BAh	; 
+		db  6Fh	; o
+		db  75h	; u
+		db  74h	; t
+		db 0E9h	; 
+		db 0A0h	; 
+		db    0
+		db 0A3h	; 
+		db  6Fh	; o
+		db  75h	; u
+		db  74h	; t
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db 0ABh	; 
+		db  6Fh	; o
+		db  74h	; t
+		db  69h	; i
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0B3h	; 
+		db  6Fh	; o
+		db  74h	; t
+		db  64h	; d
+		db 0F2h	; 
+		db 0A0h	; 
+		db    0
+		db 0BBh	; 
+		db  72h	; r
+		db  6Ch	; l
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db  6Fh	; o
+		db  72h	; r
+		db  72h	; r
+		db 0E4h	; 
+		db 0A0h	; 
+		db    0
+		db  67h	; g
+		db  6Eh	; n
+		db  65h	; e
+		db 0E7h	; 
+		db 0A0h	; 
+		db    0
+		db  44h	; D
+		db  69h	; i
+		db  6Dh	; m
+		db 0B0h	; 
+		db 0A0h	; 
+		db    0
+		db  46h	; F
+		db  69h	; i
+		db  6Dh	; m
+		db 0B1h	; 
+		db 0A0h	; 
+		db    0
+		db  56h	; V
+		db  69h	; i
+		db  6Dh	; m
+		db 0B2h	; 
+		db 0A0h	; 
+		db    0
+		db  5Eh	; ^
+		db  72h	; r
+		db  65h	; e
+		db  74h	; t
+		db 0E9h	; 
+		db 0A0h	; 
+		db    0
+		db  4Dh	; M
+		db  72h	; r
+		db  65h	; e
+		db  74h	; t
+		db 0EEh	; 
+		db 0A0h	; 
+		db    0
+		db  45h	; E
+		db  72h	; r
+		db  73h	; s
+		db 0F4h	; 
+		db  87h	; 
+		db    0
+		db 0C7h	; 
+		db    0
+psibse:		db  65h	; e		
+		db  6Eh	; n
+		db 0F4h	; 
+		db    0
+		db  65h	; e
+		db  78h	; x
+		db 0F4h	; 
+		db    2
+		db  64h	; d
+		db 0E2h	; 
+		db    4
+		db  64h	; d
+		db 0F7h	; 
+		db    6
+		db  6Fh	; o
+		db  72h	; r
+		db 0E7h	; 
+		db    8
+		db  64h	; d
+		db 0F3h	; 
+		db  0Ah
+		db  65h	; e
+		db  71h	; q
+		db 0F5h	; 
+		db  0Ch
+		db  65h	; e
+		db  6Eh	; n
+		db 0E4h	; 
+		db  0Eh
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+packln:					
+		ld	hl, pdline
+		xor	a
+		ld	(hl), a
+		ld	(errind), a
+		push	hl
+		ex	de, hl
+		ld	hl, buffer
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	z, fnl
+		sub	3Bh ; ';'
+		jr	z, onlycm
+		cp	0EFh ; ''
+		jr	nz, lab
+		call	analax
+		jr	nz, emsg
+
+onlycm:					
+		dec	de
+		ld	c, 41h ; 'A'
+
+onlylb:					
+		dec	a
+		ld	(de), a
+		dec	de
+		ex	de, hl
+		ld	(nxtadr), hl
+		jp	comfld
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lab:					
+		push	de
+		call	fndlbl
+		pop	de
+		jr	nz, emsg
+		ld	a, 80h ; ''
+		ld	(de), a
+		dec	de
+		ld	a, c
+		cp	1
+		jr	c, emsg
+		ld	(de), a
+
+fnl:					
+		ld	a, 7
+		ld	(errind), a
+		ld	l, a
+		dec	de
+		ld	a, (hl)
+		ld	c, 21h ; '!'
+		sub	21h ; '!'
+		jr	c, onlylb
+		push	de
+		call	instr_asm
+		pop	de
+		call	nz, pseudo
+		jr	nz, emsg
+
+fn:					
+		push	de
+		dec	de
+		dec	de
+		ld	(nxtadr), de
+		ld	a, (bc)
+		ld	d, a
+		rra
+		and	30h ; '0'
+		ld	(flags), a
+		inc	bc
+		ld	a, (bc)
+		ld	e, a
+		inc	bc
+		ld	a, (bc)
+		ld	(code),	a
+		inc	bc
+		ld	a, d
+		or	e
+		and	1Fh
+		jr	z, f6
+		push	hl
+		push	bc
+		ld	a, 0Ch
+		ld	(errind), a
+		ld	l, a
+		ld	a, d
+		push	de
+		and	1Fh
+		jr	z, f4
+		call	getop1
+		jr	z, f2
+
+fx:					
+		pop	af
+		pop	bc
+		pop	hl
+		pop	de
+		rla
+		jr	nc, fn
+
+emsg:					
+		pop	de
+		ld	a, (errind)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+f2:					
+		pop	de
+		push	de
+		ld	a, e
+		or	a
+		jr	z, f5
+		ld	a, (hl)
+		cp	2Ch ; ','
+		jr	nz, fx
+		inc	hl
+
+f4:					
+		ld	a, e
+		or	a
+		jr	z, f5
+		call	getop2
+		jr	nz, fx
+
+f5:					
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	nz, fx
+		pop	af
+		pop	bc
+		pop	bc
+
+f6:					
+		pop	bc
+		ld	a, (flags)
+		ld	(bc), a
+		cp	20h ; ' '
+		jr	c, f7
+		and	10h
+		jr	nz, emsg
+
+f7:					
+		dec	bc
+		ld	a, (code)
+		ld	(bc), a
+		push	af
+
+psq:					
+		pop	af
+		ld	c, 21h ; '!'
+		ld	e, 1Fh
+		ld	d, 0FEh	; ''
+		ld	a, e
+		sub	l
+		ld	a, d
+		sbc	a, h
+		inc	e
+		jr	c, emsg
+
+comfld:					
+		ld	a, 20h ; ' '
+		ld	l, 3Fh ; '?'
+		ld	h, 0FEh	; ''
+
+cf1:					
+		dec	c
+		jr	z, cf2
+		cp	(hl)
+		dec	hl
+		jr	z, cf1
+
+cf2:					
+		ld	hl, (nxtadr)
+		jr	z, cf4
+
+cf3:					
+		ld	a, (de)
+		ld	(hl), a
+		inc	de
+		dec	hl
+		dec	c
+		jr	nz, cf3
+
+cf4:					
+		pop	de
+		ex	de, hl
+		ld	a, l
+		sub	e
+		or	(hl)
+		ld	(hl), a
+		cp	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+fndlbl:					
+		ld	a, (hl)
+		cp	24h ; '$'
+		ld	c, 0
+		inc	hl
+		scf
+		ret	z
+		dec	hl
+		cp	61h ; 'a'
+		ret	c
+		ld	a, 7Ah ; 'z'
+		cp	(hl)
+		ret	c
+		ex	de, hl
+		ld	hl, (adstab)
+		ld	c, (hl)
+		inc	c
+		ex	de, hl
+		push	de
+
+fl1:					
+		pop	af
+		push	de
+		ld	a, c
+		ld	(lastlb), a
+
+fl3:					
+		dec	c
+
+jrz:					
+		jr	z, wrlbl
+		call	vstoas
+		ld	a, (de)
+		or	a
+		jr	z, fl1
+		push	hl
+		push	de
+		ld	b, 6
+
+fl4:					
+		ld	a, (de)
+		and	7Fh ; ''
+		cp	(hl)
+		jr	nz, chneq
+		inc	hl
+		inc	de
+		djnz	fl4
+
+leq:					
+		pop	de
+		pop	de
+		inc	sp
+		inc	sp
+		cp	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+chneq:					
+		cp	20h ; ' '
+		jr	nz, lneq
+		call	aphnum
+		jr	nc, leq
+
+lneq:					
+		pop	de
+		pop	hl
+		jr	fl3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wrlbl:					
+		ex	(sp), hl
+		push	hl
+		ld	a, (hl)
+		or	a
+		ld	hl, (adstab)
+		jr	nz, wrl1
+		or	(hl)
+		jr	nz, wrl2
+
+wrl1:					
+		inc	(hl)
+		ld	c, (hl)
+		jr	z, stf
+		call	vstoas
+		ex	(sp), hl
+		ld	hl, (libtop)
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		pop	hl
+		jr	c, wrl5
+
+stf:					
+		dec	(hl)
+		jp	wtmf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wrl2:					
+		pop	de
+		ld	a, (lastlb)
+		ld	c, a
+
+wrl5:					
+		pop	hl
+		ld	b, 6
+
+wrl3:					
+		call	aphnum
+		jr	c, wrl4
+		ld	a, 20h ; ' '
+		dec	hl
+
+wrl4:					
+		ld	(de), a
+		inc	de
+		inc	hl
+		djnz	wrl3
+		cp	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+aphnum:					
+		ld	a, (hl)
+		cp	7Bh ; '{'
+		ret	nc
+		cp	61h ; 'a'
+		jr	nc, apq
+		cp	3Ah ; ':'
+		ret	nc
+		cp	30h ; '0'
+
+apq:					
+		ccf
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getlbl:					
+		ld	a, 17h
+		ld	(jrz+1), a
+		push	hl
+		call	fndlbl
+		ld	a, 28h ; '('
+		ld	(jrz+1), a
+		jr	c, glb2
+
+glb1:					
+		call	aphnum
+		inc	hl
+		jr	c, glb1
+		dec	hl
+		xor	a
+		cp	(hl)
+
+glb2:					
+		ex	de, hl
+		pop	hl
+		ret	c
+		or	c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+instr_asm:				
+		ld	bc, insbse
+		ld	d, 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+fndpsi:					
+		push	hl
+
+a1:					
+		ld	a, (bc)
+		cp	1
+		jr	nc, a2
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+a2:					
+		ld	a, (bc)
+		and	7Fh ; ''
+		cp	(hl)
+		jr	z, ac
+
+a3:					
+		ld	a, (bc)
+		inc	bc
+		rla
+		jr	nc, a3
+
+ax:					
+		pop	hl
+		push	hl
+
+a4:					
+		ld	a, (bc)
+		inc	bc
+		inc	d
+		dec	d
+		jr	z, a1
+		inc	bc
+		inc	bc
+		rla
+		jr	nc, a4
+		jr	a1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ac:					
+		ld	a, (bc)
+		inc	bc
+		inc	hl
+		rla
+		jr	nc, a2
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	nz, ax
+		inc	sp
+		inc	sp
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getop2:					
+
+		cp	1
+		jr	z, reg2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getop1:					
+		ld	de,  erradr+1
+		ld	b, a
+		and	10h
+		ld	a, b
+		jp	z, pgcnt
+		ld	a, (hl)
+		inc	hl
+		cp	28h ; '('
+		ld	a, b
+		call	z, pgcix
+		ret	nz
+		ld	a, (hl)
+		inc	hl
+
+errhl:					
+		cp	29h ; ')'
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+reg2:					
+		ld	c, 0FFh
+		jr	reg1_2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+reg1:					
+		ld	c, 0
+
+reg1_2:					
+		ld	de, regbse_7
+		ld	b, 7
+
+cl:					
+		ld	a, (de)
+		cp	(hl)
+		jr	z, ce
+		dec	de
+		dec	b
+		jp	p, cl
+		ld	a, 28h ; '('
+		cp	(hl)
+		jr	z, indx0
+		ld	a, (code)
+		cp	70h ; 'p'
+		jr	z, errhl
+		call	indreg
+		inc	hl
+		ld	b, 4
+		ld	a, (hl)
+		cp	68h ; 'h'
+		jr	z, ce
+		inc	b
+		cp	6Ch ; 'l'
+		jr	z, ce
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+indx0:					
+		inc	hl
+		ld	a, 68h ; 'h'
+		cp	(hl)
+		jr	nz, ci
+		inc	hl
+		ld	a, 6Ch ; 'l'
+		cp	(hl)
+		inc	hl
+		ret	nz
+		ld	a, (flags)
+		and	0C0h ; ''
+		jr	z, cc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ci:					
+		inc	a
+		cp	(hl)
+		ret	nz
+		inc	hl
+		call	indreg
+		ld	b, 8
+		call	stflg
+		inc	hl
+		push	bc
+		call	grelad
+		pop	bc
+		ret	nz
+
+cc:					
+		ld	a, 29h ; ')'
+		cp	(hl)
+		ret	nz
+		ld	b, 6
+
+ce:					
+		inc	c
+		jr	z, c2
+		ld	a, b
+
+dc:					
+					
+		rlca
+		rlca
+		rlca
+		ld	b, a
+
+c2:					
+		inc	hl
+
+c22:					
+		ld	a, (code)
+		add	a, b
+		ld	(code),	a
+		cp	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+indreg:					
+		ld	b, 80h ; ''
+		ld	a, 78h ; 'x'
+		cp	(hl)
+		jp	z, stflg
+		ld	b, 40h ; '@'
+		inc	a
+		cp	(hl)
+		jp	z, stflg
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+regx:					
+		ld	b, 8
+		ld	a, 72h ; 'r'
+		cp	(hl)
+		jr	z, c2
+		ld	a, 69h ; 'i'
+		cp	(hl)
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rest:					
+		ld	a, (hl)
+		cp	23h ; '#'
+		ret	nz
+		inc	hl
+		call	hxbn
+		ld	b, e
+		ld	a, b
+		and	0C7h ; ''
+		jr	z, c22
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+agreg:					
+		ld	de, 'af'
+		jr	patrs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dfreg:					
+		ld	de, 'de'
+		jr	patrs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+spreg:					
+		ld	de, 'sp'
+
+patrs:					
+		ld	a, (hl)
+		cp	d
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	e
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+shcnd:					
+		cp	a
+
+cond:					
+		push	af
+		ld	b, 8
+		ld	de, cdrsf
+		call	search
+		pop	af
+		jr	nz, cond1
+		ld	a, b
+		cp	4
+		ret	c
+
+cond1:					
+		ld	a, 8
+		sub	b
+		jr	dc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hlreg:					
+		call	hlc
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pair:					
+		ld	de, dc
+		push	de
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hlc:					
+		ld	de, parbse
+		ld	b, 7
+		call	search
+		ld	a, (code)
+		or	0Ch
+		cp	0CDh ; ''
+		jr	z, pushfs
+		cp	0Eh
+		ld	a, b
+		jr	nz, nobcde
+		cp	6
+		jr	c, err_x
+
+nobcde:					
+		cp	3
+		jr	nz, tstix
+
+err_x:					
+		inc	a
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pushfs:					
+		ld	a, b
+		cp	4
+		jr	z, err_x
+		cp	3
+		jr	nz, tstix
+		inc	b
+
+tstix:					
+		dec	a
+		jr	nz, tstiy
+		ld	b, 40h ; '@'
+		jr	ixpr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tstiy:					
+		dec	a
+		jr	nz, endcu
+		ld	b, 80h ; ''
+
+ixpr:					
+		call	stflg
+		ld	b, 5
+
+endcu:					
+		ld	a, 7
+		sub	b
+		rla
+		cp	4
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+search:					
+		ld	a, (de)
+		inc	de
+		cp	(hl)
+		jr	nz, srch1
+		ld	a, (de)
+		or	a
+		ret	z
+		inc	hl
+		cp	(hl)
+		ret	z
+		dec	hl
+
+srch1:					
+		inc	de
+		dec	b
+		jr	nz, search
+		inc	b
+		pop	de
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+creg:					
+		ld	a, 63h ; 'c'
+		jr	areg_2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+areg:					
+		ld	a, 61h ; 'a'
+
+areg_2:					
+		cp	(hl)
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+num:					
+		ld	a, 37h ; '7'
+		cp	(hl)
+		ret	c
+		ld	a, (hl)
+		sub	30h ; '0'
+		ret	c
+		jp	dc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+stflg:					
+		ld	a, (flags)
+		or	b
+		ld	(flags), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pseudo:					
+		inc	bc
+		push	de
+		ld	d, a
+		call	fndpsi
+		pop	de
+		ret	nz
+		ld	a, 0Ch
+		ld	(errind), a
+		ld	l, a
+		ld	a, (bc)
+		inc	a
+		ld	(de), a
+		dec	de
+		ld	(nxtadr), de
+		cp	0Fh
+		jp	z, psq
+		inc	de
+
+gpsil:					
+		push	de
+		ld	de, (nxtadr)
+		call	gpsi
+		ld	(nxtadr), de
+		pop	de
+		ret	nz
+		ld	a, (hl)
+		cp	20h ; ' '
+		jp	z, psq
+		cp	2Ch ; ','
+		inc	hl
+		ret	nz
+		ld	a, (de)
+		and	8
+		ld	a, (de)
+		ret	nz
+		add	a, 10h
+		ld	(de), a
+		jr	gpsil
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+extent:					
+		push	de
+		call	fndlbl
+		ld	a, c
+		jp	extcnt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+db:					
+		push	hl
+		call	getexp
+		pop	bc
+		ret	z
+		ld	a, (bc)
+		cp	27h ; '''
+		ret	nz
+		inc	bc
+		ld	hl, (nxtadr)
+		ld	d, h
+		ld	e, l
+		dec	de
+		ld	(hl), 80h ; ''
+
+dbl:					
+		ld	a, (bc)
+		inc	bc
+		cp	27h ; '''
+		jr	z, dbq
+		ld	(de), a
+		dec	de
+		inc	(hl)
+		jr	dbl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbq:					
+		ld	h, b
+		ld	l, c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+word:					
+		ld	b, 2
+		call	stflg
+
+_byte:					
+		ld	b, 4
+		call	stflg
+		jr	getexp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gpsi:					
+
+		and	0Eh
+		cp	4
+		jp	m, extent
+		jr	z, db
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getexp:					
+		ld	b, 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+grelad:					
+		ld	de, (nxtadr)
+		ld	a, (hl)
+		ld	c, 10h
+		cp	2Dh ; '-'
+		jr	z, gv3
+		cp	2Bh ; '+'
+		jr	z, gv1_a
+		dec	b
+		ret	nz
+		dec	hl
+
+gv1_a:					
+		inc	hl
+		ld	a, (hl)
+		cp	3Ch ; '<'
+		ld	c, 18h
+		jr	z, gv3
+		cp	3Eh ; '>'
+		ld	c, 0
+		jr	nz, gv2
+		ld	c, 8
+
+gv3:					
+		inc	hl
+
+gv2:					
+		push	de
+		dec	de
+		call	getmem_asm
+		jr	nz, gvend
+		ld	a, c
+		rlca
+		rlca
+		rlca
+		ld	c, a
+		and	0C0h ; ''
+		ld	b, 0
+		jr	nz, gv5
+		ld	a, (hl)
+		push	hl
+		ld	hl, oprts_6
+		ld	b, 7
+
+gv6:					
+		cp	(hl)
+		jr	z, gv4
+		dec	hl
+		djnz	gv6
+		or	a
+
+gv4:					
+		pop	hl
+		jr	nz, gv5
+		inc	hl
+
+gv5:					
+		ld	a, c
+		or	b
+		rlca
+		rlca
+		ld	c, a
+		ld	a, b
+		or	a
+		call	nz, getmem_asm
+		ex	de, hl
+		ld	(nxtadr), hl
+		ex	(sp), hl
+		ld	(hl), c
+		pop	hl
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gvend:					
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getmem_asm:				
+		push	de
+		ld	a, (hl)
+		cp	27h ; '''
+		jr	nz, lbl
+		inc	hl
+		ld	e, (hl)
+		inc	hl
+		cp	(hl)
+		inc	hl
+		jr	chrcnt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lbl:					
+		inc	c
+		push	bc
+		call	fndlbl
+		ld	e, c
+		pop	bc
+		jr	nz, dec
+
+chrcnt:					
+		ld	a, e
+
+extcnt:					
+		pop	de
+		ld	(de), a
+		dec	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dec:					
+		inc	c
+		cp	23h ; '#'
+		jr	z, hex_a
+		ld	b, l
+		call	dcbn
+		jr	cnst
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hex_a:					
+		inc	c
+		inc	hl
+		ld	b, l
+		call	hxbn
+
+cnst:					
+		ex	(sp), hl
+		ld	(hl), e
+		dec	hl
+		ld	(hl), d
+		dec	hl
+		ex	de, hl
+		pop	hl
+		ld	a, b
+		sub	l
+		jr	z, error
+		cp	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+error:					
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pgcix:					
+		and	0Fh
+
+pgcnt:					
+		add	a, a
+		push	hl
+		ld	l, a
+		ld	h, 0
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		pop	hl
+		push	de
+
+pstadr_2:				
+		ld	a, c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pstadr:		dw preg1
+		dw ppair
+		dw putv8
+		dw putv16
+		dw pcond
+		dw pnum
+		dw prest
+		dw pregy
+		dw pa
+		dw pde
+		dw phl
+		dw psp
+		dw paf
+		dw pshcnd
+		dw pc
+tdolar:		db  24h	; $		
+		db  20h
+errad:		dw 0			
+xy:		db 0			
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+blank:					
+		push	hl
+		ld	l, 40h ; '@'
+		ld	h, 0FEh	; ''
+
+bl1:					
+		dec	l
+		ld	(hl), 20h ; ' '
+		jr	nz, bl1
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+vstoas:					
+		push	hl
+		ld	hl, (adstab)
+		ld	e, c
+		xor	a
+		ld	d, a
+		ex	de, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		ex	de, hl
+		sbc	hl, de
+		ex	de, hl
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prxdd:					
+		ld	a, 78h ; 'x'
+		ld	(xy), a
+		ld	b, 81h ; ''
+		inc	hl
+		ld	a, (hl)
+		cp	0FDh ; ''
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prxfd:					
+		ld	a, 79h ; 'y'
+		ld	(xy), a
+		ld	b, 41h ; 'A'
+		inc	hl
+		ld	a, (hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+disrow:					
+		ld	a, 20h ; ' '
+		ld	(xy), a
+		ld	(nxtadr), hl
+		ld	(errad), hl
+		ld	b, 1
+		ld	a, (hl)
+		cp	0DDh ; ''
+		call	z, prxdd
+		jp	z, noins
+		cp	0FDh ; ''
+		call	z, prxfd
+		cp	0EDh ; ''
+		jr	nz, prxcb
+		ld	a, b
+		or	10h
+		jr	prxcbc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prxcb:					
+		cp	0CBh ; ''
+		jr	nz, woprx
+		inc	a
+		and	b
+		jr	z, nbm
+		inc	hl
+
+nbm:					
+		or	21h ; '!'
+
+prxcbc:					
+		ld	b, a
+		inc	hl
+
+woprx:					
+		ld	c, (hl)
+		inc	hl
+		ld	(nxtadr), hl
+		ld	a, b
+		and	0E0h ; ''
+		jr	z, pfxok
+		jp	po, pfxok
+		ld	a, c
+		and	7
+		cp	6
+		jp	nz, noins
+
+pfxok:					
+		call	discnt
+		ld	hl, buffer_params
+		push	hl
+		ld	bc, 13h
+		push	bc
+		ld	a, (xy)
+		cpir
+		pop	bc
+		pop	hl
+		jp	z, okins
+		ld	de, buffer_params
+		inc	de
+		ld	(hl), 20h ; ' '
+		ldir
+		jp	noins
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpln0:					
+		ld	hl, (curent)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpln:					
+		call	blank
+		call	negbc0
+		ret	z
+		ld	a, (hl)
+		rla
+		jr	c, un1
+		dec	hl
+		ld	d, h
+		ld	e, l
+		dec	de
+		ld	a, (hl)
+		inc	hl
+
+un1:					
+		push	hl
+		add	hl, bc
+		ex	(sp), hl
+		ld	bc, buffer
+		inc	a
+		jr	z, unc
+		call	upmain
+		ld	de, (nxtadr)
+		ld	bc, buffer_comment
+
+unc:					
+		pop	hl
+
+unc1:					
+		call	cmhlde
+		ret	z
+		ld	a, (de)
+		ld	(bc), a
+		dec	de
+		inc	bc
+		jr	unc1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+upmain:					
+
+		ld	a, (hl)
+		rlca
+		dec	hl
+		jr	nc, pwolbl
+		ld	c, (hl)
+		dec	hl
+		push	hl
+		ld	hl, buffer
+		call	outlab
+		pop	hl
+
+pwolbl:					
+		ld	b, (hl)
+		dec	hl
+		ld	a, b
+		scf
+		rra
+		inc	a
+		jr	z, psd
+		jr	c, psd
+		ld	c, (hl)
+		dec	hl
+
+psd:					
+		ld	(nxtadr), hl
+		ret	z
+		jr	c, ppseud
+
+discnt:					
+		ld	hl, insbse
+
+loop2:					
+		push	hl
+
+fnd1:					
+		ld	a, (hl)
+		rla
+		inc	hl
+		jr	nc, fnd1
+
+loop3:					
+		push	hl
+		ld	a, (hl)
+		call	getms1
+		ld	d, a
+		inc	hl
+		ld	a, (hl)
+		call	getms2
+		and	d
+		and	c
+		inc	hl
+		cp	(hl)
+		pop	de
+		jr	nz, cddif
+		ld	a, (de)
+		rra
+		xor	b
+		and	30h ; '0'
+		jr	z, isamf
+
+cddif:					
+		inc	hl
+		ld	a, (de)
+		rla
+		jr	nc, loop3
+		pop	af
+		ld	a, (hl)
+		and	a
+		jr	nz, loop2
+
+noins:					
+		ld	hl, (errad)
+		ld	a, (hl)
+		inc	hl
+		ld	(nxtadr), hl
+		ld	hl, buffer_instr
+		ld	(hl), 64h ; 'd'
+		inc	hl
+		ld	(hl), 62h ; 'b'
+		inc	hl
+		ld	(hl), 20h ; ' '
+		inc	hl
+		ld	(hl), 20h ; ' '
+		inc	hl
+		ld	(hl), 23h ; '#'
+		inc	hl
+		call	bnhx
+
+okins:					
+		ld	hl, (nxtadr)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ppseud:					
+		ld	hl, psibse
+
+tstant:					
+		push	hl
+
+skname:					
+		ld	a, (hl)
+		rla
+		inc	hl
+		jr	nc, skname
+		pop	de
+		ld	a, b
+		and	0FEh ; ''
+		ld	b, a
+		and	0Fh
+		cp	(hl)
+		inc	hl
+		jr	nz, tstant
+		push	bc
+		ex	de, hl
+		call	outnam_asm
+		pop	af
+
+ppsil:					
+		push	af
+		ld	de, (nxtadr)
+		call	ppsi
+		ld	(nxtadr), de
+		pop	af
+		sub	10h
+		ret	c
+		ld	(hl), 2Ch ; ','
+		inc	hl
+		jr	ppsil
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ppsi:					
+
+		and	0Fh
+		cp	4
+		jp	c, pentex
+		cp	0Eh
+		ret	nc
+		ld	a, (de)
+		ld	c, a
+		add	a, a
+		jp	nc, q11
+		dec	de
+		ld	(hl), 27h ; '''
+
+pstrl:					
+		inc	hl
+		dec	c
+		jp	p, pstrq
+		ld	a, (de)
+		dec	de
+		ld	(hl), a
+		jr	pstrl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pstrq:					
+		ld	(hl), 27h ; '''
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+isamf:					
+		ex	de, hl
+		ex	(sp), hl
+		call	outnam_asm
+		pop	de
+		ld	a, b
+		and	0C0h ; ''
+		jr	z, okpref
+		inc	de
+		ld	a, (de)
+		dec	de
+		dec	a
+		cp	2
+		jr	c, okpref
+		cp	0Ah
+		jr	z, okpref
+		ld	a, (de)
+		and	0Fh
+		dec	a
+		cp	0Ah
+		jr	z, okpref
+		cp	2
+		jp	nc, noins
+
+okpref:					
+		ld	a, (de)
+		inc	de
+		and	1Fh
+		jr	z, wo1op
+		push	de
+		push	bc
+		call	putop1
+		pop	bc
+		pop	de
+		ld	a, (de)
+		and	a
+		ret	z
+		ld	(hl), 2Ch ; ','
+		inc	hl
+
+wo1op:					
+		ld	a, (de)
+		and	a
+		ret	z
+
+putop2:
+		cp	1
+		jr	z, preg2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+putop1:					
+		ld	de, pstadr_2
+		push	bc
+		ld	b, a
+		and	10h
+		ld	a, b
+		pop	bc
+		jp	z, pgcnt
+
+hlcnt:
+		ld	(hl), 28h ; '('
+		inc	hl
+		call	pgcix
+
+hlcnti:					
+		ld	(hl), 29h ; ')'
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outnam_asm:				
+		push	bc
+		ld	de, buffer_instr
+
+onl:					
+		ldi
+		ld	a, (hl)
+		rla
+		jr	nc, onl
+		ccf
+		rra
+		ld	(de), a
+		ld	hl, buffer_params
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pc:					
+		ld	(hl), 63h ; 'c'
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pa:					
+		ld	a, 38h ; '8'
+
+preg1:					
+		rrca
+		rrca
+		rrca
+		ld	c, a
+
+preg2:					
+		ld	a, c
+		and	7
+		cp	6
+		jr	nz, rg1
+		push	bc
+		ld	a, 1Bh
+		call	putop1
+		pop	bc
+		ld	a, b
+		and	0C0h ; ''
+		ret	z
+		dec	hl
+		ld	a, b
+		and	21h ; '!'
+		cp	21h ; '!'
+		jr	z, pxc8
+		ld	c, 0FFh
+		call	putv8
+		jr	hlcnti
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pxc8:					
+		push	hl
+		ld	hl, (nxtadr)
+		dec	hl
+		dec	hl
+		ld	a, (hl)
+		pop	hl
+		ld	(hl), 2Bh ; '+'
+		inc	hl
+		ld	(hl), 23h ; '#'
+		inc	hl
+		call	bnhx
+		jr	hlcnti
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rg1:					
+		cp	7
+		jr	z, rg2
+		cp	4
+		jr	c, rg2
+		ld	(hl), 78h ; 'x'
+		bit	7, b
+		jr	nz, rg3
+		ld	(hl), 79h ; 'y'
+		bit	6, b
+		jr	z, rg2
+
+rg3:					
+		bit	3, b
+		jr	nz, rg2
+		ld	a, c
+		sub	74h ; 't'
+		jr	z, rg4
+		dec	a
+		jr	z, rg4
+		sub	57h ; 'W'
+		jr	z, rg4
+		dec	a
+		jr	z, rg4
+		inc	hl
+
+rg4:					
+		ld	a, c
+		and	7
+
+rg2:					
+		add	a, 0EBh	; ''
+		ld	e, a
+		ld	a, 0
+		adc	a, 0E0h	; ''
+		ld	d, a
+		ld	a, (de)
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pde:					
+		ld	c, 2
+		jr	pr3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+psp:					
+		ld	c, 6
+		jr	pr3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+paf:					
+		ld	c, 8
+		jr	pr3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+phl:					
+		ld	c, 20h ; ' '
+		ld	a, c
+
+ppair:					
+		or	8
+		cp	3Ah ; ':'
+		jr	z, putv16
+		ld	a, c
+		rra
+		rra
+		rra
+		and	6
+		cp	6
+		jr	nz, pr1
+		ld	b, a
+		ld	a, c
+		or	4
+		cp	0F5h ; ''
+		ld	c, b
+		jr	z, pr2
+		jr	pr3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pr1:					
+		cp	4
+		ld	c, a
+		jr	nz, pr3
+		ld	c, 0Ah
+		ld	a, b
+		and	80h ; ''
+		jr	nz, pr3
+		ld	a, b
+		and	40h ; '@'
+		jr	nz, pr2
+		ld	c, 2
+
+pr2:					
+		inc	c
+		inc	c
+
+pr3:					
+		ld	a, c
+		add	a, 0F3h	; ''
+		ld	c, a
+		ld	a, 0
+		adc	a, 0E0h	; ''
+		ld	b, a
+		ld	a, (bc)
+		ld	(hl), a
+		inc	hl
+		inc	bc
+		ld	a, (bc)
+		and	a
+		ret	z
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pshcnd:					
+		and	18h
+
+pcond:					
+		and	38h ; '8'
+		rra
+		rra
+		add	a, 0Eh
+		ld	c, a
+		jr	pr3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pregy:					
+		ld	(hl), 69h ; 'i'
+		inc	hl
+		and	8
+		ret	z
+		dec	hl
+		ld	(hl), 72h ; 'r'
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pnum:					
+		rra
+		rra
+		rra
+		and	7
+		add	a, 30h ; '0'
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getms2:					
+		cp	1
+		jr	nz, getms1
+		ld	a, 0F8h	; ''
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getms1:					
+		and	0Fh
+		push	de
+		add	a, 11h		; low mstab
+		ld	e, a
+		ld	a, 0
+		adc	a, 0E1h	; ''   ; high mstab
+		ld	d, a
+		ld	a, (de)
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+putv8:					
+					
+		ld	a, b
+		and	1
+		jr	q11
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+putv16:					
+					
+		ld	a, b
+		and	1
+		or	2
+
+q11:					
+		ld	b, a
+		ld	de, (nxtadr)
+		ld	a, b
+		rra
+		jr	nc, unpc
+		rra
+		ld	a, (de)
+		inc	de
+		ld	(hl), 2Bh ; '+'
+		inc	c
+		jr	nz, q12
+		inc	hl
+
+q12:					
+		ld	(hl), 23h ; '#'
+		inc	hl
+		jr	nc, q33
+		ld	b, a
+		ld	a, (de)
+		inc	de
+		call	bnhx
+		ld	a, b
+
+q33:					
+		call	bnhx
+		jr	pvq
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpc:					
+		ld	a, (de)
+		and	1Fh
+		cp	2
+		ld	(hl), 2Dh ; '-'
+		jr	z, pv1_a
+		inc	c
+		jr	nz, pv2
+		ld	(hl), 2Bh ; '+'
+		inc	hl
+
+pv2:					
+		dec	a
+		ld	(hl), 3Eh ; '>'
+		jr	z, pv1_a
+		sub	2
+		ld	(hl), 3Ch ; '<'
+		jr	nz, pv3
+
+pv1_a:					
+		inc	hl
+
+pv3:					
+		ld	a, (de)
+		push	af
+		dec	de
+		rlca
+		rlca
+		rlca
+		call	putmem
+		pop	af
+		ld	c, a
+		rrca
+		rrca
+		and	7
+		jr	z, pvq
+		push	hl
+		ld	l, a
+		ld	a, c
+		ld	h, 0
+		ld	bc, lastlb
+		add	hl, bc
+		ld	c, (hl)
+		pop	hl
+		ld	(hl), c
+		inc	hl
+		call	putmem
+
+pvq:					
+		ld	(nxtadr), de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pentex:					
+		ld	a, 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+putmem:					
+
+		and	3
+		ex	de, hl
+		ld	c, (hl)
+		dec	hl
+		ex	de, hl
+		jr	nz, pm1
+		ld	(hl), 27h ; '''
+		inc	hl
+		ld	(hl), c
+		inc	hl
+		ld	(hl), 27h ; '''
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pm1:					
+		dec	a
+		jr	nz, pm2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outlab:					
+		push	de
+		ld	a, c
+		or	a
+		ld	de, tdolar
+		call	nz, vstoas
+		ld	b, 6
+
+ol1:					
+		ld	a, (de)
+		and	7Fh ; ''
+		ld	(hl), a
+		cp	20h ; ' '
+		jr	z, ol2
+		inc	hl
+		inc	de
+		djnz	ol1
+
+ol2:					
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pm2:					
+		dec	a
+		ld	a, (de)
+		ld	b, a
+		dec	de
+		jr	nz, bin
+		push	de
+		call	bndc
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bin:					
+		ld	(hl), 23h ; '#'
+		inc	hl
+		or	a
+		call	nz, bnhx
+		ld	a, c
+		jp	bnhx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prest:					
+		and	38h ; '8'
+		ld	(hl), 23h ; '#'
+		inc	hl
+		jp	bnhx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bndc:					
+		ld	a, 1
+
+bd0:
+		ld	d, b
+		ld	e, c
+		ld	c, a
+		ex	de, hl
+		push	bc
+
+bd1:					
+		xor	a
+		ld	b, 10h
+
+bd2:					
+		add	hl, hl
+		adc	a, a
+		cp	0Ah
+		jr	c, bd3
+		sub	0Ah
+		inc	l
+
+bd3:					
+		dec	b
+		jr	nz, bd2
+		or	30h ; '0'
+		push	af
+		ld	a, l
+		or	h
+		jr	nz, bd1
+		ex	de, hl
+		inc	a
+		cp	c
+		sbc	a, a
+		ld	b, a
+
+bd4:					
+		pop	af
+		ret	c
+		ld	(hl), a
+		add	hl, bc
+		jr	bd4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bnhx2:					
+		ld	a, d
+		call	bnhx
+		ld	a, e
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bnhx:					
+		push	af
+		rrca
+		rrca
+		rrca
+		rrca
+		call	bnhx1
+		pop	af
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bnhx1:					
+		and	0Fh
+		add	a, 90h ; ''
+		daa
+		adc	a, 40h ; '@'
+		daa
+		or	20h ; ' '
+
+dnum:
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hxbn:					
+		ld	de, 0
+
+hxbn_3:					
+		ld	a, (hl)
+		call	hxbn1
+		ret	c
+		ex	de, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		ex	de, hl
+		or	e
+		ld	e, a
+		inc	hl
+		jr	hxbn_3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hxbn1:					
+		add	a, 0C6h	; ''
+		jr	c, hxbn2
+		sub	0F6h ; ''
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hxbn2:					
+		and	0DFh ; ''
+		sub	7
+		ret	c
+		add	a, 0FAh	; ''
+		ret	c
+		sub	0F0h ; ''
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dcbn:					
+		ld	de, 0
+
+dcbn_3:					
+		ld	a, (hl)
+		cp	3Ah ; ':'
+		ret	nc
+		sub	30h ; '0'
+		ret	c
+		ex	de, hl
+		push	bc
+		add	hl, hl
+		ld	b, h
+		ld	c, l
+		add	hl, hl
+		add	hl, hl
+		add	hl, bc
+		ld	c, a
+		ld	b, 0
+		add	hl, bc
+		pop	bc
+		ex	de, hl
+		inc	hl
+		jr	dcbn_3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+blkbdb:					
+		ld	hl, 50C0h
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+blvst:					
+		ld	a, 20h ; ' '
+		call	pixel
+		inc	l
+		jr	nz, blvst
+		ld	hl, (poscur)
+		res	7, (hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+vstup:					
+		call	blkbdb
+		ld	b, 3
+		ld	de, 0
+		ld	h, 0FEh	; ''
+		inc	b
+		ld	l, b
+		ld	(hl), 3Ah ; ':'
+		inc	b
+		ld	l, 0
+		ld	c, 1
+		ld	a, b
+		ld	(vst+1), a
+		xor	a
+		call	mrsin
+
+vst:					
+		ld	l, 0
+		ld	h, 0FEh	; ''
+		ld	a, (hl)
+		or	a
+		ret	z
+		ld	de, 0
+		ld	a, 5Ah ; 'Z'
+
+vst0:					
+		ld	(retvst+1), de
+		ld	(adcsbc+1), a
+		ld	a, (hl)
+		cp	23h ; '#'
+		jr	z, hex_b
+		cp	3Ah ; ':'
+		jr	nc, nav
+		call	dcbn
+		jr	exvst
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hex_b:					
+		inc	hl
+		call	hxbn
+
+exvst:					
+		push	hl
+
+retvst:					
+					
+		ld	hl, 0
+		or	a
+
+adcsbc:					
+		adc	hl, de
+		ex	de, hl
+		pop	hl
+		ld	a, (hl)
+		or	a
+		jr	nz, exv1
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+exv1:					
+		cp	2Bh ; '+'
+		ld	a, 5Ah ; 'Z'
+		jr	z, vst1
+		ld	a, (hl)
+		cp	2Dh ; '-'
+		ld	a, 52h ; 'R'
+
+vst1:					
+		inc	hl
+		jr	z, vst0
+		jp	mrs2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+nav:					
+		call	getlbl
+		push	de
+		xor	a
+		or	c
+		jr	z, sche
+		call	vstoax
+		push	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		bit	7, (hl)
+		pop	hl
+		jr	nz, sche
+		bit	7, (hl)
+		jr	nz, nval
+
+sche:					
+		call	schent
+		jp	z, mrs3
+
+nval:					
+		ld	de, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		jr	retvst
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outbdb:					
+		ld	hl, 50C0h
+		ld	de, buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loutb:					
+		ld	a, (de)
+		call	pixel
+		inc	e
+		inc	l
+		jr	nz, loutb
+		ld	hl, (poscur)
+		res	7, (hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+clrd:					
+		ld	hl, buffer_end
+
+clrd1:					
+		ld	(hl), 20h ; ' '
+		dec	l
+		jr	nz, clrd1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dwhx:					
+		ld	a, (de)
+		push	af
+		inc	de
+		ld	a, (de)
+		call	bnhx
+		pop	af
+		inc	de
+		jp	bnhx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dump1r:					
+		push	hl
+		push	bc
+		call	clrd
+		ld	a, d
+		call	bnhx
+		ld	a, e
+		call	bnhx
+		ld	(hl), 3Ah ; ':'
+		inc	hl
+		inc	hl
+		push	de
+		ld	b, 4
+
+d1r1:					
+		ld	a, (de)
+		call	bnhx
+		inc	hl
+		inc	de
+		djnz	d1r1
+		ld	(hl), 3Ah ; ':'
+		pop	de
+		inc	hl
+		ld	b, 4
+
+d1r2:					
+		ld	a, (de)
+		cp	20h ; ' '
+		jr	c, d1r3
+		cp	7Fh ; ''
+		jr	c, d1r4
+
+d1r3:					
+		ld	a, 2Eh ; '.'
+
+d1r4:					
+		ld	(hl), a
+		inc	hl
+		inc	de
+		djnz	d1r2
+		pop	bc
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+modify:					
+		ld	hl,  mod1+1
+		call	reg02
+
+mod1:					
+		ld	de, 0
+
+mod2:					
+		ld	l, 6
+
+mod0:					
+		push	de
+		call	dump1r
+		pop	de
+
+modnew:					
+		call	outdlg
+		ld	h, 16h
+		call	setcrs
+		ld	h, 0FEh	; ''
+
+mod3:					
+		call	inkey
+		cp	7
+		jr	z, mod2
+		ld	bc, 5
+		push	hl
+		ld	hl, tabmf
+		cpir
+		add	hl, bc
+		add	hl, bc
+		ld	c, (hl)
+		pop	hl
+		jr	z, modd
+		cp	20h ; ' '
+		jr	nz, mod4
+		dec	l
+		cp	(hl)
+		inc	l
+		jr	c, mod5
+		call	inkey
+		call	bnhx
+		jr	modd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mod4:					
+		ld	b, a
+		call	hxbn1
+
+mod5:					
+		call	c, beep
+		jr	c, mod3
+
+mod7:
+		ld	(hl), b
+
+modd:					
+		ld	a, c
+		rlca
+		sbc	a, a
+		ld	b, a
+		bit	0, c
+		jr	z, mod9
+
+mod8:					
+		add	hl, bc
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	z, mod8
+		cp	3Ah ; ':'
+		jr	nz, modnew
+
+mod9:					
+		push	de
+		ld	l, 6
+
+mod10:					
+		push	de
+		call	hxbn
+		ld	a, e
+		pop	de
+		ld	(de), a
+		inc	de
+		inc	l
+		ld	a, (hl)
+		cp	3Ah ; ':'
+		jr	nz, mod10
+		pop	hl
+		add	hl, bc
+		ex	de, hl
+		ld	l, 0Fh
+		dec	c
+		jp	z, mod0
+		inc	c
+		jp	nz, mod2
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabmf:		db  1Eh			
+		db  1Dh
+		db  0Dh
+		db  19h
+		db  18h
+		db    1
+		db 0FFh
+		db    0
+		db    4
+		db 0FCh
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+window:					
+		ld	a, 7
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+window_2:				
+		call	compar
+		jr	z, wind0
+		jr	nc, wind1
+		call	compar
+		jr	c, wind2
+
+wind0:					
+		scf
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wind1:					
+		dec	de
+		dec	de
+
+wind2:					
+		rrca
+		jr	c, window_2
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+compar:					
+		push	bc
+		ex	de, hl
+		ld	b, (hl)
+		dec	hl
+		ld	c, (hl)
+		dec	hl
+		ex	de, hl
+		push	hl
+		or	a
+		sbc	hl, bc
+		pop	hl
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hard:					
+		ld	a, (zac+1)
+		cp	4Ah ; 'J'
+		scf
+		ret	z
+		cp	61h ; 'a'
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wmem:					
+
+		push	de
+		ld	de,  wm_x+1
+		call	window
+		pop	de
+		jr	nc, wmem2
+		call	hard
+		ld	a, 4Dh ; 'M'
+
+wmem1:					
+		call	nc, beep
+		jp	nc, errtxt
+
+wmem2:					
+		push	de
+		ld	de,  prtadr_2+1
+		xor	a
+		call	window_2
+		pop	de
+		ret	nc
+		ld	a, 2Eh ; '.'
+		ld	(wmm), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wpc:					
+		push	de
+		ld	de,  pr+1
+		call	window
+		pop	de
+		ret	c
+		call	hard
+		ld	a, 50h ; 'P'
+		jr	nc, wmem1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dumplr:					
+		ld	h, 0
+
+dumpl1:					
+		call	dump1r
+		call	outbuf
+		inc	h
+		dec	l
+		jr	nz, dumpl1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+anti:					
+		ld	hl,  an2+1
+		call	reg02
+
+an1:
+		call	clear
+
+an2:					
+		ld	de, 0
+		ld	b, 16h
+
+an3:					
+		push	bc
+		call	clrd
+		ld	a, d
+		call	bnhx
+		ld	a, e
+		call	bnhx
+		ex	de, hl
+		call	disrow
+		ex	de, hl
+		xor	a
+		call	rolup1
+		push	hl
+		ld	h, 15h
+		ld	l, 0
+		call	outbuf
+		pop	hl
+		pop	bc
+		djnz	an3
+		inc	b
+
+an4:					
+		call	inkey
+		cp	61h ; 'a'
+		jr	z, an3
+		cp	0Dh
+		call	nz, beep
+		jr	nz, an4
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dump:					
+		ld	hl,  dump1+1
+		call	reg02
+
+dump0:
+		call	clear
+
+dump1:					
+		ld	de, 0
+
+dump2:					
+		push	de
+		ld	l, 10h
+		call	dumplr
+		pop	de
+
+dump3:					
+		call	blkbdb
+		call	inkey
+		cp	0Dh
+		ret	z
+		call	dumpp
+		call	nz, beep
+		jr	nz, dump3
+		add	hl, de
+		ex	de, hl
+		jr	dump2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dumpp:					
+		ld	hl, 40h
+		cp	1Ah
+		ret	z
+		ld	hl, -40h
+		cp	17h
+		ret	z
+		ld	c, 0
+		cp	61h ; 'a'
+		jr	z, paket
+		ld	c, 2
+		cp	68h ; 'h'
+		ret	nz
+
+paket:					
+		call	clrd
+		ld	(hl), a
+		inc	hl
+		ld	(hl), 3Ah ; ':'
+		inc	hl
+
+err_ret:				
+		call	c, beep
+		ld	(hl), 20h ; ' '
+		push	hl
+		ld	h, 16h
+		call	setcrs
+		call	outdlg
+		ld	hl, err_ret
+		ex	(sp), hl
+		call	inkey
+		cp	0Dh
+		jr	nz, pt1
+
+ptfnc:
+		ld	a, c
+		rrca
+		ret	c
+		pop	af
+		ld	a, l
+		cp	3
+		jr	nc, ptf0
+		ld	a, (ptfb+1)
+		ld	c, a
+		ld	b, 0
+		dec	bc
+		dec	bc
+		ld	hl, buffer_2
+		push	de
+		ex	de, hl
+		ldir
+		pop	de
+
+ptf0:					
+		bit	1, c
+		jr	z, ptf2
+		push	de
+		ld	l, 2
+		ld	b, h
+		ld	c, l
+
+ptf1:					
+		call	hxbn
+		ld	a, e
+		ld	(bc), a
+		inc	bc
+		inc	hl
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	nz, ptf1
+		pop	de
+		ld	a, c
+
+ptf2:					
+		ld	(ptfb+1), a
+		ld	bc, -1
+
+ptf3:					
+		ld	hl, buffer_2
+		inc	de
+		ld	a, (hl)
+		ex	de, hl
+		cpir
+		ex	de, hl
+		ret	nz
+		dec	de
+		push	de
+
+ptf4:					
+		ld	a, (de)
+		cp	(hl)
+		jr	nz, ptf6
+		inc	de
+		inc	l
+		ld	a, l
+
+ptfb:					
+		sub	3
+		jr	nz, ptf4
+		sbc	hl, de
+		jr	z, ptf5
+		inc	a
+
+ptf5:					
+		dec	a
+
+ptf6:					
+		pop	de
+		jr	nz, ptf3
+		ld	h, a
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pt1:					
+		cp	13h
+		jr	nz, pt2
+		ld	a, l
+		cp	3
+		ret	c
+		dec	l
+		ld	a, c
+		or	a
+		ret	z
+		xor	1
+		ld	c, a
+		ret	po
+		dec	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pt2:					
+		cp	20h ; ' '
+		ret	c
+		ld	b, a
+		bit	1, c
+		call	nz, hxbn1
+		ret	c
+		ld	(hl), b
+		ld	a, 1Bh
+		cp	l
+		ret	c
+		inc	l
+		ld	a, c
+		or	a
+		ret	z
+		xor	1
+		ld	c, a
+		ret	pe
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tbflag:		db  40h	; @
+		db    1
+		db    4
+		db  80h	; 
+tflg:		db  53h	; S		
+		db  5Ah	; Z
+		db  41h	; A
+		db  50h	; P
+		db  43h	; C
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+quit:					
+		call	blkbdb
+		ld	sp, (stack)
+		jp	monit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+regist:					
+		call	inkey
+		and	0DFh ; ''
+		ld	(hl), a
+		cp	50h ; 'P'
+		jr	nz, reg00
+		ld	hl, oebrpc
+		ex	(sp), hl
+		ld	hl, rpc
+		jr	reg02
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+reg00:					
+		ld	hl, tabreg_6
+		ld	bc, 7
+		cpdr
+		ret	nz
+		ld	hl,  raf+1
+		add	hl, bc
+		add	hl, bc
+		add	hl, bc
+		add	hl, bc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+reg02:					
+		push	hl
+		call	vstup
+		pop	hl
+		ret	z
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabreg:		db  41h	; A
+		db  42h	; B
+		db  44h	; D
+		db  48h	; H
+		db  58h	; X
+		db  59h	; Y
+tabreg_6:	db  53h	; S		
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wmpc:					
+		call	inkey
+		and	0DFh ; ''
+		ld	(hl), a
+		ld	de, wm
+		cp	4Dh ; 'M'
+		jr	z, wpm0
+		cp	50h ; 'P'
+		jp	nz, beep
+		ld	de, countr
+
+wpm0:					
+		push	de
+		push	af
+		ld	bc, 831h
+		inc	hl
+		inc	hl
+
+wpm1:					
+		ld	(hl), c
+		inc	hl
+		ld	(hl), 3Ah ; ':'
+		inc	hl
+		call	dwhx
+		ld	a, b
+		rrca
+		jr	nc, wpm2
+		inc	hl
+		inc	hl
+
+wpm2:					
+		inc	hl
+		inc	c
+		djnz	wpm1
+		call	outdlg
+		call	clrd
+		ld	b, l
+		inc	hl
+		pop	af
+		ld	(hl), a
+		inc	hl
+		call	inkey
+		ld	(hl), a
+		pop	hl
+		sub	31h ; '1'
+		jp	c, beep
+		cp	8
+		jp	nc, beep
+		ld	c, a
+		add	hl, bc
+		add	hl, bc
+		jr	reg02
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+print:					
+		call	vstup
+		jr	z, print1
+		ld	(prtadr), de
+
+print1:					
+		call	clrd
+		ld	(hl), 4Ch ; 'L'
+		call	vstup
+		jr	nz, print2
+		ld	e, 0
+
+print2:					
+		ld	a, e
+		cp	17h
+		ret	nc
+		ld	(prtln+1), a
+		ld	de, 4
+		ld	hl, (prtadr)
+
+print3:					
+		add	hl, de
+		dec	a
+		jr	nz, print3
+		dec	hl
+		ld	(prtadr_2), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prtadr:		dw 0			
+prtadr_2:	dw 0			
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+list:					
+		call	vstup
+		jr	nz, list1
+		ld	e, 17h
+
+list1:					
+		ld	a, 16h
+		sub	e
+		sub	e
+		ld	(scrln+1), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;
+;;	      ;;
+;;  Debugger  ;;
+;;	      ;;
+;;;;;;;;;;;;;;;;
+
+dbg:					
+		call	getend
+		dec	de
+		ld	(memtop), de
+		call	outbr
+
+oebrpc:					
+		ld	sp, (stack)
+		ld	hl, retgo
+		push	hl
+		ld	(rsp+1), sp
+
+retfnc:					
+					
+		ld	a, 20h ; ' '
+		jr	errtxt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bm1:					
+					
+		jr	zac
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		or	a
+		ld	hl, (rpc)
+		ld	de, (adrbrk+1)
+		sbc	hl, de
+		ld	hl,  zac+1
+		ld	a, (hl)
+		jr	z, cross
+		cp	47h ; 'G'
+		jr	nz, zac
+		set	5, (hl)
+		jp	go
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cross:					
+					
+		ld	de, 0
+		ld	a, d
+		or	e
+		jr	z, loop
+		ld	a, (hl)
+		cp	67h ; 'g'
+		jr	nz, zac
+		res	5, (hl)
+		call	brktst
+		jp	c, sprac
+
+loop:					
+		ld	a, 0C2h	; ''
+		call	beep
+		jr	errtxt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+crosst:					
+		push	hl
+		ld	hl, (rpc)
+		ld	de, (adrbrk+1)
+		or	a
+		sbc	hl, de
+		pop	hl
+		ret	nz
+		ld	de, (cross+1)
+		ld	a, d
+		or	e
+		ret	z
+		dec	de
+		ld	(cross+1), de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+zac:					
+		ld	a, 0
+		and	0DFh ; ''
+		or	80h ; ''
+
+errtxt:					
+		ld	sp, begmod
+		cp	0CEh ; ''
+		jp	z, tstop
+		push	af
+
+wmm:					
+		jr	vr0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prtln:					
+		ld	a, 0
+		or	a
+		ld	l, a
+		ld	de, (prtadr)
+		call	nz, dumplr
+		ld	a, 18h
+		ld	(wmm), a
+
+; Vypis	stavov registrov
+
+vr0:					
+		call	clrd
+		pop	af
+		push	af
+		and	7Fh ; ''
+		ld	(hl), a
+		inc	hl
+		inc	hl
+		ld	de, rpc
+		call	dwhx
+		ld	l, 1Bh
+		ld	a, (raf+1)
+		ld	de, tflg
+		ld	b, 5
+		rlca
+		rrca
+
+vr1:					
+		ld	(hl), 2Dh ; '-'
+		jr	nc, vr2
+		ex	de, hl
+		ld	c, (hl)
+		ex	de, hl
+		ld	(hl), c
+
+vr2:					
+		inc	de
+		inc	hl
+		rlca
+		rlca
+		djnz	vr1
+		ld	a, (raf+2)
+		call	bnhx
+		inc	hl
+		ld	b, 6
+		ld	de,  rbc+1
+
+vr3:					
+		call	dwhx
+		inc	de
+		inc	de
+		inc	hl
+		djnz	vr3
+		pop	af
+		cp	0D4h ; ''
+		push	af
+		rlca
+		jr	nc, vr4
+
+scrln:					
+		ld	a, 17h
+		cp	17h
+		jp	nc, vrtst
+		call	rolup
+
+vr4:					
+		ld	hl, (rpc)
+		call	disrow
+		call	outdlg
+		ld	hl, 1607h
+		ld	b, 13h
+
+inv:					
+		call	invpix
+		inc	l
+		djnz	inv
+		pop	af
+		jr	z, tstop
+
+ink:
+		call	inkey
+		ld	(zac+1), a
+		cp	4Ah ; 'J'
+		jp	z, sprac
+		and	0DFh ; ''
+		ld	hl, tabfn
+		ld	bc, 3
+		cpir
+		jp	z, usprac
+		ld	c, 0Dh
+		cpir
+		ld	de, retfnc
+		push	de
+		add	hl, bc
+		add	hl, bc
+		add	hl, bc
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		jp	nz, beep
+		call	clrd
+		ld	(hl), a
+		inc	hl
+		push	de
+		ld	a, c
+		cp	5
+		ret	nc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outdlg:					
+		push	hl
+		push	de
+		call	outbdb
+		pop	de
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rolup:					
+		push	af
+		call	rolup1
+		pop	af
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rolup1:					
+		push	bc
+		push	de
+		push	hl
+		ld	h, a
+		ld	a, 17h
+		call	idel
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabfn:		db  53h	; S		
+		db  43h	; C
+		db  54h	; T
+		db  4Dh	; M
+		db  44h	; D
+		db  49h	; I
+		db  4Ch	; L
+		db  58h	; X
+		db  41h	; A
+		db  50h	; P
+		db  51h	; Q
+		db  4Eh	; N
+		db  57h	; W
+		db  52h	; R
+		db  4Fh	; O
+		db  47h	; G
+		dw go
+		dw outbr
+		dw regist
+		dw wmpc
+		dw usprac
+		dw quit
+		dw print
+		dw anti
+		dw exxx			; exx :	ex af,af
+		dw list
+		dw inbrk
+		dw dump
+		dw modify
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+vrtst:					
+		pop	af
+		push	af
+		jp	nz, vr4
+		call	outdlg
+
+tstop:					
+		call	brktst
+		jp	nc, retfnc
+
+usprac:					
+					
+		ld	de, ii
+
+uspr1:					
+		ld	hl, (rpc)
+		ld	a, (de)
+		or	a
+		jr	z, sprac
+		cp	0EDh ; ''
+		jr	nz, uspr2
+		inc	de
+		cp	(hl)
+		jr	nz, uspr3
+		ld	a, (de)
+		inc	hl
+
+uspr2:					
+		cp	(hl)
+
+uspr3:					
+		inc	de
+		jr	nz, uspr1
+		call	hard
+		ld	a, 49h ; 'I'
+		call	nc, beep
+		jp	nc, errtxt
+
+sprac:					
+		ld	hl, (rpc)
+		ld	c, (hl)
+		ld	a, c
+		ex	de, hl
+		inc	de
+		ld	hl, byte
+		push	hl
+
+ed:
+		ld	b, 2
+		cp	0EDh ; ''
+		jr	nz, fdd
+		ld	a, (de)
+		and	0E4h ; ''
+		cp	0A0h ; ''
+		ld	a, (de)
+		jr	nz, ed1b
+; Rekurzie
+		call	hard
+		ret	c
+		ld	a, (de)
+		rra
+		ret	c
+		ld	de, (rbc+1)
+		ld	hl, (rde+1)
+		rra
+		jr	nc, rek1
+		ld	hl, (rhl+1)
+		ld	e, d
+		ld	d, 0
+		inc	e
+		dec	e
+		jr	nz, rek1
+		inc	d
+
+rek1:					
+		ld	bc, 1
+		rra
+		rra
+		jr	nc, rek2
+		dec	bc
+		dec	bc
+
+rek2:					
+		rra
+		ld	a, b
+		ld	b, 2
+		jp	nc, wmem
+		ld	b, a
+
+rek3:					
+		call	wmem
+		add	hl, bc
+		dec	de
+		ld	a, d
+		or	e
+		jr	nz, rek3
+		ld	b, 2
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ed1b:					
+		or	a
+
+ed1b_1:					
+		jp	m, undef
+		sub	40h ; '@'
+		jr	c, ed1b_1
+		ld	hl, tabed
+		scf
+		jr	long
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+fdd:					
+		ld	a, c
+		and	0DFh ; ''
+		cp	0DDh ; ''
+		jr	nz, cb
+		ld	a, (de)
+		cp	0CBh ; ''
+		jr	nz, fdd1
+		inc	de
+		inc	de
+		ld	a, (de)
+		and	7
+		cp	6
+		jp	nz, undef
+		ld	b, 4
+		jr	fdcb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+fdd1:					
+		cp	45h ; 'E'
+		ret	z
+		cp	4Dh ; 'M'
+		ret	z
+		cp	67h ; 'g'
+		ret	z
+		cp	6Fh ; 'o'
+		ret	z
+		cp	63h ; 'c'
+		ret	z
+		inc	b
+		call	prg1
+		ld	hl, tabfd0
+		ld	a, (de)
+		scf
+		jr	long
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cb:					
+		ld	a, c
+		cp	0CBh ; ''
+		jr	nz, base
+
+fdcb:					
+		ld	a, (de)
+		rla
+		jr	c, testcb
+		rla
+		ret	c
+
+testcb:					
+		ld	a, (de)
+		and	7
+		cp	6
+		ret	nz
+
+memhl:					
+		call	hlortd
+		jp	wmem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+base:					
+		dec	b
+		call	prg1
+		ld	a, c
+		and	0C0h ; ''
+		ret	po
+		ld	a, c
+		and	7Fh ; ''
+		ld	hl, tabase
+		dec	de
+
+long:					
+		push	af
+		ld	c, a
+		and	3
+		ld	b, a
+		xor	c
+		rrca
+		rrca
+		add	a, l
+		ld	l, a
+		adc	a, h
+		sub	l
+		ld	h, a
+		ld	a, (hl)
+		rlca
+		rlca
+		inc	b
+
+lon1:					
+		rrca
+		rrca
+		djnz	lon1
+		and	3
+		jp	z, undef
+		ld	b, a
+		pop	af
+		jr	nc, lon2
+		inc	b
+
+lon2:					
+		call	hard
+		ret	z
+		ld	a, (de)
+		ld	hl, (rbc+1)
+		cp	2
+		jr	z, lonw
+		ld	hl, (rde+1)
+		cp	12h
+		jr	z, lonw
+		ld	hl, tabdde
+
+lon3:					
+		ld	a, (de)
+		and	(hl)
+		inc	hl
+		cp	(hl)
+		inc	hl
+		ld	c, (hl)
+		jr	z, lon5
+		inc	hl
+		ld	a, (hl)
+		or	a
+		jr	nz, lon3
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lon5:					
+		call	hlortd
+		bit	0, c
+		jr	nz, lonw
+		ld	a, (de)
+		or	a
+		jp	m, lon6
+		and	1Fh
+
+lon6:					
+		bit	3, c
+		jr	z, noflags
+		rrca
+		rrca
+		rrca
+		and	7
+		rra
+		push	hl
+		push	af
+		add	a, 8		; low tbflag
+		ld	l, a
+		adc	a, 0EFh	; ''   ; high tbflag
+		sub	l
+		ld	h, a
+		ld	a, (raf+1)
+		and	(hl)
+		rlca
+		rlca
+
+flags1:
+		ld	h, a
+		pop	af
+		ld	a, h
+		pop	hl
+		adc	a, a
+		or	a
+		jp	po, skok
+
+noflags:				
+		ld	a, (de)
+		bit	1, c
+		jr	z, lon7
+		inc	de
+		ex	de, hl
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ex	de, hl
+		cp	32h ; '2'
+		inc	hl
+		call	nz, wmem
+		dec	hl
+
+lonw:					
+		jp	wmem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lon7:					
+		bit	2, c
+		jr	z, lon9
+		ld	hl, (rsp+1)
+		cp	0E3h ; ''
+		jr	z, lon8
+		dec	hl
+		dec	hl
+
+lon8:					
+		call	wmem
+		inc	hl
+		call	wmem
+
+lon9:					
+		ld	a, c
+		and	0F8h ; ''
+		ret	z
+		ld	hl, jump
+		ex	(sp), hl
+		ld	a, (de)
+		cp	0E9h ; ''
+		jr	z, ihtohl
+		and	38h ; '8'
+		ld	l, a
+		ld	a, (de)
+		or	38h ; '8'
+		inc	a
+		ld	h, a
+		inc	de
+		jr	z, lon16
+		bit	7, c
+		jr	z, lon14
+		ld	a, (de)
+		ld	l, a
+		rlca
+		sbc	a, a
+		ld	h, a
+		add	hl, de
+		dec	de
+		ld	a, (de)
+		cp	10h		; djnz
+		jr	nz, lon12
+		ld	a, (rbc+2)
+		dec	a
+		jr	nz, lon11
+		ld	l, e
+		ld	h, d
+		inc	hl
+
+lon11:					
+		scf
+
+lon12:					
+		inc	hl
+		push	af
+		call	wpc
+		pop	af
+		ret	nc
+		ld	(rbc+2), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lon14:					
+		ld	hl, (rsp+1)
+		bit	5, c
+		jr	nz, lon15
+		bit	4, c
+		ex	de, hl
+
+lon15:					
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		inc	hl
+		ex	de, hl
+		ret	z
+		call	wpc
+		bit	5, c
+		jr	nz, lon17
+
+lon16:					
+		push	hl
+		ld	hl, (rsp+1)
+		dec	hl
+		ld	(hl), d
+		dec	hl
+		ld	(hl), e
+		ex	de, hl
+		pop	hl
+
+lon17:					
+		ld	(rsp+1), de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+hlortd:					
+		call	ihtohl
+		ret	nz
+		push	de
+		ld	de, (rpc)
+		inc	de
+		inc	de
+		ld	a, (de)
+		ld	e, a
+		rla
+		sbc	a, a
+		ld	d, a
+		add	hl, de
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ihtohl:					
+		ld	hl, (rpc)
+		ld	a, (hl)
+		ld	hl, (rix+2)
+		cp	0DDh ; ''
+		ret	z
+		ld	hl, (riy+2)
+		cp	0FDh ; ''
+		ret	z
+		ld	hl, (rhl+1)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+prg1:					
+
+		cp	76h ; 'v'
+		jp	z, undef
+		and	0F8h ; ''
+		cp	70h ; 'p'
+		ret	nz
+		pop	af
+		jp	memhl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+tabase:		db  5Dh	; ]		
+		db  65h	; e
+		db  55h	; U
+		db  65h	; e
+		db  5Eh	; ^
+		db  65h	; e
+		db  56h	; V
+		db  65h	; e
+		db  7Eh	; ~
+		db  65h	; e
+		db  76h	; v
+		db  65h	; e
+		db  7Eh	; ~
+		db  65h	; e
+		db  76h	; v
+		db  65h	; e
+		db 0F5h	; 
+		db  67h	; g
+		db  35h	; 5
+		db  6Fh	; o
+		db 0B5h	; 
+		db  67h	; g
+		db 0B5h	; 
+		db  63h	; c
+		db  75h	; u
+		db  67h	; g
+		db  75h	; u
+		db  63h	; c
+		db  75h	; u
+		db  67h	; g
+		db  75h	; u
+		db  63h	; c
+tabed:		db 0D5h	; 		
+		db  55h	; U
+		db 0D5h	; 
+		db  45h	; E
+		db 0D5h	; 
+		db  50h	; P
+		db 0D5h	; 
+		db  50h	; P
+		db 0D5h	; 
+		db  40h	; @
+		db 0D5h	; 
+		db  40h	; @
+		db 0D5h	; 
+		db    0
+		db 0D5h	; 
+		db    0
+tabfd0:		db    0			
+		db    0
+		db    4
+		db    0
+		db    0
+		db    0
+		db    4
+		db    0
+		db  7Ch	; |
+		db  25h	; %
+		db  74h	; t
+		db  25h	; %
+		db    0
+		db  3Ah	; :
+		db    4
+		db    0
+		db    0
+		db  21h	; !
+		db    0
+		db  21h	; !
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db  15h
+		db  25h	; %
+		db  55h	; U
+		db  25h	; %
+		db    0
+		db    0
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db  25h	; %
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db    0
+		db  44h	; D
+		db    4
+		db    4
+		db    0
+		db    0
+		db    0
+		db    4
+		db    0
+tabdde:		db 0E7h	; 		
+		db  20h
+		db  88h	; 
+		db 0F7h	; 
+		db  10h
+		db  80h	; 
+		db 0FFh
+		db 0C9h	; 
+		db  20h
+		db 0F7h	; 
+		db  45h	; E
+		db  20h
+		db 0C7h	; 
+		db 0C0h	; 
+		db  28h	; (
+		db 0FFh
+		db 0C3h	; 
+		db  40h	; @
+		db 0FFh
+		db 0E9h	; 
+		db  40h	; @
+		db 0C7h	; 
+		db 0C2h	; 
+		db  48h	; H
+		db 0FFh
+		db 0CDh	; 
+		db  54h	; T
+		db 0C7h	; 
+		db 0C4h	; 
+		db  5Ch	; \
+		db 0C7h	; 
+		db 0C7h	; 
+		db  54h	; T
+Modifikacie
+		db 0EFh	; 
+		db  22h	; "
+		db    2
+		db 0FEh	; 
+		db  34h	; 4
+		db    1
+		db 0FFh
+		db  36h	; 6
+		db    1
+		db 0CFh	; 
+		db  43h	; C
+		db    2
+		db 0F7h	; 
+		db  67h	; g
+		db    1
+		db 0CFh	; 
+		db 0C5h	; 
+		db    4
+		db 0FFh
+		db 0E3h	; 
+		db    4
+		db 0FFh
+		db  70h	; p
+		db    1
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+undef:					
+		call	hard
+		ld	a, 49h ; 'I'
+		jp	nc, errtxt
+		ld	b, 1
+
+skok:					
+		ld	hl, (rpc)
+
+skok_3:					
+		inc	hl
+		djnz	skok_3
+		ld	c, b
+
+jump:					
+		call	wpc
+		call	crosst
+		ld	(rpc), hl
+		ld	a, (zac+1)
+		and	0DFh ; ''
+		cp	43h ; 'C'
+		jr	nz, jum1
+		bit	4, c
+		jr	nz, callgo
+
+jum1:					
+		jp	bm1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inbrk:					
+		ld	hl,  adrbrk+1
+		call	reg02
+
+inb1:
+		call	clrd
+		ld	(hl), 6Eh ; 'n'
+		call	vstup
+		jr	nz, imb2
+		ld	de, 0
+
+imb2:					
+		ld	(cross+1), de
+		ld	a, 2Eh ; '.'
+
+inout:					
+		ld	(bm1), a
+		ld	(bm2), a
+		ld	(bm3), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outbr:					
+					
+
+		ld	a, 18h
+		jr	inout
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+retp:		dw retbr		
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+go:					
+					
+		ld	hl, (rpc)
+		xor	a
+
+callgo:					
+		ld	(instr_1), hl
+		ld	a, 0C3h	; ''
+		ld	(instr_dbg), a
+		ld	hl, retp
+		ld	(rst10_vektor),	hl
+		jr	z, bm2
+		ld	sp, (rsp+1)
+		pop	hl
+		push	hl
+		ld	(adrcal+1), hl
+		ld	a, (hl)
+		ld	(bytcal+1), a
+		ld	(hl), 0D7h ; ''
+		ld	a, 2Eh ; '.'
+		ld	(cm1), a
+
+bm2:					
+					
+		jr	goon
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ld	hl, (adrbrk+1)
+		ld	a, (hl)
+		ld	(bytbrk+1), a
+		ld	(hl), 0D7h ; ''
+
+goon:					
+		jr	refres
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+retbr:					
+		inc	sp
+		inc	sp
+		pop	hl
+		exx
+		ex	(sp), hl
+		dec	hl
+		ld	(rpc), hl
+
+bm3:					
+					
+		jr	cm1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+adrbrk:					
+		ld	hl, 0
+
+bytbrk:					
+		ld	(hl), 0
+
+cm1:					
+					
+		jr	retb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+adrcal:					
+		ld	hl, 0
+
+bytcal:					
+		ld	(hl), 0
+		ld	hl, cm1
+		ld	(hl), 18h
+
+retb:					
+		pop	hl
+		jr	instr_4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+retgo:					
+		nop
+		ld	sp, (stack)
+		push	hl
+		ld	hl, 453Eh
+		ld	(zac), hl
+		ld	hl, retgo
+		ex	(sp), hl
+		push	hl
+		jr	bm3
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+byte:					
+		ld	hl, (rpc)
+		ld	de, retgo
+		xor	a
+		ld	c, b
+		ld	b, a
+		sbc	hl, de
+		add	hl, de
+		ld	a, 45h ; 'E'
+		jp	z, errtxt
+		push	hl
+		add	hl, bc
+		call	wpc
+		call	hard
+		jr	z, byte1
+		pop	hl
+		ld	de, instr_dbg
+		ldir
+		call	crosst
+
+byte1:					
+		ld	(rpc), hl
+
+refres:					
+		ld	hl, (raf+1)
+		push	hl
+		pop	af
+
+raf:					
+		ld	bc, 0AAFFh
+		nop
+
+rbc:					
+		ld	bc, 0BBCCh
+		nop
+
+rde:					
+		ld	de, 0DDEEh
+		nop
+
+rhl:					
+		ld	hl, 2211h
+
+rix:					
+		ld	ix, 0DDDDh
+
+riy:					
+		ld	iy, 5C3Ah
+		nop
+
+rsp:					
+		ld	sp, 0
+
+instr_dbg:				
+		nop
+
+instr_1:				
+		nop
+
+instr_:					
+		nop
+		nop
+
+instr_4:				
+		ld	(rhl+1), hl
+		ld	(rsp+1), sp
+		ld	sp, begmod
+		push	af
+		pop	hl
+		ld	(raf+1), hl
+		ld	(rbc+1), bc
+		ld	(rde+1), de
+		ld	(rix+2), ix
+		ld	(riy+2), iy
+		ld	hl, 0
+		ld	(instr_dbg), hl
+		ld	(instr_), hl
+		jp	bm1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+exxx:					
+		ld	hl, 0D908h	; exx :	ex af,af
+		ld	(instr_dbg), hl
+		jr	refres
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rpc:		dw 0			
+wm:		dw 0			
+wm2:		dw 0			
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+wm_x:		dw 0			
+countr:		dw 0			
+		dw 0FFFFh
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+pr:		dw 0			
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+		dw 0
+begmod:		dw 0			
+endmod:		dw 0			
+pcode:		dw 0			
+aldind_:	db 0			
+eind:		db 0			
+linn:		dw 0			
+curpc:		dw 0			
+nextpc:		dw 0			
+plist:		dw 0			
+iunpln:		db 0			
+exaf:		db 0			
+					; getmem_lib+3Br
+prefix:		db 0DDh	; 		
+		db 0FDh	; 
+		db 0CBh	; 
+		db 0EDh	; 
+tude:		db  0Dh			
+		db  75h	; u
+		db  6Eh	; n
+		db  64h	; d
+		db  65h	; e
+		db  66h	; f
+		db  69h	; i
+		db  6Eh	; n
+		db  65h	; e
+		db  64h	; d
+		db  20h
+		db  65h	; e
+		db  78h	; x
+		db  74h	; t
+		db  65h	; e
+		db  72h	; r
+		db  6Eh	; n
+		db  61h	; a
+		db  6Ch	; l
+		db  73h	; s
+		db  3Ah	; :
+tude2:		db  0Dh
+tnoend:		db  6Eh	; n		
+		db  6Fh	; o
+		db  20h
+		db  65h	; e
+		db  6Eh	; n
+		db  64h	; d
+		db  20h
+		db  20h
+terr:		db  0Dh			
+		db  65h	; e
+		db  72h	; r
+		db  72h	; r
+		db  6Fh	; o
+		db  72h	; r
+		db  73h	; s
+		db  3Ah	; :
+terr_sp:	db 20h			
+errcnt:		dw 0			
+		dw 0
+		db  20h
+tlib:		db  6Ch	; l		
+		db  69h	; i
+		db  62h	; b
+		db  3Eh	; >
+clib:		db  73h	; s		
+		db  61h	; a
+		db  76h	; v
+		dw savlib
+		db  6Ch	; l
+		db  6Fh	; o
+		db  61h	; a
+		dw loalib
+		db  64h	; d
+		db  65h	; e
+		db  6Ch	; l
+		dw delmod
+		db  6Ch	; l
+		db  73h	; s
+		db  74h	; t
+		dw lstlib
+		db  65h	; e
+		db  6Eh	; n
+		db  74h	; t
+		dw entry
+		db 0FFh
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+schent:					
+		push	hl
+		ld	de, 6005h
+		call	gent1
+
+se1:					
+		ex	de, hl
+		ex	(sp), hl
+		push	hl
+		push	de
+		push	bc
+		call	cmpsym
+		pop	bc
+		pop	hl
+		pop	de
+		pop	de
+		jr	z, se2
+		push	de
+		dec	sp
+		dec	sp
+		pop	hl
+		pop	de
+		push	hl
+		call	gentnm
+		jr	nz, se1
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+se2:					
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cmpsym:					
+		push	bc
+		push	de
+		push	hl
+		ld	b, 6
+		ex	de, hl
+
+cs1:					
+		ld	a, (de)
+		cp	20h ; ' '
+		jr	nc, cs2
+		ld	a, 20h ; ' '
+		dec	de
+
+cs2:					
+		res	7, a
+		bit	7, (hl)
+		jr	z, cs3
+		set	7, a
+
+cs3:					
+		cp	(hl)
+		inc	de
+		inc	hl
+		jr	nz, cs4
+		dec	b
+		jr	nz, cs1
+
+cs4:					
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+stbyt0:					
+		ld	a, (hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+stbyte:					
+		push	hl
+		push	de
+		push	af
+		ld	de, (endmod)
+		ld	hl, (pcode)
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		jp	nc, wtmf
+		pop	af
+		ld	d, a
+		ld	a, l
+		or	h
+		ld	a, d
+		jr	z, nostb
+		ld	(hl), d
+		inc	hl
+		ld	(pcode), hl
+
+nostb:					
+		pop	de
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+movsym:					
+		ld	b, 6
+
+ms1:					
+		ld	a, (hl)
+		and	7Fh ; ''
+		jr	nz, ms2
+		ld	a, 20h ; ' '
+		dec	hl
+
+ms2:					
+		call	stbyte
+		inc	hl
+		djnz	ms1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gmodnm:					
+		ld	hl, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	hl, (memory)
+		jp	cmhlde
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getn0:					
+		call	gmodnm
+		ret	z
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gent1:					
+
+		call	gaexen
+		jr	z, getn0
+		ld	c, a
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gentnm:					
+		dec	c
+		jp	m, getn0
+
+gent2:					
+		call	gaexen
+		push	bc
+		push	hl
+		ld	l, c
+		inc	c
+		ld	h, 0
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		pop	bc
+		add	hl, bc
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gaexen:					
+		ld	hl, 8
+		add	hl, de
+		ld	a, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, a
+		or	h
+		ld	a, (hl)
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gext0:					
+		call	gmodnm
+		ret	z
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gext1:					
+
+		call	gaexen
+		jr	z, gext0
+		ld	c, a
+		call	gent2
+
+getx2:					
+		ld	a, (hl)
+		or	a
+		jr	z, gext0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gextnm:					
+		ld	bc, 6
+		add	hl, bc
+		ld	c, (hl)
+		inc	hl
+		add	hl, bc
+		add	hl, bc
+		jr	getx2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+vstoax:					
+		ex	de, hl
+		call	vstoas
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+putsvl:					
+		push	de
+		push	af
+		ex	de, hl
+		call	vstoax
+		ld	a, (hl)
+		rlca
+		scf
+		rra
+		ld	(hl), a
+		sbc	a, a
+		and	80h ; ''
+		inc	hl
+		or	(hl)
+		ld	(hl), a
+		inc	hl
+		pop	af
+		ld	a, (hl)
+		rla
+		jr	c, psvlq
+		inc	hl
+		jr	nz, pv1_b
+		set	7, (hl)
+		ld	d, h
+		ld	e, l
+		inc	de
+		inc	de
+		inc	de
+
+pv1_b:					
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+
+psvlq:					
+		ex	de, hl
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ald:					
+		ld	a, 2
+
+asm:					
+		ld	(aldind_), a
+		ld	hl, (libtop)
+		ld	(pcode), hl
+		ld	(memory), hl
+		push	de
+		call	getend
+		ld	(endmod), de
+		pop	hl
+		ld	a, (hl)
+		or	a
+		jr	z, noname
+		cp	20h ; ' '
+		jp	nz, mrs2
+		inc	hl
+		call	getlbl
+		jp	c, mrs2
+		ld	de, libbeg
+
+as1:					
+		call	cmpsym
+		jr	z, name
+		push	hl
+		call	gmodnm
+		pop	hl
+		jr	nz, as1
+		ld	hl, buffer_meno
+
+noname:					
+		call	movsym
+		ld	b, 4
+		xor	a
+
+as2:					
+		call	stbyte
+		djnz	as2
+		jr	sasm
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+name:					
+		ld	hl, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		xor	a
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(pcode), hl
+		ld	(endmod), de
+
+sasm:					
+		ld	(page),	a
+		ld	(terr_sp), a
+		ld	a, 30h ; '0'
+		ld	(lind+1), a
+		ld	a, 0Dh
+		ld	(scrlp+1), a
+		ld	hl, outchr
+		ld	(opsch3+1), hl
+		ld	hl, (adstab)
+		ld	a, (hl)
+		or	a
+		jr	z, sa3_lib
+		ld	c, a
+
+sa1_lib:				
+		call	vstoax
+		ld	b, 6
+
+sa2_lib:				
+		res	7, (hl)
+		inc	hl
+		djnz	sa2_lib
+		dec	c
+		jr	nz, sa1_lib
+
+sa3_lib:				
+		call	crtnin
+		ld	hl, (pcode)
+		ld	(begmod), hl
+
+eachln:					
+		push	hl
+		ld	hl, (curent)
+		ld	d, h
+		ld	e, l
+		call	skipln
+		pop	hl
+		jp	z, noend
+		ld	a, (de)
+		dec	de
+		rlca
+		jr	nc, nolbl
+		ld	a, (de)
+		dec	de
+		ld	c, a
+		ld	a, (de)
+		cp	0Dh
+		jr	nz, notequ
+		push	hl
+		push	bc
+		dec	de
+		call	getval
+		pop	bc
+		or	a
+		inc	a
+		call	putsvl
+		pop	hl
+		jr	eachln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+notequ:					
+		call	putsvl
+
+nolbl:					
+		ld	a, (de)
+		cp	0Fh
+		jr	z, spass
+		call	newpc
+		jr	eachln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+spass:					
+		call	crtnin
+		call	illa
+		ld	(linn),	hl
+		ld	hl, (begmod)
+		ld	(pcode), hl
+
+asloop:					
+		ld	(curpc), hl
+		call	asmain
+		call	outcod
+		ld	hl, (curent)
+		call	skipln
+		ld	hl, (nextpc)
+		ld	a, (eind)
+		or	a
+		jr	nz, asloop
+		inc	hl
+		ld	(pcode), hl
+		ld	hl, (curent)
+		cp	(hl)
+		jr	nz, nolabd
+		ld	hl, (adstab)
+		cp	(hl)
+		jr	z, nolabd
+		ld	c, (hl)
+
+sa4:					
+		call	vstoax
+		ld	b, 6
+
+sa5:					
+		bit	7, (hl)
+		jr	nz, sa6
+		inc	hl
+		djnz	sa5
+		call	vstoax
+		ld	(hl), b
+
+sa6:					
+		dec	c
+		jr	nz, sa4
+
+nolabd:					
+		xor	a
+		ld	hl, errcnt
+		cp	(hl)
+		jp	nz, erry
+		ld	hl, (adstab)
+		cp	(hl)
+		jr	z, sa20
+		ld	c, (hl)
+		push	bc
+
+sa11:					
+		call	vstoax
+		push	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		bit	7, (hl)
+		pop	hl
+		jr	z, sa12
+		call	movsym
+		call	stbyt0
+		inc	hl
+		call	stbyt0
+		ld	hl, eind
+		inc	(hl)
+
+sa12:					
+		dec	c
+		jr	nz, sa11
+		pop	bc
+
+sa13:					
+		call	vstoax
+		push	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		bit	7, (hl)
+		pop	hl
+		jr	z, sa17
+		call	movsym
+		push	bc
+		xor	a
+		call	stbyte
+		push	hl
+		ld	hl, (pcode)
+		dec	hl
+		ex	(sp), hl
+		ld	b, h
+		ld	c, l
+
+sa14:					
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	a, b
+		cp	d
+		jr	nz, sa15
+		ld	a, c
+		cp	e
+		jr	z, sa16
+
+sa15:					
+		ld	a, e
+		call	stbyte
+		ld	a, d
+		call	stbyte
+		pop	hl
+		inc	(hl)
+		push	hl
+		ex	de, hl
+		jr	sa14
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sa16:					
+		pop	hl
+		pop	bc
+
+sa17:					
+		dec	c
+		jr	nz, sa13
+
+sa20:					
+		ld	de, (nextpc)
+		ld	hl, (pcode)
+		dec	hl
+		call	cmhlde
+		jr	nz, sa21
+		ld	(pcode), hl
+
+sa21:					
+		ld	hl, (begmod)
+		dec	hl
+		dec	hl
+		ld	a, (eind)
+		jr	z, sa18
+		ld	(de), a
+		xor	a
+		call	stbyte
+		inc	hl
+		ld	(hl), d
+		dec	hl
+		ld	(hl), e
+
+sa18:					
+		dec	hl
+		ld	a, (hl)
+		dec	hl
+		or	(hl)
+		jr	nz, erry
+		ex	de, hl
+		ld	hl, (pcode)
+		ld	(memory), hl
+		ex	de, hl
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		ld	hl, (libtop)
+		ld	a, (hl)
+		cp	20h ; ' '
+		jr	z, erry
+		ex	de, hl
+		ld	(libtop), hl
+
+erry:					
+		call	ocrlf
+		call	symtab
+		call	ocrlf
+
+erryi:					
+		ld	bc, (errcnt)
+		ld	hl, terr_sp
+		call	bndc
+		ld	b, l
+		ld	hl, terr
+		dec	b
+		call	oc2_1
+		call	ocrlf
+		jr	err1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+errout:					
+		ld	c, 1
+		call	mrsd
+
+err1:					
+		ld	de, lnk1
+		ld	bc, ilnli1
+		ld	hl, aldind_
+		xor	a
+		cp	(hl)
+		jp	z, monit
+		dec	(hl)
+		jr	nz, nodbg
+		call	getend
+		ld	(wm), de
+		ld	hl, endcod
+		ld	(wm2), hl
+		ld	de, dbg
+
+nodbg:					
+		ex	de, hl
+		ld	a, (terr_sp)
+		cp	30h ; '0'
+		jp	nz, edi
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+noend:					
+		ld	hl, tnoend
+		ld	b, 6
+		jr	errout
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+asmain:					
+
+		ld	a, 1
+		ld	(iunpln), a
+		ld	hl, (curent)
+		push	hl
+		ld	(nxtadr), hl
+		call	unpln
+		pop	de
+		ld	a, (de)
+		dec	de
+		rlca
+		jr	nc, sp2
+		ld	a, (de)
+		dec	de
+		ld	c, a
+		call	vstoax
+		inc	hl
+		ld	a, (hl)
+		rlca
+		jr	nc, sp2
+		ld	a, 4Dh ; 'M'
+
+sp10:
+		ld	(lst_chyba), a
+
+sp2:					
+		ld	a, (de)
+		sub	0Fh
+		ld	(eind),	a
+		push	de
+		ld	hl, (curpc)
+		push	hl
+		call	newpc
+		ld	(nextpc), hl
+		pop	de
+		ld	hl, (plist)
+		call	bnhx2
+		inc	hl
+		ld	(plist), hl
+		pop	de
+		ld	a, (de)
+		dec	de
+		cp	0FEh ; ''
+		ret	z
+		rrca
+		jp	c, asmpsi
+		rlca
+		ld	c, a
+
+asmins:
+		ld	hl, prefix
+		ld	b, 4
+
+savprx:					
+		rlc	c
+		ld	a, (hl)
+		call	c, savcod
+		inc	hl
+		djnz	savprx
+		ld	a, (de)
+		dec	de
+		rlc	c
+		ld	b, a
+		jr	nc, notrel
+		push	bc
+		call	get8vl
+		pop	bc
+		bit	2, c
+		jr	z, wocb
+		ld	a, l
+		ld	l, b
+		ld	b, a
+
+wocb:					
+		ld	a, b
+		call	savcod
+		ld	a, l
+
+notrel:					
+		call	savcod
+		sla	c
+		ret	nc
+		ld	a, b
+		and	7
+		jr	nz, asmadr
+		ld	a, (de)
+		and	3
+		dec	a
+		jr	z, reljmp
+		ld	a, (de)
+		and	60h ; '`'
+		cp	20h ; ' '
+
+reljmp:					
+		push	af
+		call	getval
+		pop	af
+		jr	nz, nospc
+		ld	bc, (curpc)
+		inc	bc
+		scf
+		sbc	hl, bc
+		ld	a, l
+		xor	h
+		call	m, rngerr
+
+nospc:					
+		call	test8
+		ld	a, l
+		jr	savcod
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+asmadr:					
+		or	c
+
+asmexp:					
+		push	af
+		call	getval
+		ld	a, l
+		call	savcod
+		pop	af
+		jp	p, test8
+		ld	a, h
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+savcod:					
+		push	bc
+		push	de
+		push	hl
+		push	af
+		call	stbyte
+		ld	de, lst_limit
+		ld	hl, (plist)
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		jr	c, sc1
+		call	outcod
+		ld	hl, lst_data
+
+sc1:					
+		pop	af
+		call	bnhx
+		ld	(plist), hl
+		pop	hl
+		pop	de
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outval:					
+		push	hl
+		push	de
+		inc	hl
+		inc	hl
+		inc	hl
+		bit	7, (hl)
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		pop	hl
+		jr	z, ova2
+		ld	b, 4
+
+ova1:					
+		ld	(hl), 58h ; 'X'
+		inc	hl
+		djnz	ova1
+
+ova2:					
+		call	z, bnhx2
+		ld	de, -0Bh
+		add	hl, de
+		ex	de, hl
+		pop	hl
+
+outnam_lib:				
+		xor	a
+		ld	(iunpln), a
+		push	hl
+		ld	b, 6
+
+on1:					
+		ld	a, (hl)
+		and	7Fh ; ''
+		ld	(de), a
+		inc	de
+		inc	hl
+		djnz	on1
+		ld	a, 20h ; ' '
+		ld	(de), a
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outna0:					
+		ld	de, buffer
+		push	de
+		call	outnam_lib
+		pop	hl
+		ld	b, 5
+		jr	oc2_1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outcod:					
+		ld	hl, iunpln
+		xor	a
+		cp	(hl)
+		call	z, blank
+		jr	z, oc1
+		ld	(hl), a
+		ld	hl, (linn)
+		inc	hl
+		ld	(linn),	hl
+		ld	b, h
+		ld	c, l
+		ld	hl, lst_riadok
+		call	bndc
+
+oc1:					
+		ld	hl, buffer
+		ld	a, (hl)
+		cp	2Ah ; '*'
+		call	z, analax
+		ld	a, (lst_chyba)
+		cp	20h ; ' '
+
+lind:					
+		jr	z, errln
+		ld	hl, errcnt
+		inc	(hl)
+
+errln:					
+		call	chblk
+		ld	b, l
+		ld	hl, listing_print
+
+scrlp:					
+		ld	a, 0
+		ld	(lst_eol), a
+
+oc2:					
+		inc	hl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+oc2_1:					
+
+		ld	a, (hl)
+		call	opschr
+		ld	a, l
+		cp	b
+		jr	nz, oc2
+		call	ocrlf
+		ld	a, (page)
+		or	a
+		jr	z, bbc
+		dec	a
+		jr	nz, pg1
+		ld	a, 0Ch
+		call	opschr
+		ld	a, (newpag)
+
+pg1:					
+		ld	(page),	a
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bbc:					
+		ld	hl, lst_adresa
+		ld	(plist), hl
+		ld	hl, lst_riadok
+
+bbc1:					
+		ld	(hl), 20h ; ' '
+		inc	l
+		jr	nz, bbc1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ocrlf:					
+		ld	a, 0Dh
+		call	opschr
+		ld	a, 0Ah
+		jp	opschr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+get8vl:					
+		call	getval
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+test8:					
+		ld	a, h
+		inc	a
+		ret	z
+		dec	a
+		ret	z
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+rngerr:					
+		ld	a, 52h ; 'R'
+		jr	seterr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+asmpsi:					
+		push	af
+		call	apsi
+		pop	af
+		sub	8
+		jp	m, asmpsi
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+apsi:					
+		and	7
+		sub	2
+		jr	c, aexten
+		jr	z, adb
+		sub	2
+		jp	c, asmexp
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+adb:					
+		ld	a, (de)
+		or	a
+		jp	p, asmexp
+		ld	c, a
+
+savstr:					
+		dec	de
+		dec	c
+		ret	p
+		ld	a, (de)
+		call	savcod
+		jr	savstr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+aexten:					
+		inc	a
+		ld	a, (de)
+		dec	de
+		ld	c, a
+		jp	z, putsvl
+		call	vstoax
+		bit	7, (hl)
+		inc	hl
+		jr	z, ae10
+		bit	7, (hl)
+		jr	nz, ae0
+		inc	hl
+		bit	7, (hl)
+		jr	nz, ae1
+		dec	hl
+		push	hl
+		dec	hl
+		push	de
+		call	schent
+		pop	de
+		pop	hl
+		set	7, (hl)
+
+ae0:					
+		ld	c, 4Dh ; 'M'
+		jr	nz, ae2
+		res	7, (hl)
+		inc	hl
+		inc	hl
+		inc	hl
+		set	7, (hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ae10:					
+		inc	hl
+		set	7, (hl)
+
+ae1:					
+		ld	c, 55h ; 'U'
+
+ae2:					
+		ld	a, c
+
+seterr:					
+		ld	(lst_chyba), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getval:					
+		call	gvmain
+		ld	a, (lst_chyba)
+		cp	20h ; ' '
+		ret	z
+		ld	hl, 0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gvmain:					
+		ld	a, (de)
+		dec	de
+		push	af
+		add	a, a
+		call	getmem_lib
+		pop	af
+		push	bc
+		ld	c, a
+		rrca
+		rrca
+		ld	b, a
+		and	7
+		jr	z, unary
+		push	af
+		ld	a, b
+		call	getmem_lib
+		pop	af
+		pop	hl
+		ld	de, optab_2
+		jp	pgcnt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unary:					
+		ld	a, c
+		and	3
+		pop	hl
+		ret	z
+		dec	a
+		jr	nz, gv1_b
+		ld	l, h
+
+gv1_b:					
+		dec	a
+		jr	z, neghl
+		ld	h, 0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+neghl:					
+		ld	b, h
+		ld	c, l
+		ld	h, a
+		ld	l, a
+
+op_sub:					
+		or	a
+		sbc	hl, bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_add:					
+		add	hl, bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_mul:					
+		ex	de, hl
+		ld	hl, 0
+
+mullop:					
+		ld	a, b
+		or	c
+		ret	z
+		add	hl, de
+		dec	bc
+		jr	mullop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_div:					
+		ld	a, b
+		or	c
+		ld	a, 5Ah ; 'Z'
+		jr	z, seterr
+		ld	de, 0
+
+divlop:					
+		or	a
+		sbc	hl, bc
+		inc	de
+		jr	nc, divlop
+		dec	de
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_and:					
+		ld	a, h
+		and	b
+		ld	h, a
+		ld	a, l
+		and	c
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_or:					
+		ld	a, h
+		or	b
+		ld	h, a
+		ld	a, l
+		or	c
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+op_xor:					
+		ld	a, h
+		xor	b
+		ld	h, a
+		ld	a, l
+		xor	c
+
+optab_2:				
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		dw op_add
+		dw op_sub
+		dw op_mul
+		dw op_div
+		dw op_and
+		dw op_or
+		dw op_xor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+getmem_lib:				
+		add	a, a
+		ex	de, hl
+		ld	c, (hl)
+		dec	hl
+		jr	nc, gm1
+		ld	b, (hl)
+		dec	hl
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gm1:					
+		ld	b, 0
+		ex	de, hl
+		ret	p
+		ld	(exaf),	a
+		xor	a
+		or	c
+		jr	nz, notpc
+		ld	bc, (curpc)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+notpc:					
+		call	vstoax
+		ld	a, (hl)
+		inc	hl
+		rla
+		ld	a, (hl)
+		rla
+		inc	hl
+		ld	c, 44h ; 'D'
+		jp	c, ae2
+		rrca
+		cpl
+		and	80h ; ''
+		or	(hl)
+		ld	(hl), a
+		jp	m, ae1
+		inc	hl
+		ld	a, (hl)
+		rla
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	c, (hl)
+		inc	hl
+		ld	b, (hl)
+		ret	nc
+		ld	a, (exaf)
+		add	a, a
+		ld	a, 45h ; 'E'
+		jp	nz, seterr
+		ld	a, (pcode+1)
+		ld	(hl), a
+		dec	hl
+		ld	a, (pcode)
+		ld	(hl), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+newpc:					
+		ld	a, (de)
+		cp	0FEh ; ''
+		ret	nc
+		dec	de
+		rrca
+		jr	c, npps
+		ld	b, 7
+
+npil:					
+		rra
+		jr	nc, npi1
+		inc	hl
+
+npi1:					
+		dec	b
+		jr	nz, npil
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+npps:					
+		ld	c, a
+		and	7
+		dec	a
+		dec	a
+		jr	z, npdb
+		dec	a
+		jr	z, npdw
+		dec	a
+		jr	z, nporg
+		dec	a
+		ret	nz
+
+npds:
+		push	hl
+		call	getval
+		push	hl
+		ld	bc, (pcode)
+		ld	a, b
+		or	c
+		jr	z, npds1
+		add	hl, bc
+		ld	(pcode), hl
+
+npds1:					
+		pop	hl
+		pop	bc
+		add	hl, bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+nporg:					
+		call	getval
+		ld	(pcode), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+npdb:					
+		ld	a, (de)
+		dec	de
+		or	a
+		jp	m, npstp
+		dec	de
+		inc	hl
+		add	a, a
+		jp	p, npdb1
+		dec	de
+
+npdb1:					
+		and	3Ch ; '<'
+		cp	8
+		jr	c, npdbc
+		dec	de
+		and	4
+		jr	z, npdbc
+		dec	de
+		jr	npdbc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+npstp:					
+		and	7Fh ; ''
+		push	bc
+		ld	c, a
+		ld	b, 0
+		ex	de, hl
+		or	a
+		sbc	hl, bc
+		ex	de, hl
+		add	hl, bc
+		pop	bc
+
+npdbc:					
+		ld	a, c
+		sub	8
+		ret	p
+		ld	c, a
+		jr	npdb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+npdw:					
+		ld	a, c
+		rra
+		rra
+		and	1Eh
+		add	a, 2
+		ld	c, a
+		ld	b, 0
+		add	hl, bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+symtab:					
+		ld	a, (lind+1)
+
+symtab_3:				
+		cp	4
+		ret	nz
+		ld	hl, (adstab)
+		ld	c, (hl)
+		inc	c
+
+sfs:					
+		dec	c
+		ret	z
+		call	vstoas
+		ld	a, (de)
+		or	a
+		jp	p, sfs
+		call	clrd
+		inc	hl
+
+loopi:					
+		ld	de, symtab_3
+		ld	bc, (adstab)
+		ld	a, (bc)
+		ld	c, a
+		inc	c
+		ex	de, hl
+		push	de
+		push	hl
+
+loopj:					
+		push	hl
+
+loopj_1:				
+		dec	c
+		jr	z, endj
+		call	vstoas
+		ld	a, (de)
+		or	a
+		jp	p, loopj_1
+		push	de
+		inc	de
+		inc	de
+		inc	de
+		inc	de
+		inc	de
+		ld	a, (de)
+		pop	de
+		rlca
+		jr	c, loopj_1
+		pop	hl
+		call	cmpsym
+		jr	c, loopj
+		push	de
+		jr	loopj_1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+endj:					
+		pop	hl
+		pop	de
+		call	cmhlde
+		pop	de
+		jr	z, endi
+		ld	a, e
+		add	a, 7
+		cp	39h ; '9'
+		jr	c, cst
+		push	hl
+		ld	hl, buffer
+		ld	b, 3Eh ; '>'
+		call	oc2_1
+		call	clrd
+		pop	de
+		ex	de, hl
+		ld	a, 8
+
+cst:					
+		ld	e, a
+		call	outval
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		set	7, (hl)
+		ld	a, e
+		add	a, 7
+		ld	e, a
+		ex	de, hl
+		ld	(hl), 2Ah ; '*'
+		inc	hl
+		inc	hl
+		inc	hl
+		jr	loopi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+endi:					
+		ld	hl, buffer
+		ld	b, 3Eh ; '>'
+		jp	oc2_1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lnk:					
+		ld	bc, ilnli
+
+lnk1:					
+		ld	(lnk2+1), bc
+
+lnk2:					
+		call	rom_0
+		ld	hl, tude
+		ld	b, 0C1h	; ''
+		call	oc2_1
+		ld	de, libbeg
+		call	gext1
+
+cext:					
+		jp	z, erryi
+		push	de
+		push	hl
+		ld	de, libbeg
+		call	gent1
+
+cent:					
+		push	de
+		pop	de
+		pop	de
+		push	de
+		dec	sp
+		dec	sp
+		ld	b, 6
+
+lk3:					
+		ld	a, (de)
+		cp	(hl)
+		jr	nz, gent
+		inc	hl
+		inc	de
+		djnz	lk3
+		ld	a, (de)
+		ld	b, a
+		inc	de
+		ld	a, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, a
+		ex	de, hl
+
+lk4:					
+		dec	b
+		inc	sp
+		inc	sp
+		jp	m, nxtext
+		dec	sp
+		dec	sp
+		ld	a, (hl)
+		inc	hl
+		push	hl
+		ld	h, (hl)
+		ld	l, a
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		pop	hl
+		inc	hl
+		jr	lk4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+gent:					
+		pop	de
+		call	gentnm
+		jr	nz, cent
+		pop	hl
+		push	hl
+		call	outna0
+		ld	hl, errcnt
+		inc	(hl)
+
+nxtext:					
+		pop	hl
+		pop	de
+		call	gextnm
+		jr	cext
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+illa:					
+		call	clear
+		ld	hl, 1600h
+		ld	(cursor), hl
+		ld	h, 0
+		ld	(errcnt), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ilnli:					
+					
+		call	illa
+
+ilnli1:					
+		ld	a, 4
+		ld	(lind+1), a
+		ld	hl, outchr
+		ld	(opsch3+1), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lstlib:					
+		call	ilnli
+		ld	de, 6005h
+
+lb1:					
+		push	de
+		push	de
+		ex	de, hl
+		call	outna0
+		call	outcrl
+		pop	de
+		call	gaexen
+		jr	z, lb3
+
+lb2:					
+		dec	a
+		jp	m, lb3
+		push	af
+		push	hl
+		ld	de, buffer_instr
+		call	outval
+		ld	hl, buffer
+		ld	b, 0Ah
+		call	oc2_1
+		pop	hl
+		pop	af
+		ld	de, 8
+		add	hl, de
+		jr	lb2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+lb3:					
+		call	outcrl
+		pop	de
+		call	gmodnm
+		jr	nz, lb1
+		jr	lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+delmod:					
+		ld	de, libbeg
+		call	gmodnm
+		jr	z, lib
+
+dm1:					
+		push	de
+		call	gmodnm
+		pop	hl
+		jr	nz, dm1
+		ld	(libtop), hl
+		ld	(memory), hl
+
+;;;;;;;;;;;;;;;;;;;;
+;;		  ;;
+;;  Modul "lib>"  ;;
+;;		  ;;
+;;;;;;;;;;;;;;;;;;;;
+
+lib:					
+		ld	hl, tlib
+		ld	de, clib
+		jp	ctrl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loalib:					
+		xor	a
+		ld	hl, lib
+		call	load
+		jr	lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+savlib:					
+		ld	de, sysmod
+		ld	hl, (libtop)
+		ld	(memory), hl
+		ld	bc, lib
+		xor	a
+		jp	save
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+entry:					
+		ld	a, (de)
+		ex	de, hl
+		ld	de, 52h	; 'R'
+		or	a
+		jr	z, ent1
+		cp	20h ; ' '
+		jp	nz, mrs2
+		inc	hl
+		call	schent
+		jp	z, mrs2
+		ld	de, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+
+ent1:					
+		ld	(sysmod+1), de
+		jr	lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    OUTEND
+
+    EMPTYTAP tap_file
+    SAVETAP  tap_file ,	BASIC ,	"mrs"     , basic  , basend-basic  , 0
+    SAVETAP  tap_file ,	 CODE ,	"mrs.V01" , tmf    , endcod-tmf
+    SAVETAP  tap_file ,	 CODE ,	"sysmod"  , sysmod , fremem-sysmod , sysmod , 0
+
+endcod:		ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+listing_print:	ds 1			
+lst_riadok:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+lst_chyba:	ds 1			
+		ds 1
+lst_adresa:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+lst_data:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+edi_riadok:	ds 1			
+lst_limit:	ds 1			
+		ds 1
+lst_eol:	ds 1			
+buffer:		ds 1			
+		ds 1
+buffer_2:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+buffer_instr:	ds 1			
+buffer_meno:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+buffer_params:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+buffer_dlzka:	ds 2			
+buffer_adresa:	ds 2			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+buffer_comment:	ds 1			
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+		ds 1
+buffer_end:	ds 1			
+sent:		ds 2			
+cursor:		ds 1			
+row:		ds 1			
+poscur:		ds 2			
+krept:		ds 2			
+		ds 48h
+pdline:		ds 70h			
+		ds 40h
+stack_init:	ds 0C0h			
+; end of 'RAM'
+
+		end
