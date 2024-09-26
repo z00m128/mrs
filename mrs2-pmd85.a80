@@ -1,0 +1,6529 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;				;;
+;;    Memory resident system	;;
+;;				;;
+;;	     Verzia 2		;;
+;;	 PMD 85-2, 2A a	3	;;
+;;				;;
+;;	(c) UAK	Bratislava	;;
+;;				;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Disassembly (c) Busy soft
+; 08.02.2021 - 25.09.2024
+;
+; Zdrojovy text	pre SjASMPlus 1.20.2
+; Kompilacia vygeneruje	sysmod a hlavny	kod
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ORG 0
+
+breakpoint_jmp:	ds 1
+breakpoint_adr:	ds 2
+		ds 3Dh
+
+; Zakladny modul kniznice SYSMOD
+
+    OUTPUT Sysmod-#0040.cod
+
+sysmod_start:	dw sysmod_memory
+text_sysmod:	db 'SYSMOD'
+
+		dw sysmod_memory	; MEMORY - Adresa prvej	volnej pamatovej bunky za kniznicou
+		dw labels_number
+labels_number:	db  15h
+
+		db 'MEMORY'
+memory_value:	dw sysmod_memory
+		db 'LASTLN'
+		dw sysmod_lastln	; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		db 'DCBN  '
+		dw sysmod_dcbn		; Konverzia retazca decimalnych	cislic na 16-bitovu binarnu hodnotu
+		db 'HXBN  '
+		dw sysmod_hxbn		; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		db 'BNHX  '
+		dw sysmod_bnhx		; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		db 'FBNDC '
+		dw sysmod_fbndc		; Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+		db 'INKEY '
+		dw sysmod_inkey		; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		db 'SCAN  '
+		dw sysmod_scan		; Ohmatanie klavesnice.	Modul zisti, ci	je stlaceny niektory klaves
+		db 'CLEAR '
+		dw sysmod_clear		; Zmazanie obrazovky
+		db 'PIXEL '
+		dw sysmod_pixel		; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		db 'OUTCHR'
+		dw sysmod_outchr	; Vypis	znaku s	posunom	kurzora	na dalsiu poziciu
+		db 'CURSOR'
+		dw sysmod_cursor	; Pozicia kurzora na obrazovke.	Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		db 'OUTBUF'
+		dw sysmod_outbuf	; Vypis	jedneho	riadku na obrazovku
+		db 'LINE  '
+		dw sysmod_line		; Buffer pre vypis jedneho riadku textu
+		db 'BEEP  '
+		dw sysmod_beep		; Vyda zvukovy signal.
+		db 'MRS   '
+		dw sysmod_mrs		; Praca	s dialogovym riadkom
+		db 'MRS2  '
+		dw sysmod_mrs2		; Oprava zadania na dialogovom riadku
+		db 'SENTRY'
+		dw sysmod_sentry	; Vyhladanie vystupneho	bodu v kniznici
+		db 'GETMEM'
+		dw sysmod_getmem	; Identifikacia	symbolu
+		db 'VSTOAS'
+		dw sysmod_vstoas	; Adresa labelu	(C = cislo labelu)
+		db 'PNTCHR'
+		dw sysmod_pntchr	; Odoslanie jedneho znaku na tlaciaren
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sysmod_print:				; Podprogram pre vytlacenie bloku textu	- pouziva sa pri tlaci protokolu direktivou *L
+		ld	a, 0Dh
+		call	sysmod_pntchr	; Odoslanie jedneho znaku na tlaciaren
+		ld	a, 0Ah
+		call	sysmod_pntchr	; Odoslanie jedneho znaku na tlaciaren
+		ld	e, l
+		ld	l, 0F0h	; ''
+		dec	h
+
+loop_104:
+		ld	a, (hl)
+		call	sysmod_pntchr	; Odoslanie jedneho znaku na tlaciaren
+		ld	a, l
+		cp	e
+		inc	hl
+		jp	nz, loop_104
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; PNTCHR - Vytlacenie jedneho znaku na tlaciaren.
+;	   Prechod na novy riadok: CR (0Dh), LF	(0Ah).
+;
+;  Vstup:
+;    A = kod tlaceneho znaku
+
+sysmod_pntchr:				; Odoslanie jedneho znaku na tlaciaren
+		push	af
+
+loc_110:
+		in	a, (4Eh)
+		and	8
+		jp	nz, loc_110
+		pop	af
+		cpl
+		and	7Fh ; ''
+		out	(4Dh), a
+
+loc_11D:
+		in	a, (4Eh)
+		and	8
+		jp	z, loc_11D
+		cpl
+		out	(4Dh), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sysmod_memory:	db  9Fh	; 
+
+    OUTEND
+
+byte_129:	ds 5ED6h
+source_begin:	ds 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Hlavny kod MRS v pameti od #6000
+
+    OUTPUT Maincd-#6000.cod
+
+main_start:
+		call	init_and_cls
+		call	clear_listing_info ; Zmaze oblast pre cislo riadku, adresu a data v listingu
+		ld	hl, window_memory_0
+		ld	b, 84h ; ''
+
+loop_600B:
+		ld	(hl), 0
+		inc	hl
+		dec	b
+		jp	nz, loop_600B
+		ld	hl, 2027h
+		ld	(word_7F2C), hl
+		ld	hl, 0FFFFh
+		ld	(window_pc_1), hl
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+
+mrs_modul:
+		ld	hl, mrscmd_prompt
+		ld	de, mrscmd_table ; Prikazy modulu "mrs>"
+
+mrs_edi_lib:
+		ld	bc, 418h
+		call	mrs_pos0
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+error_memfull:	db 'MEM FULL'
+edicmd_prompt:	db 'EDI>'
+
+edicmd_table:	db 'LOA'          ; Prikazy modulu "edi>"
+		dw edicmd_loa
+		db 'SAV'
+		dw edicmd_sav
+		db 'RST'
+		dw edicmd_rst		; Premaze medzerami vsetky navestia
+		db 'DIS'
+		dw edicmd_dis
+		db 'INI'
+		dw edicmd_ini
+		db 'LN='
+		dw edicmd_ln_equ
+		db 'LN+'
+		dw edicmd_ln_plus
+		db 'LN-'
+		dw edicmd_ln_minus
+		db 0FFh
+
+edit_key_table:	db  18h			; ->  Klavesy pre editaciu zdrojoveho textu
+		dw edit_right
+		db    8			; <-
+		dw edit_left
+		db  11h			; Shift	->
+		dw edit_shift_right
+		db  13h			; Shift	<-
+		dw edit_shift_left
+		db    3			; END
+		dw edit_end
+		db  1Ch			; INS
+		dw edit_ins
+		db  1Dh			; DEL
+		dw edit_del
+		db  0Dh			; EOL
+		dw edit_eol
+		db  12h			; Shift	DEL
+		dw edit_shift_del
+		db  1Ah			; |<-
+		dw edit_lleft
+		db  19h			; ->|
+		dw edit_rright
+		db  0Ah			; Shift	|<-
+		dw edit_shift_lleft
+		db    9			; Shift	->|
+		dw edit_shift_rright
+		db  10h			; Shift	END
+		dw mrscmd_edi
+		db  1Fh			; Shift	Home
+		dw edit_shift_home
+		db  0Fh			; PTL
+		dw edit_ptl
+		db    0
+
+positions:	db    7			; Pozicia pola pre instrukciu
+		db  0Ch			; Pozicia pola pre argumenty
+		db  1Ch			; Pozicia pola pre komentar
+		db  2Ch	; ,		; Pozicia konca	riadku (dlzka riadku)
+
+mrscmd_prompt:	db 'MRS>'
+
+mrscmd_table:	db 'EDI'          ; Prikazy modulu "mrs>"
+		dw mrscmd_edi
+		db 'ASM'
+		dw mrscmd_asm
+		db 'DBG'
+		dw mrscmd_dbg
+		db 'LNK'
+		dw mrscmd_lnk
+		db 'LIB'
+		dw mrscmd_lib
+		db 'ALD'
+		dw mrscmd_ald
+		db 'MON'
+		dw rom_8C40_MONIT	; Puvodni vstup	do monitoru
+		db    0
+
+error_noend:	db 'NO END'
+text_errors:	db 'ERRORS:'
+
+number_of_errors:db '0'
+error_buffer:	dw 0
+		db    0
+		db    0
+		db  20h
+
+libcmd_prompt:	db 'LIB>'
+libcmd_table:	db 'SAV'          ; Prikazy modulu "lib>"
+		dw libcmd_sav
+		db 'LOA'
+		dw libcmd_loa
+		db 'DEL'
+		dw libcmd_del
+		db 'LST'
+		dw libcmd_lst
+		db 0FFh
+
+registers_8bit:	db 'BCDEHLMA' ; 8-bitove registre
+
+; Tabulka instrukcii a pseudoinstrukcii
+;
+; Format polozky v tabulke:
+;   1. bajt ...	Bitova maska pre opkod
+;   2. bajt ...	Opkod po vymaskovani
+;   3. bajt ...	Bitove priznaky
+;   4+ bajt ...	Meno instrukcie
+;
+; Bitove priznaky:
+;   bit	7 ... Bity ..XXX... v opkode koduju 8bit register: B C D E H L M A
+;   bit	6 ... Bity .....XXX v opkode koduju 8bit register: B C D E H L M A
+;   bit	5 ... Bity ..XX.... v opkode koduju 16 bit register BC DE HL SP/PSW
+;   bit	4 ... 16 bit register je: 0:SP,	1:PSW
+;   bit	3 ... 1	= Instrukcia ma	data (ciselny argument)
+;   bit	2 ... Ciselny argument je 0:bajt, 1:slovo
+;   bit	01 .. 0=koniec tabulky,	1-3: dlzka nazvu instrukcie znizena o 1
+
+instr_table:	db 0FFh			; Tabulka instrukcii a pseudoinstrukcii
+		db  76h	; v
+		db    2
+		db 'HLT'
+
+		db 0C0h	; 
+		db  40h	; @
+		db 0C2h	; 
+		db 'MOV'
+
+		db 0C7h	; 
+		db    6
+		db  86h	; 
+		db 'MVI'
+
+		db 0EFh	; 
+		db  0Ah
+		db  13h
+		db 'LDAX'
+
+		db 0EFh	; 
+		db    2
+		db  13h
+		db 'STAX'
+
+		db 0FFh
+		db  3Ah	; :
+		db  0Ah
+		db 'LDA'
+
+		db 0FFh
+		db  32h	; 2
+		db  0Ah
+		db 'STA'
+
+		db 0CFh	; 
+		db    1
+		db  2Ah	; *
+		db 'LXI'
+
+		db 0FFh
+		db  2Ah	; *
+		db  0Bh
+		db 'LHLD'
+
+		db 0FFh
+		db  22h	; "
+		db  0Bh
+		db 'SHLD'
+
+		db 0FFh
+		db 0F9h	; 
+		db    3
+		db 'SPHL'
+
+		db 0FFh
+		db 0EBh	; 
+		db    3
+		db 'XCHG'
+
+		db 0FFh
+		db 0E3h	; 
+		db    3
+		db 'XTHL'
+
+		db 0CFh	; 
+		db 0C5h	; 
+		db  33h	; 3
+		db 'PUSH'
+
+		db 0CFh	; 
+		db 0C1h	; 
+		db  32h	; 2
+		db 'POP'
+
+		db 0F8h	; 
+		db  80h	; 
+		db  42h	; B
+		db 'ADD'
+
+		db 0F8h	; 
+		db  88h	; 
+		db  42h	; B
+		db 'ADC'
+
+		db 0FFh
+		db 0C6h	; 
+		db    6
+		db 'ADI'
+
+		db 0FFh
+		db 0CEh	; 
+		db    6
+		db 'ACI'
+
+		db 0F8h	; 
+		db  90h	; 
+		db  42h	; B
+		db 'SUB'
+
+		db 0F8h	; 
+		db  98h	; 
+		db  42h	; B
+		db 'SBB'
+
+		db 0FFh
+		db 0D6h	; 
+		db    6
+		db 'SUI'
+
+		db 0FFh
+		db 0DEh	; 
+		db    6
+		db 'SBI'
+
+		db 0F8h	; 
+		db 0B8h	; 
+		db  42h	; B
+		db 'CMP'
+
+		db 0FFh
+		db 0FEh	; 
+		db    6
+		db 'CPI'
+
+		db 0C7h	; 
+		db    4
+		db  82h	; 
+		db 'INR'
+
+		db 0C7h	; 
+		db    5
+		db  82h	; 
+		db 'DCR'
+
+		db 0CFh	; 
+		db    3
+		db  22h	; "
+		db 'INX'
+
+		db 0CFh	; 
+		db  0Bh
+		db  22h	; "
+		db 'DCX'
+
+		db 0CFh	; 
+		db    9
+		db  22h	; "
+		db 'DAD'
+
+		db 0F8h	; 
+		db 0A0h	; 
+		db  42h	; B
+		db 'ANA'
+
+		db 0F8h	; 
+		db 0B0h	; 
+		db  42h	; B
+		db 'ORA'
+
+		db 0F8h	; 
+		db 0A8h	; 
+		db  42h	; B
+		db 'XRA'
+
+		db 0FFh
+		db 0E6h	; 
+		db    6
+		db 'ANI'
+
+		db 0FFh
+		db 0F6h	; 
+		db    6
+		db 'ORI'
+
+		db 0FFh
+		db 0EEh	; 
+		db    6
+		db 'XRI'
+
+		db 0FFh
+		db  2Fh	; /
+		db    2
+		db 'CMA'
+
+		db 0FFh
+		db    7
+		db    2
+		db 'RLC'
+
+		db 0FFh
+		db  0Fh
+		db    2
+		db 'RRC'
+
+		db 0FFh
+		db  17h
+		db    2
+		db 'RAL'
+
+		db 0FFh
+		db  1Fh
+		db    2
+		db 'RAR'
+
+		db 0FFh
+		db    0
+		db    2
+		db 'NOP'
+
+		db 0FFh
+		db  3Fh	; ?
+		db    2
+		db 'CMC'
+
+		db 0FFh
+		db  37h	; 7
+		db    2
+		db 'STC'
+
+		db 0FFh
+		db 0E9h	; 
+		db    3
+		db 'PCHL'
+
+		db 0C7h	; 
+		db 0C7h	; 
+		db  0Eh
+		db 'RST'
+
+		db 0FFh
+		db 0C3h	; 
+		db  0Ah
+		db 'JMP'
+
+		db 0FFh
+		db 0C2h	; 
+		db  0Ah
+		db 'JNZ'
+
+		db 0FFh
+		db 0D2h	; 
+		db  0Ah
+		db 'JNC'
+
+		db 0FFh
+		db 0EAh	; 
+		db  0Ah
+		db 'JPE'
+
+		db 0FFh
+		db 0E2h	; 
+		db  0Ah
+		db 'JPO'
+
+		db 0FFh
+		db 0DAh	; 
+		db    9
+		db 'JC'
+
+		db 0FFh
+		db 0CAh	; 
+		db    9
+		db 'JZ'
+
+		db 0FFh
+		db 0F2h	; 
+		db    9
+		db 'JP'
+
+		db 0FFh
+		db 0FAh	; 
+		db    9
+		db 'JM'
+
+		db 0FFh
+		db 0CDh	; 
+		db  0Bh
+		db 'CALL'
+
+		db 0FFh
+		db 0C4h	; 
+		db  0Ah
+		db 'CNZ'
+
+		db 0FFh
+		db 0D4h	; 
+		db  0Ah
+		db 'CNC'
+
+		db 0FFh
+		db 0ECh	; 
+		db  0Ah
+		db 'CPE'
+
+		db 0FFh
+		db 0E4h	; 
+		db  0Ah
+		db 'CPO'
+
+		db 0FFh
+		db 0DCh	; 
+		db    9
+		db 'CC'
+
+		db 0FFh
+		db 0CCh	; 
+		db    9
+		db 'CZ'
+
+		db 0FFh
+		db 0F4h	; 
+		db    9
+		db 'CP'
+
+		db 0FFh
+		db 0FCh	; 
+		db    9
+		db 'CM'
+
+		db 0FFh
+		db 0C9h	; 
+		db    2
+		db 'RET'
+
+		db 0FFh
+		db 0C0h	; 
+		db    2
+		db 'RNZ'
+
+		db 0FFh
+		db 0D0h	; 
+		db    2
+		db 'RNC'
+
+		db 0FFh
+		db 0E8h	; 
+		db    2
+		db 'RPE'
+
+		db 0FFh
+		db 0E0h	; 
+		db    2
+		db 'RPO'
+
+		db 0FFh
+		db 0D8h	; 
+		db    1
+		db 'RC'
+
+		db 0FFh
+		db 0C8h	; 
+		db    1
+		db 'RZ'
+
+		db 0FFh
+		db 0F0h	; 
+		db    1
+		db 'RP'
+
+		db 0FFh
+		db 0F8h	; 
+		db    1
+		db 'RM'
+
+		db 0FFh
+		db 0D3h	; 
+		db    6
+		db 'OUT'
+
+		db 0FFh
+		db 0DBh	; 
+		db    5
+		db 'IN'
+
+		db 0FFh
+		db 0FBh	; 
+		db    1
+		db 'EI'
+
+		db 0FFh
+		db 0F3h	; 
+		db    1
+		db 'DI'
+
+		db 0FFh
+		db  27h	; '
+		db    2
+		db 'DAA'
+
+		db    0
+		db    0
+		db    0
+
+		db    0			; Pseudoinstrukcie
+		db 0FFh
+		db    2
+		db 'END'
+
+		db    0
+		db    1
+		db    1
+		db 'DB'
+
+		db    0
+		db    1
+		db  41h	; A
+		db 'DW'
+
+		db    0
+		db    2
+		db  81h	; 
+		db 'DS'
+
+		db    0
+		db    2
+		db 0C2h	; 
+		db 'ORG'
+
+		db    0
+		db    2
+		db    2
+		db 'EQU'
+
+		db    0
+		db    3
+		db    2
+		db 'EXT'
+
+		db    0
+		db    3
+		db  42h	; B
+		db 'ENT'
+
+		db    0
+		db    0
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; DCBN - Konverzia retazca decimalnych cislic na 16-bitovu binarnu hodnotu
+;
+;  Vstup:
+;    HL	= adresa retazca
+;  Vystup:
+;    HL	= adresa konca retazca (retazec	konci lubovolnym znakom, ktory nie je cislicou 0-9)
+;    DE	= konvertovana binarna hodnota
+;    A = ukoncovaci znak
+
+sysmod_dcbn:				; Konverzia retazca decimalnych	cislic na 16-bitovu binarnu hodnotu
+		ld	de, 0
+
+dcbn_loop:
+		ld	a, (hl)
+		cp	'0'
+		ret	m
+		cp	':'
+		ret	p
+		ex	de, hl
+		push	bc
+		add	hl, hl
+		ld	b, h
+		ld	c, l
+		add	hl, hl
+		add	hl, hl
+		add	hl, bc
+		and	0Fh
+		ld	c, a
+		ld	b, 0
+		add	hl, bc
+		pop	bc
+		ex	de, hl
+		inc	hl
+		jp	dcbn_loop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; HXBN - Konverzia retazca hexadecimalnych cislic na 16-bitovu binarnu hodnotu
+;
+;  Vstup:
+;    HL	= adresa retazca
+;  Vystup:
+;    HL	= adresa konca retazca (prvy znak ktory	nie je 0-9 a A-F)
+;    DE	= konvertovana binarna hodnota
+
+sysmod_hxbn:				; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ld	de, 0
+
+hxbn_loop:
+		ld	a, (hl)
+		call	eval_hex_digit	; Vyhodnotenie jednej hexadecimalnej cislice 0-9,A-F
+		ret	c
+		ex	de, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		ex	de, hl
+		or	e
+		ld	e, a
+		inc	hl
+		jp	hxbn_loop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+eval_hex_digit:				; Vyhodnotenie jednej hexadecimalnej cislice 0-9,A-F
+		sub	'0'
+		ret	c
+		add	a, -17h
+		ret	c
+		add	a, 6
+		jp	p, loc_6339
+		add	a, 7
+		ret	c
+
+loc_6339:
+		add	a, 10
+		or	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; VSTOAS - Zistenie adresy kde je umiestnene navestie.
+;
+;   Vstup: C=cislo navestia 0..255
+;  Vystup: HL=adresa navestia (6 znakov	+ 2 bajty hodnoty)
+
+sysmod_vstoas:				; Adresa labelu	(C = cislo labelu)
+		ld	a, c
+
+vstoas:					; Adresa labelu	(A = cislo labelu)
+		push	de
+		ld	h, a
+		and	0FEh ; ''
+		ld	l, a
+		xor	h
+		ld	de, label_table
+		ld	h, e
+		add	hl, hl
+		add	hl, hl
+		or	l
+		ld	l, a
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		add	hl, de
+		ld	a, (hl)
+		cp	20h ; ' '
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+clear_all_labels:			; Inicializacia	tabulky	navesti	- vsetky nazvy nazvy navesti prepise na	medzery
+		ld	c, 0
+
+clslab_loop_1:
+		ld	b, 6
+		call	sysmod_vstoas	; Adresa labelu	(C = cislo labelu)
+
+clslab_loop_2:
+		ld	(hl), ' '
+		inc	hl
+		dec	b
+		jp	nz, clslab_loop_2
+		inc	c
+		jp	nz, clslab_loop_1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+label_compare:				; Porovnanie dvoch navesti
+		ld	c, 6
+
+labelcomp_loop:
+		ld	a, (de)
+		and	7Fh ; ''
+		cp	(hl)
+		ret	nz
+		inc	de
+		inc	hl
+		dec	c
+		ret	z
+		dec	b
+		jp	nz, labelcomp_loop
+		ld	a, (de)
+		sub	' '
+		add	a, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; GETMEM - Urcenie symbolu. Ak je symbol navestie, potom sa praca modulu GETMEM
+; tyka naposledy prekladaneho modulu a jeho vyuzitie je	obdobne	ako modulu SENTRY.
+;
+;  Vstup:
+;    HL	= adresa retazca oznacujuceho symbol
+;
+;  Vystup:
+;    B = -1 - syntakticky chybny symbol
+;    B = 0 - symbol je konstanta a DE =	jej hodnota
+;    B > 1 - symbol je navestie
+;    HL	= adresa znaku za symbolom
+;    Ak	je symbol navestie, potom
+;    B = dlzka navestia	v znakoch
+;    C = kod navestia pre modul	VSTOAS
+
+sysmod_getmem:				; Identifikacia	symbolu
+		ld	bc, 0
+		ld	d, h
+		ld	e, l
+		ld	a, (hl)
+		cp	27h ; '''
+		jp	nz, loc_6391
+		inc	hl
+		inc	de
+
+loc_6389:
+		inc	hl
+		inc	c
+		cp	(hl)
+		jp	nz, loc_6389
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6391:
+		dec	b
+		cp	'0'
+		ret	m
+		cp	':'             ; '9'+1
+		jp	p, loc_63AE
+		inc	b
+		push	hl
+		call	sysmod_hxbn	; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ld	a, (hl)
+		cp	'H'
+		jp	nz, loc_63A8
+		inc	hl
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_63A8:
+		pop	hl
+		call	sysmod_dcbn	; Konverzia retazca decimalnych	cislic na 16-bitovu binarnu hodnotu
+		dec	c
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_63AE:
+		cp	'A'
+		ret	m
+		cp	'['             ; 'Z'+1
+		ret	p
+		inc	b
+
+loc_63B5:
+		inc	b
+		inc	hl
+		ld	a, (hl)
+		cp	'0'
+		jp	m, loc_63CC
+		cp	':'
+		jp	m, loc_63B5
+		cp	'A'
+		jp	m, loc_63CC
+		cp	'['
+		jp	m, loc_63B5
+
+loc_63CC:
+		ld	a, b
+		cp	7
+		jp	nc, loc_6408
+		push	hl
+
+loc_63D3:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		jp	nz, loc_63DD
+		ld	a, c
+		ld	(byte_E5B0), a
+
+loc_63DD:
+		push	de
+		push	bc
+		ex	de, hl
+		call	label_compare	; Porovnanie dvoch navesti
+		pop	bc
+		pop	de
+		jp	z, loc_6402
+		inc	c
+		jp	nz, loc_63D3
+		ld	a, (byte_E5B0)
+		ld	c, a
+		call	vstoas		; Adresa labelu	(A = cislo labelu)
+		jp	nz, loc_6403
+		push	bc
+		push	de
+
+loc_63F8:
+		ld	a, (de)
+		ld	(hl), a
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz, loc_63F8
+		pop	de
+		pop	bc
+
+loc_6402:
+		xor	a
+
+loc_6403:
+		ld	(byte_E5B0), a
+
+loc_6406:
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6408:
+		ld	bc, 0FF00h
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_640C:				; Identifikacia	symbolu
+		call	sysmod_getmem
+		inc	b
+		jp	nz, loc_6428
+		cp	'-'
+		jp	nz, loc_641A
+		ld	a, '='
+
+loc_641A:
+		sub	'<'
+		ret	c
+		cp	3		; '>'+1
+		ret	nc
+		inc	a
+		ex	de, hl
+		call	loc_647C
+		jp	loc_642F
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6428:
+		call	loc_643B
+		ret	p
+		and	20h ; ' '
+		ret	z
+
+loc_642F:
+		inc	hl
+		call	sysmod_getmem	; Identifikacia	symbolu
+		inc	b
+		ret	z
+		call	loc_643B
+		ret	m
+		ld	c, b
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_643B:
+		push	hl
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		xor	a
+		ld	(hl), c
+		dec	b
+		jp	nz, loc_6459
+		ld	a, c
+		dec	a
+		jp	m, loc_6454
+		jp	nz, loc_6406
+		ld	a, (de)
+		ld	(hl), a
+		ld	a, 1
+		jp	loc_6459
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6454:
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		add	a, 4
+
+loc_6459:
+		pop	de
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	l, a
+		ld	a, (pck_src_flags) ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		and	20h ; ' '
+		jp	nz, loc_6478
+		add	hl, hl
+		add	hl, hl
+		ld	a, (de)
+		ld	b, 30h ; '0'
+		cp	'-'
+		jp	z, loc_647A
+		ld	b, 10h
+		cp	'+'
+		jp	nz, loc_647A
+
+loc_6478:
+		ld	b, 20h ; ' '
+
+loc_647A:
+		ld	a, b
+		or	l
+
+loc_647C:				; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ld	hl, pck_src_flags
+		or	(hl)
+		ld	(hl), a
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+check_8bit_reg:				; Kontrola ci znak v A je 8bit register
+		ld	hl,  registers_8bit+7
+		ld	b, 7
+
+loop_6488:
+		cp	(hl)
+		ret	z
+		dec	hl
+		dec	b
+		jp	p, loop_6488
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+store_to_source:			; Ulozenie jedneho bajtu do zdrojoveho textu
+		ld	hl, (word_E3F4)
+		dec	hl
+		or	(hl)
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		ld	(hl), a
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+pack_source_line:			; Spakuje jeden	riadok zdrojoveho textu	z textoveho buffera do formatu zdrojoveho textu
+		xor	a
+		ld	hl, pck_src_length ; Pomocny bajt pre dlzku spakovaneho	riadku zdrojoveho textu	(Bit7:comment, Bit6:label, Bit5-0:dlzka)
+		ld	(hl), a
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, sysmod_line	; Buffer pre vypis jedneho riadku textu
+		ld	a, (hl)
+		ld	c, '-'
+		ld	e, l
+		ld	d, h
+		cp	';'
+		jp	z, line_comment
+		cp	'*'
+		jp	z, line_comment
+		cp	' '
+		jp	z, line_instr
+		call	sysmod_getmem	; Identifikacia	symbolu
+		dec	b
+		ret	m
+		push	hl
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		ld	(hl), c
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	a, 40h ; '@'
+		ld	(pck_src_length), a ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		pop	hl
+
+line_instr:				; Ak je	pole instrukcie	prazdne, hlada koniec labelu
+		call	find_label_end
+		ret	nz
+		ld	hl, pck_src_length ; Pomocny bajt pre dlzku spakovaneho	riadku zdrojoveho textu	(Bit7:comment, Bit6:label, Bit5-0:dlzka)
+		inc	(hl)
+		ld	a, (de)
+		cp	' '
+		jp	z, loc_66D7
+		ld	a, 0FFh
+		ld	(byte_E3F7), a
+		ld	hl, instr_table	; Tabulka instrukcii a pseudoinstrukcii
+
+loc_64EA:
+		ld	bc, 0
+
+loc_64ED:
+		add	hl, bc
+		inc	hl
+		inc	hl
+		ld	(word_E3F4), hl
+		ld	a, (hl)
+		and	3
+		jp	nz, loc_6505
+		ld	a, (byte_E3F7)
+		inc	a
+		ld	(byte_E3F7), a
+		ret	nz
+		inc	hl
+		jp	loc_64EA
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6505:
+		inc	a
+		ld	c, a
+		ld	de,  sysmod_line+7 ; Buffer pre	vypis jedneho riadku textu
+
+loc_650A:
+		inc	hl
+		ld	a, (de)
+		cp	(hl)
+		inc	de
+		jp	nz, loc_64ED
+		dec	c
+		jp	nz, loc_650A
+		ld	hl,  sysmod_line+0Ch ; Buffer pre vypis	jedneho	riadku textu
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		ex	de, hl
+		call	find_text_back	; Hladanie konca textu v danom editacnom poli
+		ret	nz
+		ld	hl, pck_src_length ; Pomocny bajt pre dlzku spakovaneho	riadku zdrojoveho textu	(Bit7:comment, Bit6:label, Bit5-0:dlzka)
+		inc	(hl)
+		inc	hl
+		ld	(hl), 80h ; ''
+		ld	hl, (word_E3F4)
+		ld	d, (hl)
+		dec	hl
+		dec	hl
+		ld	a, (hl)
+		inc	a
+		jp	nz, loc_6538
+		call	store_to_source	; Ulozenie jedneho bajtu do zdrojoveho textu
+		jp	loc_6691
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6538:
+		dec	a
+		jp	nz, loc_6608
+		inc	hl
+		ld	b, (hl)
+		inc	hl
+		ld	a, (hl)
+		and	0F0h ; ''
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		ld	c, 0C0h	; ''
+		dec	b
+		jp	m, loc_656A
+		jp	z, loc_6596
+		dec	b
+		push	hl
+		push	af
+		ld	(hl), a
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		push	af
+		call	z, loc_640C
+		pop	af
+		call	nz, sysmod_getmem ; Identifikacia symbolu
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		pop	af
+		jp	z, loc_657B
+		pop	hl
+		inc	hl
+
+loc_656A:
+		ld	(hl), c
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		inc	b
+		ret	z
+		dec	b
+		ret	z
+		ld	a, 40h ; '@'
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		jp	loc_66D7
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_657B:				; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ld	hl, pck_src_flags
+		ld	a, (hl)
+		ld	(hl), 40h ; '@'
+		pop	hl
+		xor	(hl)
+		ld	(hl), a
+		dec	b
+		ret	m
+		rlca
+		jp	nc, loc_66D7
+		ld	a, (pck_src_length) ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		and	40h ; '@'
+		jp	nz, loc_66D7
+		ld	(pck_src_length), a ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6596:
+		ld	(byte_E3F6), a
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		push	hl
+		inc	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		call	loc_640C
+		ex	(sp), hl
+		ld	a, (pck_src_flags) ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		and	3Fh ; '?'
+		ld	(hl), a
+		ex	(sp), hl
+		dec	b
+		jp	p, loc_65DC
+		ld	a, (byte_E3F6)
+		and	40h ; '@'
+		ld	a, c
+		pop	bc
+		ret	nz
+		dec	a
+		ret	m
+		inc	a
+		or	40h ; '@'
+		ld	(bc), a
+		push	bc
+		push	hl
+		and	3Fh ; '?'
+		ld	c, a
+		ld	hl, byte_E3F6
+		ld	a, (hl)
+		add	a, c
+		dec	a
+		ld	(hl), a
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+
+loc_65D0:
+		ld	a, (de)
+		ld	(hl), a
+		inc	hl
+		inc	de
+		dec	c
+		jp	nz, loc_65D0
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		pop	hl
+
+loc_65DC:
+		pop	bc
+		ld	a, (hl)
+		cp	','
+		jp	nz, loc_65F7
+		inc	hl
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		ld	a, (bc)
+		or	80h ; ''
+		ld	(bc), a
+		ld	a, 80h ; ''
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ld	a, (byte_E3F6)
+		inc	a
+		jp	loc_6596
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_65F7:
+		ld	a, (byte_E3F6)
+		inc	a
+		ld	b, a
+		and	40h ; '@'
+		rlca
+		or	b
+		or	40h ; '@'
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		jp	loc_66D4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6608:
+		ld	a, d
+		and	0C0h ; ''
+		jp	z, loc_6645
+		ld	e, a
+		sub	40h ; '@'
+		ld	c, a
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		ld	a, (hl)
+		inc	hl
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		jp	z, loc_6639
+		call	check_8bit_reg	; Kontrola ci znak v A je 8bit register
+		ret	m
+		ld	a, b
+		rlca
+		rlca
+		rlca
+		ld	c, a
+		ld	a, e
+		sub	80h ; ''
+		jp	z, loc_663E
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		ld	a, (hl)
+		cp	','
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		inc	hl
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+
+loc_6639:				; Kontrola ci znak v A je 8bit register
+		call	check_8bit_reg
+		ret	m
+		ld	a, b
+
+loc_663E:
+		or	c
+		cp	36h ; '6'
+		ret	z
+		call	store_to_source	; Ulozenie jedneho bajtu do zdrojoveho textu
+
+loc_6645:
+		ld	a, d
+		and	30h ; '0'
+		ld	e, a
+		jp	z, loc_6691
+		ld	b, 0
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		ld	a, (hl)
+		cp	'B'
+		jp	z, loc_6689
+		ld	b, 10h
+		cp	'D'
+		jp	z, loc_6689
+		ld	a, e
+		cp	b
+		ld	b, 20h ; ' '
+		ret	z
+		ld	a, (hl)
+		cp	'H'
+		jp	z, loc_6689
+		ld	b, 30h ; '0'
+		ld	a, e
+		cp	b
+		ld	a, (hl)
+		jp	z, loc_667C
+		cp	'S'
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	'P'
+		ret	nz
+		jp	z, loc_6689
+
+loc_667C:
+		cp	'P'
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	'S'
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	'W'
+		ret	nz
+
+loc_6689:
+		inc	hl
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		ld	a, b
+		call	store_to_source	; Ulozenie jedneho bajtu do zdrojoveho textu
+
+loc_6691:
+		ld	a, d
+		and	0Ch
+		ld	e, a
+		jp	z, loc_66D7
+		cp	0Ch
+		jp	nz, loc_66B6
+		ld	hl, (txt_act_address) ;	Pracovna adresa	do textoveho buffera
+		ld	a, (hl)
+		inc	hl
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+		cp	'0'
+		ret	m
+		cp	'8'
+		ret	p
+		and	7
+		rlca
+		rlca
+		rlca
+		call	store_to_source	; Ulozenie jedneho bajtu do zdrojoveho textu
+		jp	loc_66D7
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_66B6:				; Pracovna adresa do textoveho buffera
+		ld	hl, (txt_act_address)
+		ld	a, d
+		and	0F0h ; ''
+		jp	z, loc_66C4
+		ld	a, (hl)
+		cp	','
+		ret	nz
+		inc	hl
+
+loc_66C4:
+		ld	a, e
+		cp	4
+		jp	z, loc_66CF
+		ld	a, 0C0h	; ''
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+
+loc_66CF:
+		call	loc_640C
+		dec	b
+		ret	m
+
+loc_66D4:				; Pracovna adresa do textoveho buffera
+		ld	(txt_act_address), hl
+
+loc_66D7:				; Pracovna adresa do textoveho buffera
+		ld	hl, (txt_act_address)
+		ld	de,  sysmod_line+1Ch ; Buffer pre vypis	jedneho	riadku textu
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		ret	nc
+		call	find_text_back	; Hladanie konca textu v danom editacnom poli
+		ld	c, 11h
+		jp	z, loc_66F3
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+line_comment:				; Pomocny bajt pre dlzku spakovaneho riadku zdrojoveho textu (Bit7:comment, Bit6:label,	Bit5-0:dlzka)
+		ld	a, (pck_src_length)
+		or	80h ; ''
+		ld	(pck_src_length), a ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+
+loc_66F3:
+		ld	a, ' '
+		ld	hl,  sysmod_line+2Bh ; Buffer pre vypis	jedneho	riadku textu
+
+loc_66F8:
+		dec	c
+		jp	z, loc_6701
+		cp	(hl)
+		dec	hl
+		jp	z, loc_66F8
+
+loc_6701:				; Pracovna adresa do zdrojoveho	textu
+		ld	hl, (src_act_address)
+		jp	z, loc_670F
+
+loc_6707:
+		ld	a, (de)
+		ld	(hl), a
+		inc	de
+		inc	hl
+		dec	c
+		jp	nz, loc_6707
+
+loc_670F:
+		ld	de, 80D0h
+		add	hl, de
+		ld	a, (pck_src_length) ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		and	0C0h ; ''
+		or	l
+		ld	(pck_src_length), a ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+find_label_end:				; Ak je	pole instrukcie	prazdne, hlada koniec labelu
+		ld	de,  sysmod_line+7
+		ld	(txt_act_address), hl ;	Pracovna adresa	do textoveho buffera
+
+find_text_back:				; Hladanie konca textu v danom editacnom poli
+		ld	a, (hl)
+		cp	20h ; ' '
+		ret	nz
+		inc	hl
+		call	compare_hl_de
+		jp	nz, find_text_back ; Hladanie konca textu v danom editacnom poli
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+show_hex_prefix_0:			; Pre hexadecimalne hodnoty zacinajuce pismenkom predtym vypise	este nulu
+		cp	0A0h ; ''
+		ret	c
+		ld	(hl), '0'
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+bnhx16:					; BNHX16 - Konverzia 16-bitovej	hodnoty	na styri hexadecimalne cislice
+		ld	a, d
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		ld	a, e
+
+; BNHX - Konverzia 8-bitovej hodnoty na	dve hexadecimalne cislice
+;
+;   Vstup:
+;     A	= konvertovane cislo
+;     HL = adresa pamate, kde sa ma vysledok konverzie ulozit
+;   Vystup:
+;     HL = adresa pamate za ulozenou dvojicou
+;     Meni: AF,	HL
+
+sysmod_bnhx:				; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		push	af
+		rrca
+		rrca
+		rrca
+		rrca
+		call	bnhx_one_digit
+		pop	af
+
+bnhx_one_digit:
+		and	0Fh
+		add	a, 90h ; ''
+		daa
+		adc	a, 40h ; '@'
+		daa
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; FBNDC	- Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+;
+;   Vstup:
+;     BC = konvertovane	cislo
+;     HL = adresa pamate, kam sa ma ulozit vysledok
+;   Vystup:
+;     HL = adresa pamate za retazcom decimalnych cislic
+
+sysmod_fbndc:				; Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+		ld	a, 1
+		ld	d, b
+		ld	e, c
+		ld	c, a
+		ex	de, hl
+		push	bc
+
+loc_6756:
+		xor	a
+		ld	b, 10h
+
+loc_6759:
+		add	hl, hl
+		adc	a, a
+		cp	0Ah
+		jp	c, loc_6763
+		sub	0Ah
+		inc	l
+
+loc_6763:
+		dec	b
+		jp	nz, loc_6759
+		or	30h ; '0'
+		push	af
+		ld	a, l
+		or	h
+		jp	nz, loc_6756
+		ex	de, hl
+		inc	a
+		cp	c
+		sbc	a, a
+		ld	b, a
+
+loc_6774:
+		pop	af
+		ret	c
+		ld	(hl), a
+		add	hl, bc
+		jp	loc_6774
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+read_from_source:			; Precitanie jedneho bajtu zo zdrojoveho textu
+		push	hl
+		ld	hl, byte_E3F8
+		dec	(hl)
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		ld	a, (hl)
+		dec	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpack_label:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		ex	de, hl
+		ld	c, a
+		ld	a, (flag_edi_lib) ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		or	a
+		jp	z, loc_67A9
+		ld	a, 0
+		ld	hl, (word_E3FB)
+
+loc_679B:
+		cp	(hl)
+		dec	hl
+		jp	nz, loc_679B
+		ld	a, (hl)
+		cp	c
+		ld	a, ' '
+		dec	hl
+		jp	nz, loc_679B
+		or	a
+
+loc_67A9:				; Adresa labelu	(C = cislo labelu)
+		call	z, sysmod_vstoas
+		ex	de, hl
+		ld	b, 6
+
+loc_67AF:
+		ld	a, (de)
+		and	7Fh ; ''
+		cp	' '
+		ret	z
+		ld	(hl), a
+		inc	hl
+		inc	de
+		ld	a, (flag_edi_lib) ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		or	a
+		jp	z, loc_67C1
+		dec	de
+		dec	de
+
+loc_67C1:
+		dec	b
+		jp	nz, loc_67AF
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_67C6:				; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ld	a, (pck_src_flags)
+		ld	e, a
+		add	a, a
+		add	a, a
+		ret	z
+		jp	m, loc_67E0
+		ld	a, e
+		and	3
+		jp	z, show_src_value ; Vypis ciselneho argumentu instrukcie v zdrojovom texte
+		cp	2
+		jp	z, loc_67EB
+		add	a, ';'
+		jp	loc_67ED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_67E0:
+		push	af
+		call	show_src_value	; Vypis	ciselneho argumentu instrukcie v zdrojovom texte
+		pop	af
+		ld	e, a
+		rlca
+		rlca
+		rlca
+		and	2
+
+loc_67EB:
+		add	a, '+'
+
+loc_67ED:
+		ld	(hl), a
+		inc	hl
+
+show_src_value:				; Vypis	ciselneho argumentu instrukcie v zdrojovom texte
+		ld	a, e
+		rrca
+		rrca
+		and	3
+		jp	z, unpack_label
+		ld	e, a
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		ld	c, a
+		dec	e
+		jp	nz, loc_6809
+		ld	(hl), 27h ; '''
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(hl), 27h ; '''
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6809:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		ld	b, a
+		dec	e
+		jp	z, sysmod_fbndc	; Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+
+show_hex_value:				; Vypis	hexadecimalnej hodnoty v tvare XXh alebo 0XXh
+		ld	a, b
+		call	show_hex_prefix_0 ; Pre	hexadecimalne hodnoty zacinajuce pismenkom predtym vypise este nulu
+		or	a
+		call	nz, sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		ld	a, c
+		call	z, show_hex_prefix_0 ; Pre hexadecimalne hodnoty zacinajuce pismenkom predtym vypise este nulu
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		ld	(hl), 'H'
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+show_8bit_register:			; Dekodovanie 8-bitoveho registra
+		and	7
+		ld	de, registers_8bit ; 8-bitove registre
+		add	a, e
+		ld	e, a
+		adc	a, d
+		sub	e
+		ld	d, a
+		ld	a, (de)
+		ld	(hl), a
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Disasembluje instrukciu
+;
+;   Vstup: A = opkod
+;   Vystup: Text v bufferi
+;
+; Poznamka: Vypise iba nazov instrukcie	a registre - napriklad "LXI S,"
+
+show_instruction:
+		ld	b, a
+		ld	hl, instr_table	; Tabulka instrukcii a pseudoinstrukcii
+
+inst_search:
+		and	(hl)
+		inc	hl
+		cp	(hl)
+		inc	hl
+		ld	a, (hl)
+		jp	z, inst_found
+		and	3
+		ret	z
+
+loc_6841:
+		inc	hl
+		dec	a
+		jp	p, loc_6841
+		ld	a, b
+		inc	hl
+		jp	inst_search
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inst_found:				; Buffer pre vypis jedneho riadku textu
+		ld	de,  sysmod_line+7
+		push	af
+		and	3
+		ld	c, a
+
+inst_name:
+		inc	hl
+		ld	a, (hl)
+		ld	(de), a
+		inc	de
+		dec	c
+		jp	p, inst_name
+		ld	hl,  sysmod_line+0Ch ; Buffer pre vypis	jedneho	riadku textu
+		pop	af
+		ld	c, a
+		and	0C0h ; ''
+		jp	z, inst_16bit_reg
+		cp	40h ; '@'
+		jp	z, loc_6879
+		ld	a, b
+		rrca
+		rrca
+		rrca
+		call	show_8bit_register ; Dekodovanie 8-bitoveho registra
+		ld	a, c
+		and	40h ; '@'
+		jp	z, inst_16bit_reg
+		ld	(hl), ','
+		inc	hl
+
+loc_6879:
+		ld	a, b
+		call	show_8bit_register ; Dekodovanie 8-bitoveho registra
+
+inst_16bit_reg:
+		ld	a, c
+		and	30h ; '0'
+		jp	z, inst_data
+		ld	a, b
+		rrca
+		rrca
+		rrca
+		rrca
+		ld	de, return_68AB
+		push	de
+		ld	d, 'B'
+		and	3
+		ret	z
+		ld	d, 'D'
+		dec	a
+		ret	z
+		ld	d, 'H'
+		dec	a
+		ret	z
+		ld	(hl), 'S'
+		inc	hl
+		ld	d, 'P'
+		ld	a, c
+		and	10h
+		ret	z
+		dec	hl
+		ld	a, (hl)
+		ld	(hl), d
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		pop	de
+		ld	d, 'W'
+
+return_68AB:
+		ld	(hl), d
+		inc	hl
+
+inst_data:
+		ld	a, c
+		and	0Ch
+		ld	a, c
+		ret	z
+		cp	0Eh
+		jp	z, inst_rst
+		and	0F0h ; ''
+		ld	a, c
+		ret	z
+		ld	(hl), ','
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inst_rst:
+		ld	a, b
+		rrca
+		rrca
+		rrca
+		and	7
+		add	a, '0'
+		ld	(hl), a
+		ld	a, c
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpack_actual_line:			; Nacita a depakuje aktualny riadok zdrojoveho textu do	textoveho buffera
+		ld	hl, (act_adr_line)
+
+unpack_source_line:			; Nacita a depakuje jeden riadok zdrojoveho textu do textoveho buffera
+		ld	a, (hl)
+		ld	(pck_src_length), a ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		and	3Fh ; '?'
+		push	af
+		dec	hl
+		ld	a, (hl)
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		dec	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, word_7F2C
+
+loc_68E1:
+		dec	l
+		ld	(hl), 20h ; ' '
+		jp	nz, loc_68E1
+		pop	af
+		ret	z
+		dec	a
+		dec	a
+		ld	(byte_E3F8), a
+		ld	a, (byte_E5B3)
+		or	a
+		jp	nz, loc_6D02
+		ld	a, (pck_src_length) ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		rlca
+		jp	c, unpack_comment
+		rlca
+		call	c, unpack_label
+		ld	a, (pck_src_flags) ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		and	70h ; 'p'
+		cp	40h ; '@'
+		ld	a, (pck_src_flags) ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		jp	nz, unpack_instr
+		ld	hl,  sysmod_line+7 ; Buffer pre	vypis jedneho riadku textu
+		and	8Fh ; ''
+		add	a, a
+		jp	nz, unpack_db_dw
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		and	30h ; '0'
+		ld	a, (pck_src_flags) ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		jp	z, unpack_end_ent_ext
+		add	a, a
+		ld	bc, 'EQ'
+		ld	d, 'U'
+		jp	c, unpack_equ_org_ds
+		ld	bc, 'OR'
+		ld	d, 'G'
+		jp	m, unpack_equ_org_ds
+		ld	bc, 'DS'
+		ld	d, ' '
+
+unpack_equ_org_ds:
+		ld	(hl), b
+		inc	hl
+		ld	(hl), c
+		inc	hl
+		ld	(hl), d
+		ld	hl,  sysmod_line+0Ch ; Buffer pre vypis	jedneho	riadku textu
+		call	loc_67C6
+		jp	loc_69B2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpack_end_ent_ext:
+		rlca
+		ld	(hl), 'E'
+		inc	hl
+		ld	(hl), 'N'
+		inc	hl
+		ld	(hl), 'D'
+		jp	c, loc_69B2
+		ld	(hl), 'T'
+		rlca
+		jp	c, loc_695D
+		dec	hl
+		ld	(hl), 'X'
+
+loc_695D:				; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+0Ch
+		call	unpack_label
+		jp	loc_69B2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpack_db_dw:
+		ld	(hl), 'D'
+		inc	hl
+		ld	(hl), 'B'
+		jp	nc, loc_6970
+		ld	(hl), 'W'
+
+loc_6970:				; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+0Ch
+
+loc_6973:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		ld	(pck_src_flags), a ; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		rlca
+		rlca
+		jp	nc, loc_699F
+		rrca
+		rrca
+		and	3Fh ; '?'
+		ld	b, a
+		ld	(hl), 27h ; '''
+		inc	hl
+
+loc_6986:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		ld	(hl), a
+		inc	hl
+		dec	b
+		jp	nz, loc_6986
+		ld	(hl), 27h ; '''
+		inc	hl
+
+loc_6992:				; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ld	a, (pck_src_flags)
+		rlca
+		jp	nc, loc_69B2
+		ld	(hl), ','
+		inc	hl
+		jp	loc_6973
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_699F:
+		call	loc_67C6
+		jp	loc_6992
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+unpack_instr:
+		rlca
+		jp	nc, loc_69B2
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	show_instruction
+		call	loc_67C6
+
+loc_69B2:				; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+1Ch
+
+unpack_comment:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		ret	m
+		ld	(hl), a
+		inc	hl
+		jp	unpack_comment
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ln_plsmns_eval:				; Vyhodnotenie argumentu pre prikaz LN-	a LN+
+		ld	hl, ln_equ_error
+
+ln_equ_eval_arg:			; Vyhodnotenie argumentu pre prikaz EDI>LN=
+		push	hl
+		ex	de, hl
+		call	sysmod_getmem	; Identifikacia	symbolu
+		dec	b
+		ret	p
+		pop	hl
+		ld	a, b
+		xor	c
+		jp	nz, ln_equ_error
+		ld	a, d
+		or	e
+		ld	hl, ret_address
+		ex	(sp), hl
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_ln_equ:				; Slucka pre vyhladanie	navestia v zdrojovom texte
+		ld	hl, ln_equ_search_init
+		call	ln_equ_eval_arg	; Vyhodnotenie argumentu pre prikaz EDI>LN=
+		dec	de
+		ret	nz
+		pop	af
+
+edit_shift_home:			; Cislo	akualneho riadku v zdrojovom texte
+		ld	hl, (act_num_line)
+		ex	de, hl
+		jp	ret_address
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ln_equ_search_init:			; Slucka pre vyhladanie	navestia v zdrojovom texte
+		pop	af
+		call	set_src_1st_line_act ; Nastavi aktualny	prvy riadok zdrojoveho textu
+		ld	e, c
+
+ln_equ_search_loop:
+		ld	a, (hl)
+		add	a, a
+		jp	z, ln_equ_search_end
+		jp	p, ln_equ_search_next
+		dec	hl
+		dec	hl
+		ld	a, (hl)
+		inc	hl
+		inc	hl
+		cp	e
+		jp	z, ln_equ_search_end
+
+ln_equ_search_next:			; Nastavi ako aktualny nasledujci riadok v zdrojovom texte
+		call	set_next_line_as_act
+		jp	ln_equ_search_loop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_ln_plus:				; Vyhodnotenie argumentu pre prikaz LN-	a LN+
+		call	ln_plsmns_eval
+		ld	hl, (act_num_line) ; Cislo akualneho riadku v zdrojovom	texte
+		add	hl, de
+		jp	c, loc_6A0D
+		ex	de, hl
+		ret	nz
+
+loc_6A0D:
+		ld	de, -1
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_ln_minus:			; Vyhodnotenie argumentu pre prikaz LN-	a LN+
+		call	ln_plsmns_eval
+		call	negate_DE
+
+loc_6A17:				; Cislo	akualneho riadku v zdrojovom texte
+		ld	hl, (act_num_line)
+		add	hl, de
+		ex	de, hl
+		ret	c
+		cp	l
+		ret	z
+		ld	de, 0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_shift_lleft:
+		scf
+
+edit_shift_rright:
+		sbc	a, a
+		ld	d, a
+		xor	16h
+		sub	d
+		ld	hl,  sysmod_cursor+1 ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		sub	(hl)
+		ld	e, a
+		sub	d
+		ld	hl, ret_address
+		push	hl
+		jp	loc_6A17
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+set_src_1st_line_act:			; Nastavi aktualny prvy	riadok zdrojoveho textu
+		xor	a
+		ld	h, a
+		ld	l, a
+		ld	(act_num_line),	hl ; Cislo akualneho riadku v zdrojovom	texte
+
+init_act_adr:
+		ld	hl, source_begin
+		ld	(act_adr_line),	hl ; Adresa akualneho riadku v zdrojovom texte
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+find_Nth_line:				; Nastavi aktualny N-ty	riadok zdrojoveho textu
+		call	set_src_1st_line_act
+
+find_Nth_loop:
+		ld	a, d
+		or	e
+		ret	z
+		call	set_next_line_as_act ; Nastavi ako aktualny nasledujci riadok v	zdrojovom texte
+		ret	z
+		dec	de
+		jp	find_Nth_loop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+editor_entry_1:				; Po uprave zdrojoveho textu obnovi nastavenie konca volnej pamete
+		call	update_lastln
+		ld	d, a
+		ld	e, a
+
+ret_address:				; Nastavi aktualny N-ty	riadok zdrojoveho textu
+		call	find_Nth_line
+
+ln_equ_search_end:			; Zmazanie obrazovky
+		call	sysmod_clear
+		ld	hl, (act_num_line) ; Cislo akualneho riadku v zdrojovom	texte
+		push	hl
+		ld	hl, 0
+		ld	(sysmod_cursor), hl ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		push	hl
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		push	hl
+		ld	d, 15h
+		call	show_source_block ; Zobrazenie bloku riadkov zo	zdrojoveho textu (D = pocet riadkov)
+		pop	hl
+		ld	(act_adr_line),	hl ; Adresa akualneho riadku v zdrojovom texte
+		pop	hl
+		call	move_cursor_to_new_pos ; Zmazanie kurzora na starej pozicii a presun na	novu poziciu L = stlpec	(0-43),	H = riadok (0-22).
+		pop	hl
+		ld	(act_num_line),	hl ; Cislo akualneho riadku v zdrojovom	texte
+		jp	loc_6E71
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+update_lastln:				; Po uprave zdrojoveho textu obnovi nastavenie konca volnej pamete
+		ld	de, 0FFFFh
+		call	find_Nth_line	; Nastavi aktualny N-ty	riadok zdrojoveho textu
+		ld	(sysmod_lastln), hl ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+move_labels:				; Priprava navesti pre ulozenie	zdrojoveho textu
+		ld	hl, (sysmod_lastln)
+		ex	de, hl
+		dec	de
+		ld	c, 0
+
+loc_6A90:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		jp	z, loc_6ABA
+		ex	de, hl
+		push	hl
+		ld	b, h
+		ld	a, l
+		ld	hl, (memory_value)
+		sub	l
+		sub	8
+		ld	a, b
+		sbc	a, h
+		pop	hl
+		ret	c
+		ld	a, (de)
+		ld	(hl), c
+		dec	hl
+		ld	b, 6
+
+loc_6AA9:
+		ld	(hl), a
+		dec	hl
+		inc	de
+		dec	b
+		jp	z, loc_6AB6
+		ld	a, (de)
+		cp	' '
+		jp	nz, loc_6AA9
+
+loc_6AB6:
+		ld	(hl), ' '
+		dec	hl
+		ex	de, hl
+
+loc_6ABA:
+		dec	c
+		jp	nz, loc_6A90
+		dec	de
+		xor	a
+		ld	(de), a
+		dec	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_sav:
+		ld	a, (de)
+		or	a
+		jp	z, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		push	de
+		call	move_labels	; Priprava navesti pre ulozenie	zdrojoveho textu
+		ex	de, hl
+		ld	bc, source_begin
+		pop	de
+		jp	c, loc_7E9A
+		call	save_block	; Ulozenie zadaneho bloku na pasku
+		jp	mrscmd_edi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_loa:
+		ld	a, 3Fh ; '?'
+		ld	(flag_edi_lib),	a ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		call	load_block
+		jp	nz, mrscmd_edi
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		dec	hl
+		ld	e, l
+		ld	d, h
+
+loc_6AEB:				; Zisti	kolko zabera riadok v zdrojovom	texte -	vrati ako zaporne cislo
+		call	get_line_length
+		add	hl, bc
+		jp	nz, loc_6AEB
+		ld	(word_E3FB), hl
+		ex	de, hl
+		inc	de
+		jp	loc_7E57
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_rst:				; Premaze medzerami vsetky navestia
+		call	clear_all_labels
+		call	update_lastln	; Najde	kde v pameti zacina zdrojak
+		ex	de, hl		; DE = zaciatok	zdrojaku v pameti
+
+rst_label_loop:
+		dec	de
+		ld	a, (de)		; Nieco	(Co?!?!) cita v	pameti pod zdrojakom
+		ld	c, a
+		call	sysmod_vstoas	; A potom to vyhodnocuje ako cisla navesti
+
+rst_text_loop:
+		dec	de
+		ld	a, (de)
+		or	a
+		jp	z, editor_entry_1
+		ld	(hl), a
+		inc	hl
+		cp	' '
+		jp	nz, rst_text_loop
+		jp	rst_label_loop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrscmd_edi:
+		xor	a
+		ld	(flag_edi_lib),	a ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		ld	hl, edicmd_prompt
+		ld	de, edicmd_table ; Prikazy modulu "edi>"
+		jp	mrs_edi_lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; INKEY	- Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+;
+;   Vystup:
+;     A	= kod stlaceneho klavesu
+
+sysmod_inkey:				; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		jp	sysmod_inkey_0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6B27:
+		cp	' '
+		jp	nc, loc_70B9
+		sub	1Bh
+		jp	loc_70CD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6B31:
+		cp	' '
+		jp	nc, loc_6C3B
+		jp	loc_6E93
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+init_and_cls:
+		ld	hl, 0BEFFh
+		ld	(ram_C17C_KEYEND), hl ;	adresa klicu
+		nop
+		nop
+		nop
+		jp	sysmod_clear	; Zmazanie obrazovky
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		jp	loc_6B77
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; SCAN - Ohmatanie klavesnice. Modul zisti, ci je stlaceny niektory klaves
+;
+;  Vystup:
+;    A = 0, ak nie je stlacene nic; A =	ASCII kod stlaceneho klavesu
+
+sysmod_scan:				; Ohmatanie klavesnice.	Modul zisti, ci	je stlaceny niektory klaves
+		push	hl
+		push	de
+		push	bc
+		ld	hl, (ram_C178_OLDKEY)
+		push	hl
+		ld	hl, 0
+		call	rom_89C3_inkey3	; Test klavesnice bez cekani
+		pop	hl
+		ld	(ram_C178_OLDKEY), hl
+		pop	bc
+		pop	de
+		pop	hl
+		ret	nz
+		xor	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+curon_inkey_curoff:			; Zmazanie kurzora + vypis znaku + zobrazenie kurzora na novej pozicii
+		push	de
+		ld	hl, (ram_C032_DIAL) ; adr. zac.	vypisu dial. radku na displeji
+		call	rom_8161_curps3	; Vypocet adresy aktulniho znaku v editacnim bufferu
+		push	hl
+		call	rom_8484_XCCUR	; Vykresleni/smazani kurzoru
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		pop	hl
+		push	af
+		call	rom_8484_XCCUR	; Vykresleni/smazani kurzoru
+		pop	af
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6B76:
+		pop	de
+
+loc_6B77:
+		or	a
+		pop	hl
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sysmod_clear:				; Zmazanie obrazovky
+		ld	a, 1Ch
+		jp	rom_8500_PRTOUT	; Vypsat znak
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+scroll_clear:				; Posunutie obrazovky vyssie a zmazanie	spodneho riadku
+		push	bc
+		push	hl
+		push	de
+		ld	hl, 0C6C2h
+		ld	a, 0CFh	; ''
+		call	scroll_screen	; Posunutie obrazovky o	jeden riadok vyssie
+		ld	d, 0Ah
+
+loc_6B8D:
+		ld	e, 2Ch ; 
+
+loc_6B8F:
+		ld	(hl), b
+		inc	hl
+		dec	e
+		jp	nz, loc_6B8F
+		add	hl, bc
+		dec	d
+		jp	nz, loc_6B8D
+		jp	loc_6B76
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+cursor_video_add:			; Prepocet aktualnej polohy kurzora na adresu videoramky
+		ld	hl, (sysmod_cursor)
+
+compute_video_add:			; Prepocet riadku a stlpca na adresu videoramky
+		push	af
+		push	bc
+		ld	a, h
+		add	a, a
+		add	a, a
+		add	a, h
+		rra
+		ld	h, a
+		ld	a, l
+		rla
+		rrca
+		ld	l, a
+		ld	bc, 0C682h
+		add	hl, bc
+		pop	bc
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ld	hl, (sysmod_cursor) ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+
+print_chr_at_cursor:			; Vypis	jedneho	znaku v	A na poziciu L = stlpec	(0-43),	H = riadok (0-22).
+		call	compute_video_add
+
+; PIXEL	- Rozkreslenie znaku na	obrazovke
+;
+;  Vstup:
+;    A = ASCII kod znaku
+;    HL	= adresa videopamate, kam sa ma	byt ulozeny pravy dolny	roh rozkreslovaneho znaku.
+;    0C03AH = jasova uroven, blikanie
+
+sysmod_pixel:				; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		push	hl
+		push	bc
+		ld	bc, 40h	; '@'
+		add	hl, bc
+		call	rom_8584_WRCHAR	; Tisk znaku (puvodni adresa)
+		pop	bc
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+outchr_new_line:			; Prechod na novy riadok
+		ld	a, 89h ; ''
+
+; OUTCHR - Vypisuje znak na poziciu oznacenu kurzorom a	kurzor posunie doprava.
+;	   Na konci riadku prejde na novy riadok, na konci obrazovky posunie obrazovku hore.
+;
+;   Vstup:
+;     A	= ASCII	kod znaku
+;	     Podporovane riadiace znaky:
+;		 83H - posun kurzora vlavo <---
+;		 85H - posun kurzora vpravo --->
+;		 89H - ukoncenie riadku	a prechod na novy riadok
+
+sysmod_outchr:				; Vypis	znaku s	posunom	kurzora	na dalsiu poziciu
+		push	hl
+		ld	hl, (sysmod_cursor) ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		or	a
+		jp	m, loc_6BEA
+		push	hl
+		call	print_chr_at_cursor ; Vypis jedneho znaku v A na poziciu L = stlpec (0-43), H =	riadok (0-22).
+		pop	hl
+		inc	l
+		ld	a, 2Ch ; 
+		sub	l
+		jp	nz, loc_6BE5
+
+loc_6BDB:
+		ld	l, a
+		ld	a, h
+		sub	15h
+		adc	a, 15h
+		ld	h, a
+		call	nc, scroll_clear ; Posunutie obrazovky vyssie a	zmazanie spodneho riadku
+
+loc_6BE5:				; Zmazanie kurzora na starej pozicii a presun na novu poziciu L	= stlpec (0-43), H = riadok (0-22).
+		call	move_cursor_to_new_pos
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6BEA:
+		sub	89h ; ''
+		jp	z, loc_6BDB
+		ld	de, loc_6BE5
+		push	de
+		sub	0FAh ; ''
+		jp	z, loc_6C01
+		sub	2
+		ret	nz
+		ld	a, 2Ah ; '*'
+		cp	l
+		ret	c
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6C01:
+		dec	l
+		ret	p
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+move_cursor_to_new_pos:			; Zmazanie kurzora na starej pozicii a presun na novu poziciu L	= stlpec (0-43), H = riadok (0-22).
+		push	hl
+		call	cursor_video_add ; Prepocet aktualnej polohy kurzora na	adresu videoramky
+		ld	(hl), 0
+		pop	hl
+		push	hl
+		ld	(sysmod_cursor), hl ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		call	compute_video_add ; Prepocet riadku a stlpca na	adresu videoramky
+		ld	(hl), 1Fh
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_del:				; Vrati	polohu konca editacneho	pola pre dany stlpec v L
+		call	get_end_of_area
+		ld	e, l
+
+loc_6C1B:
+		cp	l
+		ld	(hl), 20h ; ' '
+		ex	de, hl
+		ret	z
+		ex	de, hl
+		inc	l
+		ld	d, (hl)
+		dec	l
+		ld	(hl), d
+		inc	l
+		jp	loc_6C1B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_ins:				; Vrati	polohu konca editacneho	pola pre dany stlpec v L
+		call	get_end_of_area
+		ld	d, a
+		ld	a, l
+		ld	l, d
+
+loc_6C2F:
+		cp	l
+		ld	(hl), 20h ; ' '
+		ret	z
+		dec	l
+		ld	d, (hl)
+		inc	l
+		ld	(hl), d
+		dec	l
+		jp	loc_6C2F
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6C3B:
+		call	loc_6CA8
+		jp	c, loc_6C4A
+		ld	(hl), b
+
+edit_right:
+		ld	a, '*'
+		cp	l
+		jp	c, sysmod_beep	; Vyda zvukovy signal.
+		inc	l
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6C4A:
+		inc	a
+
+loc_6C4B:
+		cp	l
+		ret	z
+		ld	(hl), ' '
+		inc	l
+		jp	loc_6C4B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_shift_right:
+		call	check_edit_area
+		sub	2Bh ; '+'
+		adc	a, 2Bh ; '+'
+		cp	l
+		jp	z, sysmod_beep	; Vyda zvukovy signal.
+		ld	l, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_shift_left:
+		call	check_edit_area
+		ld	a, l
+		or	a
+		jp	z, sysmod_beep	; Vyda zvukovy signal.
+
+loc_6C68:
+		dec	de
+		ld	a, (de)
+		cp	l
+		ld	l, a
+		jp	z, loc_6C68
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_end:				; Buffer pre vypis jedneho riadku textu
+		ld	a, (sysmod_line)
+		cp	3Bh ; ';'
+		jp	z, sysmod_beep	; Vyda zvukovy signal.
+		ld	b, 10h
+		ld	l, 1Ch
+		jp	loc_6E5E
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_left:
+		dec	l
+		ret	p
+		inc	l
+
+sysmod_beep:				; Vyda zvukovy signal.
+		ld	a, 1
+		out	(0F6h),	a
+		ld	a, 1Ah
+		push	bc
+		ld	b, a
+		ld	c, a
+
+loc_6C8B:
+		dec	bc
+		ld	a, c
+		or	b
+		jp	nz, loc_6C8B
+		out	(0F6h),	a
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+get_end_of_area:			; Vrati	polohu konca editacneho	pola pre dany stlpec v L
+		ld	a, (sysmod_line)
+		cp	';'
+		ld	a, 2Bh ; '+'
+		ret	z
+
+check_edit_area:			; Pozicia pola pre instrukciu
+		ld	de, positions
+
+loop_6CA0:
+		ld	a, (de)
+		dec	a
+		cp	l
+		ret	nc
+		inc	de
+		jp	loop_6CA0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6CA8:
+		sub	' '
+		ret	nz
+		sub	l
+		ccf
+		ld	a, 6
+		ret	c
+		call	get_end_of_area	; Vrati	polohu konca editacneho	pola pre dany stlpec v L
+		ret	z
+		cp	2Bh ; '+'
+		ret	z
+		cp	1Bh
+		ret	c
+		ld	de,  sysmod_line+0Ch ; Buffer pre vypis	jedneho	riadku textu
+
+loc_6CBD:
+		ccf
+		push	af
+
+loc_6CBF:
+		ld	a, l
+		cp	e
+		jp	nz, loc_6CC6
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6CC6:
+		ld	a, (de)
+		inc	de
+		cp	27h ; '''
+		jp	nz, loc_6CBF
+		pop	af
+		jp	loc_6CBD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6CD1:
+		ld	a, 15h
+		ld	hl, (sysmod_cursor) ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		sub	h
+		ret	z
+		add	a, a
+		ld	b, a
+		add	a, a
+		add	a, a
+		add	a, b
+		ld	l, 0
+		call	compute_video_add ; Prepocet riadku a stlpca na	adresu videoramky
+
+scroll_screen:				; Posunutie obrazovky o	jeden riadok vyssie
+		ld	d, h
+		ld	e, l
+		ld	bc, -240h
+		add	hl, bc
+		ld	bc, 40h	; '@'
+
+loc_6CEB:
+		ex	de, hl
+		add	hl, bc
+		ld	b, 2Ch ; 
+		ld	c, a
+
+loc_6CF0:
+		ld	a, (hl)
+		ld	(de), a
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz, loc_6CF0
+		ld	a, c
+		ld	c, 14h
+		ex	de, hl
+		add	hl, bc
+		dec	a
+		jp	nz, loc_6CEB
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6D02:
+		ld	a, 15h
+		ld	hl, (sysmod_cursor) ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		sub	h
+		ret	z
+		call	compute_video_add ; Prepocet riadku a stlpca na	adresu videoramky
+		ld	(hl), 0
+		add	a, a
+		ld	b, a
+		add	a, a
+		add	a, a
+		add	a, b
+		ld	hl, 1400h
+		call	compute_video_add ; Prepocet riadku a stlpca na	adresu videoramky
+		ld	d, h
+		ld	e, l
+		ld	bc, 280h
+
+loc_6D1E:
+		add	hl, bc
+		ex	de, hl
+		ld	b, 2Bh ; '+'
+		ld	c, a
+
+loc_6D23:
+		ld	a, (hl)
+		ld	(de), a
+		inc	de
+		inc	hl
+		dec	b
+		jp	p, loc_6D23
+		ld	a, c
+		ld	c, 94h ; ''
+		add	hl, bc
+		ex	de, hl
+		dec	a
+		jp	nz, loc_6D1E
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+get_line_length:			; Zisti	kolko zabera riadok v zdrojovom	texte -	vrati ako zaporne cislo
+		ld	a, (hl)
+
+get_negative_length:
+		and	3Fh ; '?'
+		ld	b, 0FFh
+		cpl
+		ld	c, a
+		inc	bc
+		ret			; Return negative length
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+set_next_line_as_act:			; Nastavi ako aktualny nasledujci riadok v zdrojovom texte
+		ld	a, (hl)
+		or	a
+		ret	z
+		push	hl
+		ld	hl, (act_num_line) ; Cislo akualneho riadku v zdrojovom	texte
+		inc	hl
+		ld	(act_num_line),	hl ; Cislo akualneho riadku v zdrojovom	texte
+		pop	hl
+
+loc_6D4A:				; Zisti	kolko zabera riadok v zdrojovom	texte -	vrati ako zaporne cislo
+		call	get_line_length
+		add	hl, bc
+		ld	(act_adr_line),	hl ; Adresa akualneho riadku v zdrojovom texte
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_ptl:
+		call	loc_6D02
+		ld	a, 1
+		scf
+
+edit_eol:
+		ld	(byte_E5B3), a
+
+edit_rright:
+		ld	d, a
+		ld	hl, loc_6E71
+		jp	nc, loc_6D65
+		ld	hl, loc_6E74
+
+loc_6D65:
+		push	hl
+
+show_source_block:			; Zobrazenie bloku riadkov zo zdrojoveho textu (D = pocet riadkov)
+		ld	hl, (act_adr_line)
+		call	set_next_line_as_act ; Nastavi ako aktualny nasledujci riadok v	zdrojovom texte
+		jp	z, sysmod_beep	; Vyda zvukovy signal.
+		call	outchr_new_line	; Prechod na novy riadok
+		ld	a, (byte_E5B3)
+		or	a
+		call	z, show_source_line ; Zobrazi aktualny riadok zo zdrojoveho textu
+		dec	d
+		jp	nz, show_source_block ;	Zobrazenie bloku riadkov zo zdrojoveho textu (D	= pocet	riadkov)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_lleft:
+		ld	hl, loc_6E71
+		push	hl
+		ld	hl, (act_num_line) ; Cislo akualneho riadku v zdrojovom	texte
+		ex	de, hl
+		dec	de
+		inc	d
+		jp	z, sysmod_beep	; Vyda zvukovy signal.
+		dec	d
+		call	find_Nth_line	; Nastavi aktualny N-ty	riadok zdrojoveho textu
+		call	cursor_video_add ; Prepocet aktualnej polohy kurzora na	adresu videoramky
+		ld	(hl), 0
+		ld	hl,  sysmod_cursor+1 ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		dec	(hl)
+		ret	p
+		inc	(hl)
+		call	loc_6D02
+		jp	show_source_line ; Zobrazi aktualny riadok zo zdrojoveho textu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6DA0:
+		ld	a, (byte_E5B3)
+		or	a
+		ret	nz
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ex	de, hl
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		call	get_line_length	; Zisti	kolko zabera riadok v zdrojovom	texte -	vrati ako zaporne cislo
+		ret	z
+
+loc_6DB0:
+		push	hl
+		add	hl, bc
+		call	compare_hl_de
+		ld	a, (hl)
+		pop	hl
+		ld	(hl), a
+		dec	hl
+		jp	nz, loc_6DB0
+		inc	hl
+		ld	(sysmod_lastln), hl ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6DC1:				; Adresa akualneho riadku v zdrojovom texte
+		ld	hl, (act_adr_line)
+		ex	de, hl
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		dec	hl
+		ld	a, (pck_src_length) ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		call	get_negative_length
+		scf
+		ret	z
+		push	hl
+		push	de
+		add	hl, bc
+		ex	de, hl
+		ld	hl, (sysmod_start)
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		pop	de
+		pop	hl
+		ret	nc
+
+loc_6DDF:
+		inc	hl
+		push	hl
+		ld	a, (hl)
+		add	hl, bc
+		ld	(hl), a
+		pop	hl
+		call	compare_hl_de
+		jp	nz, loc_6DDF
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		add	hl, bc
+		ld	(sysmod_lastln), hl ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		ld	de, pck_src_length ; Pomocny bajt pre dlzku spakovaneho	riadku zdrojoveho textu	(Bit7:comment, Bit6:label, Bit5-0:dlzka)
+		ld	a, (de)
+		and	3Fh ; '?'
+		ld	c, a
+
+loc_6DFC:
+		ld	a, (de)
+		ld	(hl), a
+		inc	de
+		dec	hl
+		dec	c
+		jp	nz, loc_6DFC
+		scf
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edit_shift_del:				; Hlada	koniec textu v bufferi
+		call	find_end_buffer
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		jp	nz, loc_6E14
+		ld	a, (hl)
+		or	a
+		jp	z, loc_6E6E
+
+loc_6E14:
+		push	hl
+		call	loc_6CD1
+		ld	hl, byte_E5B3
+		ld	d, (hl)
+		ld	(hl), a
+		ld	a, (sysmod_cursor+1) ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		pop	hl
+		push	af
+		push	hl
+		add	a, d
+		ld	e, a
+
+loc_6E25:
+		call	loc_6D4A
+		ld	a, e
+		jp	z, loc_6E33
+		inc	e
+		ld	a, 15h
+		cp	e
+		jp	nc, loc_6E25
+
+loc_6E33:				; Pozicia kurzora na obrazovke.	Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		ld	(sysmod_cursor+1), a
+		call	show_source_line ; Zobrazi aktualny riadok zo zdrojoveho textu
+		pop	hl
+		ld	(act_adr_line),	hl ; Adresa akualneho riadku v zdrojovom texte
+		pop	af
+		ld	(sysmod_cursor+1), a ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		dec	d
+		call	m, loc_6DA0
+		jp	loc_6E71
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+init_source:				; Inicializacia	pracovneho miesta pre zdrojovy text
+		call	clear_all_labels
+		call	sysmod_clear	; Zmazanie obrazovky
+		call	set_src_1st_line_act ; Nastavi aktualny	prvy riadok zdrojoveho textu
+		ld	(sysmod_lastln), hl ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ld	(hl), a
+		ld	h, a
+		ld	l, a
+		ld	(sysmod_cursor), hl ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+find_end_buffer:			; Hlada	koniec textu v bufferi
+		ld	b, 2Ch ; 
+
+find_end_area:				; Hlada	koniec textu pred danou	poziciou v B
+		ld	l, b
+
+loc_6E5E:
+		ld	h, 7Fh ; ''
+		ld	a, 20h ; ' '
+
+loc_6E62:
+		dec	l
+		ret	m
+		cp	(hl)
+		ret	nz
+		dec	b
+		jp	nz, loc_6E62
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_ini:				; Inicializacia	pracovneho miesta pre zdrojovy text
+		call	init_source
+
+loc_6E6E:				; Vyda zvukovy signal.
+		call	sysmod_beep
+
+loc_6E71:				; Nacita a depakuje aktualny riadok zdrojoveho textu do	textoveho buffera
+		call	unpack_actual_line
+
+loc_6E74:
+		ld	l, 0
+
+return_6E76:				; Pozicia kurzora na obrazovke.	Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+		ld	a, (sysmod_cursor+1)
+		ld	h, a
+		call	move_cursor_to_new_pos ; Zmazanie kurzora na starej pozicii a presun na	novu poziciu L = stlpec	(0-43),	H = riadok (0-22).
+		call	outbuf_at_cursor ; Vypise textovy buffer na aktualnu poziciu kurzora
+		ld	h, 7Fh ; ''
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		cp	12h
+		jp	z, edit_shift_del
+		ld	de, return_6E76
+		push	de
+		ld	b, a
+		or	a
+		jp	loc_6B31
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6E93:
+		push	hl
+		ld	bc, 3
+		ld	de, 1007h
+		ld	hl, edit_key_table ; ->	 Klavesy pre editaciu zdrojoveho textu
+
+loc_6E9D:
+		cp	(hl)
+		jp	z, loc_6EA7
+		add	hl, bc
+		dec	e
+		dec	d
+		jp	nz, loc_6E9D
+
+loc_6EA7:
+		inc	hl
+		ld	c, (hl)
+		inc	hl
+		ld	b, (hl)
+		pop	hl
+		dec	e
+		push	bc
+		ret	p
+		pop	bc
+		pop	af
+		dec	d
+		jp	m, loc_6EEC
+		push	bc
+		call	find_end_buffer	; Hlada	koniec textu v bufferi
+		jp	nz, loc_6EC8
+		xor	a
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		cp	(hl)
+		jp	z, loc_6EF2
+		ld	l, a
+		jp	loc_6EEB
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6EC8:				; Spakuje jeden	riadok zdrojoveho textu	z textoveho buffera do formatu zdrojoveho textu
+		call	pack_source_line
+		xor	a
+		ld	hl, byte_E5B0
+		cp	(hl)
+		ld	(hl), a
+		pop	hl
+		jp	nz, loc_7E9A
+		push	hl
+		ld	l, a
+		ld	a, (pck_src_length) ; Pomocny bajt pre dlzku spakovaneho riadku	zdrojoveho textu (Bit7:comment,	Bit6:label, Bit5-0:dlzka)
+		and	3Fh ; '?'
+		jp	z, loc_6EEB
+		ld	l, 7
+		dec	a
+		jp	z, loc_6EEB
+		ld	l, 0Ch
+		dec	a
+		jp	nz, loc_6EF2
+
+loc_6EEB:
+		pop	af
+
+loc_6EEC:				; Vyda zvukovy signal.
+		call	sysmod_beep
+		jp	return_6E76
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6EF2:
+		ld	a, (byte_E5B3)
+		or	a
+		jp	nz, loc_6F15
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		or	(hl)
+		jp	z, loc_6F15
+		ld	de, pck_src_length ; Pomocny bajt pre dlzku spakovaneho	riadku zdrojoveho textu	(Bit7:comment, Bit6:label, Bit5-0:dlzka)
+		ld	a, (de)
+		and	3Fh ; '?'
+		ld	c, a
+
+loc_6F07:
+		dec	c
+		jp	m, loc_6F1E
+		ld	a, (de)
+		cp	(hl)
+		dec	hl
+		inc	de
+		jp	z, loc_6F07
+		call	loc_6DA0
+
+loc_6F15:
+		call	loc_6DC1
+		ld	hl, error_memfull
+		jp	nc, loc_7E9A
+
+loc_6F1E:
+		xor	a
+		ld	(byte_E5B3), a
+
+show_source_line:			; Zobrazi aktualny riadok zo zdrojoveho	textu
+		push	de
+		call	unpack_actual_line ; Nacita a depakuje aktualny	riadok zdrojoveho textu	do textoveho buffera
+		pop	de
+
+outbuf_at_cursor:			; Vypise textovy buffer	na aktualnu poziciu kurzora
+		ld	hl, (sysmod_cursor)
+
+; OUTBUF - Vypis jedneho riadku	na obrazovku.
+;	   Vypisovany text je ulozeny od adresy	LINE
+;	   a vypise sa vzdy cely pocet znakov (44).
+;
+;   Vstup:
+;     H	= cislo	riadku (0-22), kam sa ma vypisat dany text.
+
+sysmod_outbuf:				; Vypis	jedneho	riadku na obrazovku
+		push	de
+		push	hl
+		call	sysmod_scan	; Ohmatanie klavesnice.	Modul zisti, ci	je stlaceny niektory klaves
+		cp	0Bh		; WRK
+		jp	nz, loc_6F3C
+
+loc_6F34:				; Cakanie po stlaceni WRK
+		call	sysmod_scan
+		cp	7		; Shift	WRK
+		jp	nz, loc_6F34	; Cakanie po stlaceni WRK
+
+loc_6F3C:				; Buffer pre vypis jedneho riadku textu
+		ld	de,  sysmod_line+2Bh
+
+loc_6F3F:
+		ld	l, e
+		ld	a, (de)
+		push	hl
+		call	print_chr_at_cursor ; Vypis jedneho znaku v A na poziciu L = stlpec (0-43), H =	riadok (0-22).
+		pop	hl
+		dec	e
+		jp	p, loc_6F3F
+		pop	hl
+		pop	de
+		xor	a
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+load_block:
+		ld	a, (de)
+		inc	de
+		cp	20h ; ' '
+		jp	z, loc_6F5C
+		dec	a
+		dec	de
+		jp	p, loc_6F5C
+		ld	(de), a
+
+loc_6F5C:
+		push	de
+
+loc_6F5D:
+		ld	hl, 0FFC2h
+		ld	(ram_C03E_CURSOR), hl ;	adresa kurzoru na displeji
+		call	rom_8EBE_HEADIN	; Nacteni synchronizace	a hlavicky souboru
+		jp	c, loc_6406
+		nop
+		nop
+		jp	nz, loc_6F5D
+		ld	a, (ram_C1B6_TYPFIL) ; typ souboru
+		call	rom_8500_PRTOUT	; Vypsat znak
+		ld	a, ':'
+		call	rom_8500_PRTOUT	; Vypsat znak
+		pop	de
+		push	de
+		ld	hl, ram_C1B8_NAMFIL ; 8	znaku nazvu souboru, doplneno mezerami
+		ld	b, 8
+		ld	c, b
+
+loc_6F81:
+		ld	a, (hl)
+		call	rom_8500_PRTOUT	; Vypsat znak
+		ld	a, (de)
+		inc	a
+		jp	z, loc_6F98
+		dec	a
+		jp	nz, loc_6F91
+		dec	de
+		ld	a, 20h ; ' '
+
+loc_6F91:
+		cp	(hl)
+		jp	z, loc_6F97
+		ld	c, 1
+
+loc_6F97:
+		inc	de
+
+loc_6F98:
+		inc	hl
+		dec	b
+		jp	nz, loc_6F81
+		ld	a, ' '
+		call	rom_8500_PRTOUT	; Vypsat znak
+		ld	hl, (ram_C1B6_ADRFIL) ;	adresa zacatku dat souboru
+		call	show_hex16bit_value ; Vypis hexadecimalnej hodnoty v HL	(bez doplnkov 0..H)
+		ld	a, '/'
+		call	rom_8500_PRTOUT	; Vypsat znak
+		ex	de, hl
+		ld	hl, (ram_C1B6_LENFIL) ;	delka souboru-1
+		call	show_hex16bit_value ; Vypis hexadecimalnej hodnoty v HL	(bez doplnkov 0..H)
+		ex	de, hl
+		dec	c
+		jp	z, loc_6F5D
+		ld	a, (ram_C1B6_TYPFIL) ; typ souboru
+		cp	'?'
+		jp	nz, loc_6F5D
+		ld	a, (flag_edi_lib) ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		or	a
+		jp	nz, loc_6FD7
+		push	de
+		push	hl
+		add	hl, de
+		ex	de, hl
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ld	a, e
+		sub	l
+		ld	a, d
+		sbc	a, h
+		pop	hl
+		jp	loc_6FF1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6FD7:				; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		ld	hl, (sysmod_lastln)
+		dec	hl
+		ld	a, l
+		sub	e
+		ld	l, a
+		ld	a, h
+		sbc	a, d
+		ld	h, a
+		jp	c, loc_6FF5
+		push	de
+		ex	de, hl
+		ld	hl, (sysmod_start)
+		ld	(memory_value),	hl
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		ex	de, hl
+
+loc_6FF1:
+		pop	de
+		jp	c, loc_6FF9
+
+loc_6FF5:
+		pop	de
+		jp	loc_7E9A
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_6FF9:				; Vypise text umiestneny za CALL. Text musi koncit nulou.
+		call	print_text
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+aLoading:	db ' LOADING',0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		call	rom_8DC2_LOAD	; Nacteni bloku	dat z magnetofonu
+		pop	de
+		jp	z, loc_701B
+		call	print_text	; Vypise text umiestneny za CALL. Text musi koncit nulou.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+aError:		db ' ERROR',0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		or	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_701B:				; Vypise text umiestneny za CALL. Text musi koncit nulou.
+		call	print_text
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+aWait:		db ' WAIT',0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+print_text:				; Vypise text umiestneny za CALL. Text musi koncit nulou.
+		ex	(sp), hl
+
+loc_7026:
+		ld	a, (hl)
+		inc	hl
+		or	a
+		jp	z, loc_7032
+		call	rom_8500_PRTOUT	; Vypsat znak
+		jp	loc_7026
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7032:
+		ex	(sp), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+show_hex16bit_value:			; Vypis	hexadecimalnej hodnoty v HL (bez doplnkov 0..H)
+		ld	a, h
+		call	rom_8125_PREVO1	; Vystupni sestnactkova	konverze 8 bitu	s tiskem
+		ld	a, l
+		call	rom_8125_PREVO1	; Vystupni sestnactkova	konverze 8 bitu	s tiskem
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+save_block:				; Ulozenie zadaneho bloku na pasku
+		ld	a, 3Fh ; '?'
+		ld	(ram_C1B6_TYPFIL), a ; typ souboru
+		xor	a
+		ld	(ram_C1B6_NUMFIL), a ; cislo souboru
+		ld	(ram_C1B6_ADRFIL), hl ;	adresa zacatku dat souboru
+		ld	a, c
+		sub	l
+		ld	l, a
+		ld	a, b
+		sbc	a, h
+		ld	h, a
+		ld	(ram_C1B6_LENFIL), hl ;	delka souboru-1
+		ld	b, 8
+		ld	hl, ram_C1B8_NAMFIL ; 8	znaku nazvu souboru, doplneno mezerami
+		ld	a, (de)
+		cp	20h ; ' '
+		jp	nz, loc_705F
+
+loc_705D:
+		inc	de
+		ld	a, (de)
+
+loc_705F:
+		or	a
+		jp	nz, loc_7066
+		dec	de
+		ld	a, 20h ; ' '
+
+loc_7066:
+		ld	(hl), a
+		inc	hl
+		dec	b
+		jp	nz, loc_705D
+		jp	rom_8F60_PRGOUT	; Zapis	bloku dat do souboru
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrs_pos0:
+		xor	a
+
+; MRS -	Praca s	dialogovym riadkom.
+;
+; Modul	vypise pozadovany text do dialogoveho riadku, nacita vstupny text
+; a podla poziadavky ho	analyzuje na trojznakove prikazy. Vyvolanim tohto
+; modulu ma uzivatel k dispozicii vsetky funkcie popisane v popise prace
+; s modulom MRS. To znamena, ze	na editovanie textu mozno pouzit klavesy
+; -->, <--, INS, DEL. Vstup textu vzdy ukoncuje	klaves EOL.
+;
+;  Vstup:
+;    A = cislo pozicie v dialogovom riadku, od ktorej sa ma text vypisovat (0-43)
+;    HL	= adresa vypisovaneho textu
+;    B = dlzka vypisovaneho textu, ak B=0, text	sa nevypisuje
+;    C = maximalna dlzka citaneho textu	vratane	EOL. Ak	C=0, text sa necita (poziadavka	len na vypis)
+;    DE	= adresa tabulky trojznakovych prikazov. Ak DE=0, nacitany text	sa neanalyzuje.
+;	  V tabulke nasleduju vzdy za sebou trojznakova	skratka	prikazu	a adresa obsluzneho programu.
+;	  Tabulka je zakoncena bajtom 00H. Ak je pozadovana tato analyza, modul	nevrati	riadenie,
+;	  kym uzivatel nenapise	riadok,	ktory zacina pripustnym	prikazom.
+;  Vystup:
+;    B = pocet nacitanych znakov bez EOL. Nacitany retazec je ukonceny bajtom 00H.
+;    DE	= adresa nacitaneho retazca. V pripade analyzy trojznakovych prikazov ukazuje DE na prvy znak za prikazom.
+;    HL	= v pripade analyzy trojznakovych prikazov obsahuje adresu prislusneho podprogramu
+
+sysmod_mrs:				; Praca	s dialogovym riadkom
+		push	de
+		ex	de, hl
+		add	a, 42h ; 'B'
+		ld	l, a
+		ld	h, 0FFh
+
+loc_7077:
+		ld	a, (de)
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		inc	de
+		inc	l
+		dec	b
+		jp	nz, loc_7077
+		dec	c
+		pop	de
+		jp	m, sysmod_beep	; Vyda zvukovy signal.
+		ld	(word_E43C), hl
+		push	hl
+
+loc_708A:
+		ld	a, 20h ; ' '
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		inc	l
+		ld	a, l
+		cp	6Eh ; 'n'
+		jp	c, loc_708A
+		pop	hl
+		ex	de, hl
+		ld	(word_E436), hl
+		pop	hl
+		ld	(word_E43A), hl
+
+loc_709F:
+		push	hl
+		call	cursor_video_add ; Prepocet aktualnej polohy kurzora na	adresu videoramky
+		ld	a, (hl)
+		push	af
+		push	hl
+		xor	a
+		ld	(hl), a
+		ex	de, hl
+		ld	e, a
+
+loc_70AA:				; Vyda zvukovy signal.
+		call	sysmod_beep
+
+loc_70AD:
+		ld	(hl), 1Fh
+		ld	d, 7Fh ; ''
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		ld	(hl), 0
+		jp	loc_6B27
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_70B9:
+		ld	(de), a
+		ld	d, a
+		ld	a, e
+		cp	c
+		jp	nc, loc_70AA
+		ld	a, d
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+
+loc_70C4:
+		inc	e
+		ld	a, b
+		sub	e
+		adc	a, e
+		ld	b, a
+		inc	l
+		jp	loc_70AD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_70CD:
+		dec	a
+		jp	nz, loc_70F3
+		ld	a, b
+		cp	c
+		jp	nc, loc_70AA
+		sub	e
+		jp	z, loc_70AA
+		ld	e, b
+		push	bc
+		ld	b, a
+		add	a, l
+		ld	l, a
+
+loc_70DF:
+		dec	e
+		ld	a, (de)
+		inc	e
+		ld	(de), a
+		dec	e
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		dec	l
+		dec	b
+		jp	nz, loc_70DF
+		pop	bc
+		inc	b
+		push	de
+		push	hl
+		jp	loc_710F
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_70F3:
+		dec	a
+		jp	nz, loc_711A
+		ld	a, b
+		sub	e
+		jp	z, loc_70AA
+		dec	b
+		push	de
+		push	hl
+
+loc_70FF:
+		dec	a
+		push	af
+		inc	e
+		ld	a, (de)
+		dec	e
+		ld	(de), a
+		inc	e
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		inc	l
+		pop	af
+		jp	nz, loc_70FF
+		dec	l
+
+loc_710F:
+		ld	a, 20h ; ' '
+		ld	(de), a
+		call	sysmod_pixel	; Vypis	jedneho	znaku v	A na poziciu HL	= adresa videoram
+		pop	hl
+		pop	de
+		jp	loc_70AD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_711A:
+		cp	0EBh ; ''
+		jp	nz, loc_7126
+		dec	l
+		dec	e
+		jp	p, loc_70AD
+		inc	l
+		inc	e
+
+loc_7126:
+		cp	0FBh ; ''
+		jp	nz, loc_7130
+		ld	a, e
+		sub	b
+		jp	nz, loc_70C4
+
+loc_7130:
+		sub	0F0h ; ''
+		jp	nz, loc_70AA
+		ex	de, hl
+		call	find_end_area	; Hlada	koniec textu pred danou	poziciou v B
+		inc	l
+		xor	a
+		ld	(hl), a
+		ld	d, h
+		ld	h, l
+		ld	l, c
+		ld	(word_E438), hl
+		ld	e, a
+		pop	hl
+		pop	af
+		ld	(hl), a
+		ld	hl, (word_E436)
+		ld	a, h
+		or	l
+		ret	z
+		push	bc
+		ld	b, e
+
+loc_714E:
+		ld	e, b
+		ld	c, 3
+
+loc_7151:
+		ld	a, (de)
+		sub	(hl)
+		jp	nz, loc_7162
+		inc	hl
+		inc	e
+		dec	c
+		jp	nz, loc_7151
+		ld	c, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, c
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7162:
+		inc	c
+		inc	c
+		add	hl, bc
+		xor	a
+		sub	(hl)
+		jp	m, loc_714E
+		ld	hl, mrscmd_table ; Prikazy modulu "mrs>"
+		jp	nz, loc_714E
+		pop	af
+
+ln_equ_error:
+		pop	af
+
+; MRS2 - umozni	opravit	text nacitany modulom MRS.
+;	 Musi mu predchadzat volanie modulu MRS	s citanim retazca.
+;	 Po odoslani textu bude	program	znovu pokracovat
+;	 za predchadzajucim volanim modulu MRS.
+;
+;   Vstup:
+;     Pouzije informacie ziskane pri praci modulu MRS.
+;     Modul MRS2 sa musi volat instrukciou: JMP	MRS2
+;   Vystup:
+;     Rovnaky ako pri module MRS
+
+sysmod_mrs2:				; Oprava zadania na dialogovom riadku
+		ld	hl, (word_E43C)
+		ex	de, hl
+		ld	hl, (word_E438)
+		ld	b, h
+		ld	c, l
+		ld	hl, (word_E43A)
+		jp	loc_709F
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; SENTRY - Vyhlada vystupny bod	v kniznici.
+;	   Da sa vyuzit, ak napr. jeden	program	produkuje
+;	   data, ktore ma spracovat iny	modul kniznice.
+;	   Pomocou SENTRY moze dany program najst tabulku
+;	   v inom module, kam ma ulozit	vstupne	data.
+;
+;  Vstup:
+;    HL	= adresa retazca, ktory	udava pozadovane vstupne navestie.
+;  Vystup:
+;    S = 1 - chybne zadane meno
+;    Z = 1 - v kniznici	nie je take meno
+;    HL	= adresa mena v	kniznici.
+;	  Na tejto adrese je 6 znakov meno a dalsie dva	bajty su adresa, ktoru
+;	  toto meno oznacuje (napr. adresa tabulky, ktorej meno	je popisane ako	ENT)
+
+sysmod_sentry:				; Vyhladanie vystupneho	bodu v kniznici
+		ex	de, hl
+		call	sysmod_getmem	; Identifikacia	symbolu
+		dec	b
+		ret	m
+		inc	b
+
+loc_7188:
+		push	de
+		ld	de, text_sysmod
+		call	loc_7755
+
+loc_718F:
+		ex	de, hl
+		ex	(sp), hl
+		push	hl
+		push	de
+		push	bc
+		ex	de, hl
+		call	label_compare	; Porovnanie dvoch navesti
+		pop	bc
+		pop	hl
+		pop	de
+		pop	de
+		jp	z, loc_71AD
+		push	de
+		dec	sp
+		dec	sp
+		pop	hl
+		pop	de
+		push	hl
+		call	loc_775C
+		jp	nz, loc_718F
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_71AD:
+		inc	a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+store_byte:				; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		push	hl
+		push	de
+		push	af
+		ld	hl, (store_limit)
+		ex	de, hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		jp	nc, error_mem_full ; Ak	by kompilacia mala nieco prepisat, vypise sa chyba "mem full"
+		pop	af
+		ld	(hl), a
+		inc	hl
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+		pop	de
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+error_mem_full:				; Ak by	kompilacia mala	nieco prepisat,	vypise sa chyba	"mem full"
+		ld	sp, end_of_stack
+		ld	hl, error_memfull
+		ld	b, 8
+		jp	error_message	; Vypis	chyboveho hlasenia v HL	, dlzka	hlasenia v B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+store_label:				; Ulozi	do pameti jedno	navestie. Pouziva sa pri kompilacii noveho modulu do kniznice.
+		ld	b, 6
+
+loc_71D6:
+		ld	a, (hl)
+		and	7Fh ; ''
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		inc	hl
+		dec	b
+		jp	nz, loc_71D6
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrscmd_ald:
+		ld	a, 2
+
+mrscmd_asm:				; Kompilacia: 0	= asm, 2 = ald
+		ld	(flag_asm_ald),	a
+		ld	hl, (sysmod_start)
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+		ld	(memory_value),	hl
+		ld	hl, (sysmod_lastln) ; Koniec volnej pamete a zaciatok zdrojoveho textu
+		ld	(store_limit), hl
+		ld	hl, byte_7EF0
+		ld	a, (de)
+		or	a
+		jp	z, loc_7228
+		cp	20h ; ' '
+		jp	nz, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		inc	de
+		ex	de, hl
+		call	sysmod_getmem	; Identifikacia	symbolu
+		dec	b
+		jp	m, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		inc	b
+		ex	de, hl
+		ld	de, 42h	; 'B'
+
+loc_7211:
+		push	hl
+		push	de
+		push	bc
+		call	label_compare	; Porovnanie dvoch navesti
+		pop	bc
+		pop	de
+		pop	hl
+		jp	z, loc_7238
+		push	hl
+		call	test_end_of_lib
+		pop	hl
+		jp	nz, loc_7211
+		call	sysmod_vstoas	; Adresa labelu	(C = cislo labelu)
+
+loc_7228:				; Ulozi	do pameti jedno	navestie. Pouziva sa pri kompilacii noveho modulu do kniznice.
+		call	store_label
+		ld	b, 4
+
+loc_722D:
+		xor	a
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		dec	b
+		jp	nz, loc_722D
+		jp	loc_724C
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7238:
+		ld	hl, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		xor	a
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(hl), a
+		inc	hl
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+		ex	de, hl
+		ld	(store_limit), hl
+
+loc_724C:
+		ld	hl, 145h
+		ld	(byte_E470), hl	; 45h =	'E'
+		xor	a
+		ld	(number_of_errors), a
+		ld	c, a
+
+loc_7257:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		ld	b, 6
+
+loc_725C:
+		ld	a, (hl)
+		and	7Fh ; ''
+		ld	(hl), a
+		inc	hl
+		dec	b
+		jp	nz, loc_725C
+		dec	c
+		jp	nz, loc_7257
+		ld	hl, source_begin
+		ld	(act_adr_line),	hl ; Adresa akualneho riadku v zdrojovom texte
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		ld	(word_E47D), hl
+		push	hl
+
+loc_7276:				; Adresa akualneho riadku v zdrojovom texte
+		ld	hl, (act_adr_line)
+		ld	d, h
+		ld	e, l
+		call	loc_6D4A
+		pop	hl
+		jp	z, loc_745B
+		ld	a, (de)
+		dec	de
+		and	40h ; '@'
+		jp	z, loc_7293
+		dec	de
+		ld	a, (de)
+		push	de
+		ex	de, hl
+		call	loc_72B4
+		ex	de, hl
+		pop	de
+		inc	de
+
+loc_7293:
+		call	loc_7648
+		ld	a, 0C0h	; ''
+		cp	b
+		jp	z, loc_72DE
+		and	b
+		cp	80h ; ''
+		push	hl
+		jp	nz, loc_7276
+		ld	hl, (word_E43E)
+		dec	c
+		call	m, loc_72CA
+		jp	m, loc_7276
+		ld	a, (hl)
+		or	80h ; ''
+		ld	(hl), a
+		jp	loc_7276
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_72B4:
+		push	af
+		call	vstoas		; Adresa labelu	(A = cislo labelu)
+		rlca
+		scf
+		rra
+		ld	(hl), a
+		sbc	a, a
+		and	80h ; ''
+		inc	hl
+		or	(hl)
+		ld	(hl), a
+		inc	hl
+		ld	(word_E43E), hl
+		pop	af
+		ld	a, (hl)
+		rla
+		ret	c
+
+loc_72CA:
+		inc	hl
+		jp	nz, loc_72D7
+		ld	a, (hl)
+		or	80h ; ''
+		ld	(hl), a
+		ld	d, h
+		ld	e, l
+		inc	de
+		inc	de
+		inc	de
+
+loc_72D7:
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_72DE:
+		call	init_act_adr
+		call	sysmod_clear	; Zmazanie obrazovky
+		ld	hl, 0
+		ld	(sysmod_cursor), hl ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		ld	(error_buffer),	hl
+		ld	(word_E4B2), hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		ld	(word_E479), hl
+
+loc_72F6:
+		ld	(word_E473), hl
+		call	rom_8C74_STOP	; Test klavesy STOP
+		jp	z, mrs_modul
+		call	loc_7463
+		call	loc_7590
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		push	hl
+		dec	hl
+		ex	de, hl
+		ld	hl, (word_E479)
+		ld	a, h
+		or	l
+		call	nz, loc_7648
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+		ld	(word_E479), hl
+		pop	hl
+		call	loc_6D4A
+		ld	hl, (word_E475)
+		ld	a, (byte_E471)
+		or	a
+		jp	nz, loc_72F6
+		inc	hl
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		or	(hl)
+		jp	nz, loc_735A
+		ld	c, a
+
+loc_7333:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		push	hl
+		call	test_label_is_PC
+		pop	hl
+		jp	z, loc_7356
+		ld	b, 6
+
+loc_7340:
+		ld	a, (hl)
+		rlca
+		jp	c, loc_7356
+		inc	hl
+		dec	b
+		jp	nz, loc_7340
+		call	sysmod_vstoas	; Adresa labelu	(C = cislo labelu)
+		ld	b, 6
+
+loc_734F:
+		ld	(hl), 20h ; ' '
+		inc	hl
+		dec	b
+		jp	nz, loc_734F
+
+loc_7356:
+		inc	c
+		jp	nz, loc_7333
+
+loc_735A:
+		xor	a
+		ld	hl, error_buffer
+		or	(hl)
+		jp	nz, loc_7408
+		ld	c, a
+
+loc_7363:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		push	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a, (hl)
+		pop	hl
+		rlca
+		jp	nc, loc_7381
+		call	store_label	; Ulozi	do pameti jedno	navestie. Pouziva sa pri kompilacii noveho modulu do kniznice.
+		ld	a, (hl)
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		inc	hl
+		ld	a, (hl)
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		ld	hl, byte_E471
+		inc	(hl)
+
+loc_7381:
+		inc	c
+		jp	nz, loc_7363
+
+loc_7385:				; Adresa labelu	(C = cislo labelu)
+		call	sysmod_vstoas
+		push	hl
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a, (hl)
+		pop	hl
+		rlca
+		jp	nc, loc_73C0
+		call	store_label	; Ulozi	do pameti jedno	navestie. Pouziva sa pri kompilacii noveho modulu do kniznice.
+		push	bc
+		xor	a
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		push	hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		dec	hl
+		ex	(sp), hl
+		ld	b, h
+		ld	c, l
+
+loc_73A2:
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	a, b
+		cp	d
+		jp	nz, loc_73AF
+		ld	a, c
+		cp	e
+		jp	z, loc_73BE
+
+loc_73AF:
+		ld	a, e
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		ld	a, d
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		pop	hl
+		inc	(hl)
+		push	hl
+		ex	de, hl
+		jp	loc_73A2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_73BE:
+		pop	hl
+		pop	bc
+
+loc_73C0:
+		inc	c
+		jp	nz, loc_7385
+		ld	hl, (word_E475)
+		ex	de, hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		dec	hl
+		call	compare_hl_de
+		jp	nz, loc_73D5
+		ld	(store_address), hl ; Aktualna adresa na ktoru sa kompiluje
+
+loc_73D5:
+		ld	hl, (word_E47D)
+		dec	hl
+		dec	hl
+		ld	a, (byte_E471)
+		jp	z, loc_73E9
+		ld	(de), a
+		xor	a
+		call	store_byte	; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		inc	hl
+		ld	(hl), d
+		dec	hl
+		ld	(hl), e
+
+loc_73E9:
+		dec	hl
+		ld	a, (hl)
+		dec	hl
+		or	(hl)
+		jp	nz, loc_7408
+		ex	de, hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		ld	(memory_value),	hl
+		ex	de, hl
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		ld	hl, (sysmod_start)
+		ld	a, (hl)
+		cp	20h ; ' '
+		jp	z, loc_7408
+		ex	de, hl
+		ld	(sysmod_start),	hl
+
+loc_7408:
+		ld	hl, (error_buffer)
+		ld	b, h
+		ld	c, l
+		ld	hl, number_of_errors
+		call	sysmod_fbndc	; Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+		ld	de, -60C9h	; text_errors
+		add	hl, de
+		ld	b, l
+		ld	hl, text_errors
+
+error_message:				; Vypis	chyboveho hlasenia v HL	, dlzka	hlasenia v B
+		ld	c, 1
+		ld	de, 0
+		call	mrs_pos0
+		ld	de, mrscmd_lnk
+		ld	hl, flag_asm_ald ; Kompilacia: 0 = asm,	2 = ald
+		or	(hl)
+		jp	z, mrs_modul
+		dec	(hl)
+		jp	nz, loc_7451
+		call	move_labels	; Priprava navesti pre ulozenie	zdrojoveho textu
+		jp	c, loc_7E9A
+		ex	de, hl
+		ld	(window_memory_0), hl
+		ld	hl, locret_7EE9
+		ld	(window_memory_1), hl
+		ld	hl, window_memory_0
+		ld	(window_memory_2), hl
+		ld	de, 0Fh
+		add	hl, de
+		ld	(window_memory_3), hl
+		ld	de, mrscmd_dbg
+
+loc_7451:
+		ex	de, hl
+		ld	a, (number_of_errors)
+		cp	'0'
+		jp	nz, mrscmd_edi
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_745B:
+		ld	hl, error_noend
+		ld	b, 6
+		jp	error_message	; Vypis	chyboveho hlasenia v HL	, dlzka	hlasenia v B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7463:
+		ld	(byte_E472), a
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		ld	a, (hl)
+		rlca
+		rlca
+		dec	hl
+		ld	a, (hl)
+		push	af
+		ld	d, h
+		ld	e, l
+		dec	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, (word_E473)
+		push	hl
+		call	loc_7648
+		ld	a, 0C0h	; ''
+		sub	b
+		ld	(byte_E471), a
+		ld	(word_E475), hl
+		pop	de
+		call	compare_hl_de
+		jp	z, loc_7496
+		ld	hl, (word_E47B)
+		call	bnhx16		; BNHX16 - Konverzia 16-bitovej	hodnoty	na styri hexadecimalne cislice
+		inc	hl
+		ld	(word_E47B), hl
+
+loc_7496:
+		pop	af
+		ld	b, a
+		ld	a, c
+		dec	c
+		jp	p, loc_74AE
+		jp	nc, loc_74B1
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	vstoas		; Adresa labelu	(A = cislo labelu)
+		inc	hl
+		ld	a, (hl)
+		rlca
+		jp	nc, loc_74B1
+		ld	a, 'M'
+
+loc_74AE:
+		ld	(byte_7EF0), a
+
+loc_74B1:
+		ld	a, b
+		and	70h ; 'p'
+		cp	40h ; '@'
+		ld	a, b
+		jp	nz, loc_7533
+		and	8Fh ; ''
+		add	a, a
+		jp	nz, loc_7510
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		ld	b, a
+		and	30h ; '0'
+		ret	nz
+		ld	a, b
+		rlca
+		ret	c
+		rlca
+		jp	c, loc_74D6
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		cp	a
+		call	loc_72B4
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_74D6:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		call	vstoas		; Adresa labelu	(A = cislo labelu)
+		rlca
+		inc	hl
+		jp	nc, loc_74EE
+		ld	a, (hl)
+		rlca
+		ld	a, 44h ; 'D'
+		jp	c, loc_74F0
+		inc	hl
+		ld	a, (hl)
+		rlca
+		jp	nc, loc_74F9
+
+loc_74EE:
+		ld	a, 55h ; 'U'
+
+loc_74F0:
+		ld	(byte_7EF0), a
+		inc	hl
+		ld	a, (hl)
+		or	80h ; ''
+		ld	(hl), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_74F9:
+		push	hl
+		dec	hl
+		dec	hl
+		ex	de, hl
+		ld	b, 6
+		call	loc_7188
+		ld	a, 4Dh ; 'M'
+		pop	hl
+		jp	nz, loc_74F0
+		inc	hl
+		inc	hl
+		ld	a, (hl)
+		or	80h ; ''
+		ld	(hl), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_750F:
+		rra
+
+loc_7510:				; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	read_from_source
+		adc	a, a
+		push	af
+		rra
+		jp	p, loc_752B
+		and	3Fh ; '?'
+
+loc_751B:
+		push	af
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	loc_7621
+		inc	hl
+		ld	(word_E47B), hl
+		pop	af
+		dec	a
+		jp	nz, loc_751B
+
+loc_752B:
+		call	nz, loc_7543
+		pop	af
+		jp	c, loc_750F
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7533:
+		rlca
+		ret	nc
+		rlca
+		ld	a, b
+		push	af
+		call	read_from_source ; Precitanie jedneho bajtu zo zdrojoveho textu
+		call	loc_7621
+		inc	hl
+		ld	(word_E47B), hl
+		pop	af
+
+loc_7543:
+		push	af
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		call	loc_7695
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		pop	hl
+		ret	nc
+		push	hl
+		dec	c
+		jp	z, loc_755B
+		ld	a, c
+		ld	(byte_7EF0), a
+		ld	de, 0
+
+loc_755B:
+		push	de
+		ld	a, e
+		call	loc_7621
+		pop	de
+		pop	af
+		jp	nc, loc_7569
+		ld	a, d
+		call	loc_7621
+
+loc_7569:
+		inc	hl
+		ld	(word_E47B), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_756E:
+		push	hl
+		ld	de, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	hl, byte_7EF8
+		call	bnhx16		; BNHX16 - Konverzia 16-bitovej	hodnoty	na styri hexadecimalne cislice
+		pop	hl
+
+loc_757D:
+		xor	a
+		ld	(byte_E472), a
+		ld	de, byte_7EF1
+		ld	b, 6
+
+loc_7586:
+		ld	a, (hl)
+		and	7Fh ; ''
+		ld	(de), a
+		inc	de
+		inc	hl
+		dec	b
+		jp	nz, loc_7586
+
+loc_7590:
+		ld	hl, byte_E472
+		xor	a
+		cp	(hl)
+		jp	z, loc_75A3
+		ld	(hl), a
+		ld	hl, (word_E4B2)
+		inc	hl
+		ld	(word_E4B2), hl
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+
+loc_75A3:				; Nacita a depakuje jeden riadok zdrojoveho textu do textoveho buffera
+		call	unpack_source_line
+		call	find_end_buffer	; Hlada	koniec textu v bufferi
+		ld	a, (byte_E470)
+		cp	'L'
+		call	z, sysmod_print	; Podprogram pre vytlacenie bloku textu	- pouziva sa pri tlaci protokolu direktivou *L
+		ld	de,  sysmod_line+1Ch ; Buffer pre vypis	jedneho	riadku textu
+		ld	hl, word_7F2C
+		ld	c, ','
+
+loc_75B9:
+		dec	hl
+		dec	de
+		ld	a, (de)
+		ld	(hl), a
+		dec	c
+		jp	nz, loc_75B9
+		ld	a, (byte_7EF0)
+		cp	' '
+		jp	nz, loc_7606
+		ld	a, (byte_E470)
+		cp	'A'
+		jp	nz, loc_75D7
+
+loc_75D1:				; Vypise textovy buffer	na aktualnu poziciu kurzora
+		call	outbuf_at_cursor
+		call	outchr_new_line	; Prechod na novy riadok
+
+loc_75D7:				; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+10h
+		ld	a, (hl)
+		cp	'*'
+		jp	nz, clear_listing_info ; Zmaze oblast pre cislo	riadku,	adresu a data v	listingu
+		inc	hl
+		ld	a, (hl)
+		cp	'C'
+		jp	nz, loc_75F2
+		inc	hl
+		call	sysmod_hxbn	; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ex	de, hl
+		ld	(word_E479), hl
+		jp	clear_listing_info ; Zmaze oblast pre cislo riadku, adresu a data v listingu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_75F2:
+		ld	(byte_E470), a
+
+clear_listing_info:			; Zmaze	oblast pre cislo riadku, adresu	a data v listingu
+		ld	hl, sysmod_line
+		ld	b, 10h
+
+loc_75FA:
+		dec	hl
+		ld	(hl), ' '
+		dec	b
+		jp	nz, loc_75FA
+		inc	hl
+		ld	(word_E47B), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7606:
+		ld	hl, error_buffer
+		inc	(hl)
+		ld	hl, (word_E4B2)
+		ld	b, h
+		ld	c, l
+		ld	hl,  sysmod_line+1 ; Buffer pre	vypis jedneho riadku textu
+		call	sysmod_fbndc	; Konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+
+loc_7615:
+		ld	a, l
+		cp	5
+		jp	z, loc_75D1
+		ld	(hl), ' '
+		inc	l
+		jp	loc_7615
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7621:				; Ulozi	do pameti jeden	bajt. Pouziva sa pri kompilacii	kodu.
+		call	store_byte
+		ld	de, unk_7EFF
+		ld	hl, (word_E47B)
+		push	af
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		jp	c, loc_7640
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		push	hl
+		call	loc_7590
+		pop	hl
+		ld	(src_act_address), hl ;	Pracovna adresa	do zdrojoveho textu
+		ld	hl, byte_7EF6
+
+loc_7640:
+		pop	af
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		ld	(word_E47B), hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7648:
+		ld	a, (de)
+		ld	bc, 0
+		and	70h ; 'p'
+		cp	40h ; '@'
+		ld	a, (de)
+		jp	z, loc_765F
+		rla
+		ret	nc
+		inc	hl
+		and	0E0h ; ''
+		add	a, a
+		ret	z
+		inc	hl
+		ret	nc
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_765F:
+		and	8Fh ; ''
+		add	a, a
+		jp	z, loc_766E
+		jp	c, loc_7669
+		rra
+
+loc_7669:
+		ld	e, a
+		ld	d, 0
+		add	hl, de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_766E:
+		inc	de
+		ld	a, (de)
+		dec	de
+		dec	de
+		and	40h ; '@'
+		jp	z, loc_7678
+		dec	de
+
+loc_7678:
+		ld	a, (de)
+		push	hl
+		push	de
+		dec	de
+		ex	de, hl
+		scf
+		call	loc_7695
+		pop	hl
+		ld	b, (hl)
+		pop	hl
+		dec	c
+		ret	nz
+		ret	nc
+		ld	a, b
+		rlca
+		rlca
+		and	3
+		jp	nz, loc_7691
+		add	hl, de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7691:
+		dec	a
+		ret	nz
+		ex	de, hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7695:
+		rla
+		rrca
+		ld	b, a
+		ld	c, 1
+		and	'0'
+		ret	z
+		cp	' '
+		ld	a, b
+		ld	de, loc_76CA
+		push	de
+		push	af
+		rrca
+		rrca
+		call	loc_76DE
+		pop	af
+		jp	nc, loc_76BC
+		and	3
+		ret	z
+		cp	2
+		jp	z, negate_DE
+		ld	a, d
+		ld	d, 0
+		ret	c
+		ld	e, a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_76BC:
+		push	de
+		push	af
+		call	loc_76DE
+		pop	af
+		ex	(sp), hl
+		call	nz, negate_DE
+		add	hl, de
+		ex	de, hl
+		pop	hl
+		pop	af
+
+loc_76CA:
+		ld	a, b
+		add	a, a
+		ret	c
+		xor	a
+		or	d
+		scf
+		ret	z
+		inc	a
+		ret	z
+		ld	c, 'S'
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+negate_DE:
+		ld	a, e
+		cpl
+		ld	e, a
+		ld	a, d
+		cpl
+		ld	d, a
+		inc	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_76DE:
+		ld	e, (hl)
+		dec	hl
+		and	3
+		dec	a
+		ld	d, a
+		ret	z
+		ld	d, (hl)
+		dec	hl
+		ret	p
+		inc	hl
+		push	hl
+		ld	a, e
+		call	vstoas		; Adresa labelu	(A = cislo labelu)
+		call	test_label_is_PC
+		jp	nz, loc_76FA
+		ld	hl, (word_E473)
+		ex	de, hl
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_76FA:
+		inc	hl
+		rla
+		ld	a, (hl)
+		rla
+		inc	hl
+		jp	nc, loc_7704
+		ld	c, 'E'
+
+loc_7704:
+		rrca
+		cpl
+		and	80h ; ''
+		or	(hl)
+		ld	(hl), a
+		jp	p, loc_770F
+		ld	c, 'V'
+
+loc_770F:
+		inc	hl
+		ld	a, (hl)
+		rla
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		jp	nc, loc_772F
+		ld	a, b
+		xor	80h ; ''
+		and	0A3h ; ''
+		jp	z, loc_7725
+		ld	c, 'F'
+
+loc_7725:
+		push	de
+		ex	de, hl
+		ld	hl, (store_address) ; Aktualna adresa na ktoru sa kompiluje
+		ex	de, hl
+		ld	(hl), d
+		dec	hl
+		ld	(hl), e
+		pop	de
+
+loc_772F:
+		pop	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+test_label_is_PC:
+		ld	a, (hl)
+		cp	'P'
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	'C'
+		ret	nz
+		inc	hl
+		ld	a, (hl)
+		cp	' '
+		ld	a, 'P'
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+test_end_of_lib:
+		ld	hl, 6
+		add	hl, de
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	hl, (memory_value)
+
+compare_hl_de:
+		ld	a, h
+		cp	d
+		ret	nz
+		ld	a, l
+		cp	e
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7751:
+		call	test_end_of_lib
+		ret	z
+
+loc_7755:
+		call	loc_7770
+		jp	z, loc_7751
+		ld	c, a
+
+loc_775C:
+		dec	c
+		jp	m, loc_7751
+
+loc_7760:
+		call	loc_7770
+		push	bc
+		push	hl
+		ld	l, c
+		inc	c
+		ld	h, 0
+		add	hl, hl
+		add	hl, hl
+		add	hl, hl
+		pop	bc
+		add	hl, bc
+		pop	bc
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7770:
+		ld	hl, 8
+		add	hl, de
+		ld	a, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, a
+		or	h
+		ld	a, (hl)
+		inc	hl
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_777C:
+		call	test_end_of_lib
+		ret	z
+
+loc_7780:
+		call	loc_7770
+		jp	z, loc_777C
+		ld	c, a
+		call	loc_7760
+
+loc_778A:
+		ld	a, (hl)
+		or	a
+		jp	z, loc_777C
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7790:
+		ld	bc, 6
+		add	hl, bc
+		ld	c, (hl)
+		inc	hl
+		add	hl, bc
+		add	hl, bc
+		jp	loc_778A
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrscmd_lnk:
+		call	loc_77FA
+		ld	(error_buffer),	hl
+		ld	de, 42h	; 'B'
+		call	loc_7780
+
+loc_77A7:
+		jp	z, loc_7408
+		push	de
+		push	hl
+		ld	de, 42h	; 'B'
+		call	loc_7755
+
+loc_77B2:
+		push	de
+		pop	de
+		pop	de
+		push	de
+		dec	sp
+		dec	sp
+		ld	b, 6
+
+loc_77BA:
+		ld	a, (de)
+		cp	(hl)
+		jp	nz, loc_77E2
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz, loc_77BA
+		ld	a, (de)
+		ld	b, a
+		inc	de
+		ld	a, (hl)
+		inc	hl
+		ld	h, (hl)
+		ld	l, a
+		ex	de, hl
+
+loc_77CD:
+		dec	b
+		inc	sp
+		inc	sp
+		jp	m, loc_77F2
+		dec	sp
+		dec	sp
+		ld	a, (hl)
+		inc	hl
+		push	hl
+		ld	h, (hl)
+		ld	l, a
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		pop	hl
+		inc	hl
+		jp	loc_77CD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_77E2:
+		pop	de
+		call	loc_775C
+		jp	nz, loc_77B2
+		pop	hl
+		push	hl
+		call	loc_757D
+		ld	hl, error_buffer
+		inc	(hl)
+
+loc_77F2:
+		pop	hl
+		pop	de
+		call	loc_7790
+		jp	loc_77A7
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_77FA:				; Zmazanie obrazovky
+		call	sysmod_clear
+		ld	a, 41h ; 'A'
+		ld	(byte_E470), a
+		ld	hl, 0
+		ld	(sysmod_cursor), hl ; Pozicia kurzora na obrazovke. Prvy bajt je stlpca	(0-43),	druhy je riadok	(0-22).
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+libcmd_lst:
+		call	loc_77FA
+		ld	de, text_sysmod
+
+loc_780F:
+		push	de
+		push	de
+		ex	de, hl
+		call	loc_757D
+		call	outchr_new_line	; Prechod na novy riadok
+		pop	de
+		call	loc_7770
+		jp	z, loc_7831
+
+loc_781F:
+		dec	a
+		jp	m, loc_7831
+		push	af
+		push	hl
+		call	loc_756E
+		pop	hl
+		pop	af
+		ld	de, 8
+		add	hl, de
+		jp	loc_781F
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7831:				; Prechod na novy riadok
+		call	outchr_new_line
+		pop	de
+		call	test_end_of_lib
+		jp	nz, loc_780F
+		jp	mrscmd_lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+libcmd_del:
+		ld	de, text_sysmod
+		call	test_end_of_lib
+		jp	z, mrscmd_lib
+
+loc_7847:
+		push	de
+		call	test_end_of_lib
+		pop	hl
+		jp	nz, loc_7847
+		ld	(sysmod_start),	hl
+		ld	(memory_value),	hl
+
+mrscmd_lib:
+		ld	hl, libcmd_prompt
+		ld	de, libcmd_table ; Prikazy modulu "lib>"
+		jp	mrs_edi_lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+libcmd_loa:				; S cim	sa pracuje: 0 =	kniznica, #3F =	zdrojovy text
+		ld	(flag_edi_lib),	a
+		call	load_block
+		jp	mrscmd_lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+libcmd_sav:
+		ld	a, (de)
+		or	a
+		jp	z, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		ld	hl, (sysmod_start)
+		ld	b, h
+		ld	c, l
+		ld	hl, 40h	; '@'
+		call	save_block	; Ulozenie zadaneho bloku na pasku
+		jp	mrscmd_lib
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+search_in_table:			; Vyhladanie daneho kodu v tabulke
+		cp	(hl)
+		ret	z
+		inc	hl
+		dec	b
+		jp	nz, search_in_table ; Vyhladanie daneho	kodu v tabulke
+		inc	b
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+memcpy:					; Skopirovnaie bloku pameti: HL=zdroj, DE=ciel,	B=kolko
+		push	af
+
+loc_7884:
+		ld	a, (hl)
+		ld	(de), a
+		inc	hl
+		inc	de
+		dec	b
+		jp	nz, loc_7884
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_stack_xch:				; Zamena systemoveho a debuggeroveho stacku
+		ld	(backup_reg_hl), hl
+		pop	hl
+		ld	(backup_return), hl
+		ld	hl, 2
+		push	af
+		add	hl, sp
+		pop	af
+		ld	sp, dbg_reg_sp	; Hodnota registra SP v	debuggeri
+		ex	(sp), hl
+		ld	sp, hl
+		ld	hl, (backup_return)
+		push	hl
+		ld	hl, (backup_reg_hl)
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+clear_print_char:			; Zmazanie editacneho riadku a vypis jedneho znaku na zaciatku riadku
+		push	af
+		call	rom_8113_CLR	; CLR -	vymezerovani editacniho	bufferu
+		pop	af
+		push	af
+		ld	(sysmod_line), a ; Buffer pre vypis jedneho riadku textu
+		call	rom_8855_WRBUFF	; Vypis	textu editacni radky na	displej
+		pop	af
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db    0,   0,	0,   0,	  0,   0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_registers:			; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		call	sysmod_inkey
+		ld	hl, dbg_reg_pc	; Hodnota registra PC v	debuggeri
+		cp	'P'
+		jp	nz, loc_78D4
+		push	hl
+		ld	hl, (word_E4FC)
+		dec	hl
+		dec	hl
+		ld	(dbg_reg_sp), hl ; Hodnota registra SP v debuggeri
+		pop	hl
+		jp	loc_78F4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_78D4:
+		cp	'A'
+		call	dbg_set_register
+		cp	'B'
+		call	dbg_set_register
+		cp	'D'
+		call	dbg_set_register
+		cp	'H'
+		call	dbg_set_register
+		cp	'S'
+		call	dbg_set_register
+		jp	dbg_processkey
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_set_register:
+		inc	hl
+		inc	hl
+		ret	nz
+		pop	bc
+
+loc_78F4:				; Buffer pre vypis jedneho riadku textu
+		ld	(sysmod_line+2), a
+		call	input_value	; Zadanie ciselnej hodnoty alebo vyrazu
+		jp	dbg_mainloop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_trace:
+		call	loc_7996
+		ld	a, (ram_C137_SPTL) ; priznak PTL
+		or	a
+		push	af
+		call	z, dbg_display_info
+		pop	af
+		call	nz, loc_7C34
+		call	rom_8C74_STOP	; Test klavesy STOP
+		jp	nz, dbgcmd_trace
+		jp	dbg_warm_start	; Teply	start debuggeru
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_notrace:
+		call	loc_7996
+		call	rom_8C74_STOP	; Test klavesy STOP
+		jp	nz, dbgcmd_notrace
+		jp	dbg_warm_start	; Teply	start debuggeru
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_quit:
+		ld	hl, (word_E4FC)
+		ld	sp, hl
+		ld	a, 20h ; ' '
+		call	clear_print_char ; Zmazanie editacneho riadku a	vypis jedneho znaku na zaciatku	riadku
+		jp	mrs_modul
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+test_for_windows:			; Test ci zadana hodnota v DE vyhovuje nastavenym PC alebo Memory oknam	v debuggeri
+		ld	a, e
+		sub	(hl)
+		inc	hl
+		ld	a, d
+		sbc	a, (hl)
+		inc	hl
+		jp	nc, loc_793F
+		inc	hl
+
+loc_7937:
+		inc	hl
+		ld	a, l
+		and	0Fh
+		ret	z
+		jp	test_for_windows ; Test	ci zadana hodnota v DE vyhovuje	nastavenym PC alebo Memory oknam v debuggeri
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_793F:
+		ld	a, (hl)
+		sub	e
+		inc	hl
+		ld	a, (hl)
+		sbc	a, d
+		jp	c, loc_7937
+		inc	h
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_windows:				; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		call	sysmod_inkey
+		ld	hl, window_pc_0
+		cp	'P'
+		jp	z, loc_795C
+		cp	'M'
+		jp	nz, dbg_warm_start ; Teply start debuggeru
+		ld	hl, window_memory_0
+
+loc_795C:
+		push	hl
+		ex	de, hl
+		ld	(sysmod_line+1), a ; Buffer pre	vypis jedneho riadku textu
+		call	display_16bit_values
+		dec	b		; Pozicie jednotlivych hodnot na riadku
+		ld	a, (bc)
+		djnz	loc_797B+2
+		dec	de
+		jr	nz, loc_798F+2
+		dec	hl
+		nop
+		pop	hl
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		cp	30h ; '0'
+		jp	m, dbg_warm_start ; Teply start	debuggeru
+		cp	38h ; '8'
+		jp	p, dbg_warm_start ; Teply start	debuggeru
+
+loc_797B:				; Buffer pre vypis jedneho riadku textu
+		ld	(sysmod_line+2), a
+		and	7
+		push	hl
+		ld	hl, 2020h
+		ld	(sysmod_line+3), hl ; Buffer pre vypis jedneho riadku textu
+		ld	(sysmod_line+5), hl ; Buffer pre vypis jedneho riadku textu
+		pop	hl
+		push	hl
+		rla
+		add	a, l
+		ld	l, a
+
+loc_798F:				; Zadanie ciselnej hodnoty alebo vyrazu
+		call	input_value
+		pop	hl
+		jp	dbg_warm_start	; Teply	start debuggeru
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7996:
+		pop	hl
+		ld	(jump_E4BC), hl
+		pop	hl
+		push	hl
+		ld	a, (word_E4B4)
+		cp	l
+		jp	nz, loc_79B1
+		ld	a, (word_E4B4+1)
+		cp	h
+		jp	nz, loc_79B1
+		ld	a, (word_E4BE+1)
+		or	a
+		jp	nz, loc_7C7E
+
+loc_79B1:
+		pop	hl
+		push	hl
+		ld	a, (hl)
+		ld	hl, inst_notvalid ; Instrukcie neplatne	pre 8080
+		ld	b, 0Eh
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_79C7
+		pop	hl
+		inc	hl
+		push	hl
+		ld	a, 'I'
+		jp	loc_7C80
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_79C7:
+		push	af
+		ld	b, 16h
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_79D6
+		ld	hl, dbg_reg_sp	; Hodnota registra SP v	debuggeri
+		jp	loc_7A06
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_79D6:
+		ld	b, 0Ah
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_79E4
+		ld	hl, dbg_reg_hl	; Hodnota registra HL v	debuggeri
+		jp	loc_7A06
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_79E4:
+		cp	12h
+		jp	nz, loc_79EF
+		ld	hl, dbg_reg_de	; Hodnota registra DE v	debuggeri
+		jp	loc_7A06
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_79EF:
+		cp	2
+		jp	nz, loc_79FA
+		ld	hl, dbg_reg_bc	; Hodnota registra BC v	debuggeri
+		jp	loc_7A06
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_79FA:
+		ld	b, 2
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_7A16
+		ld	hl, (dbg_reg_pc) ; Hodnota registra PC v debuggeri
+		inc	hl
+
+loc_7A06:
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	hl, window_memory_0
+		call	test_for_windows ; Test	ci zadana hodnota v DE vyhovuje	nastavenym PC alebo Memory oknam v debuggeri
+		ld	a, 'M'
+		pop	hl
+		jp	nz, loc_7C80
+		push	hl
+
+loc_7A16:
+		pop	af
+		pop	hl
+		push	hl
+		inc	hl
+		cp	0E9h ; ''
+		jp	nz, loc_7A25
+		ld	hl, (dbg_reg_hl) ; Hodnota registra HL v debuggeri
+		jp	loc_7AD8
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7A25:
+		cp	0C3h ; ''
+		jp	z, dbg_inst_jmp
+		cp	0CDh ; ''
+		jp	z, dbg_inst_call
+		cp	0C9h ; ''
+		jp	z, dbg_inst_ret
+		ld	b, a
+		or	38h ; '8'
+		ld	de, dbg_inst_ret
+		ex	de, hl
+		ld	(word_E4F7), hl
+		ld	l, 0C3h	; ''
+		ld	(word_E4F9), hl
+		ld	hl, loc_7AD8
+		ld	(word_E4F9+1), hl
+		cp	0F8h ; ''
+		jp	nz, loc_7A54
+		ld	a, 2
+		or	b
+		jp	loc_7A75
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7A54:
+		inc	de
+		inc	de
+		ld	hl, loc_7B03
+		ld	(word_E4F7), hl
+		cp	0FCh ; ''
+		jp	nz, loc_7A69
+		ld	a, 2
+		or	b
+		and	0FBh ; ''
+		jp	loc_7A75
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7A69:
+		ld	hl, loc_7B17
+		ld	(word_E4F7), hl
+		cp	0FAh ; ''
+		jp	nz, loc_7A81
+		ld	a, b
+
+loc_7A75:
+		ld	(byte_E4F6), a
+		ld	hl, (dbg_reg_af) ; Hodnota registra AF v debuggeri
+		push	hl
+		pop	af
+		ex	de, hl
+		jp	byte_E4F6
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7A81:
+		pop	hl
+		push	hl
+		ld	a, (hl)
+		and	0C7h ; ''
+		cp	0C7h ; ''
+		jp	nz, loc_7A9C
+		ld	a, (hl)
+		inc	hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		push	hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		and	38h ; '8'
+		ld	l, a
+		ld	h, 0
+		jp	loc_7AD8
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7A9C:
+		ld	hl, 0
+		ld	(word_E4F1), hl
+		pop	hl
+		push	hl
+		ld	de, unk_E4F0
+		ld	a, (hl)
+		ld	hl, inst_word
+		ld	b, 8
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_7AB8
+		ld	b, 3
+		jp	loc_7AC2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7AB8:
+		ld	b, 12h
+		call	search_in_table	; Vyhladanie daneho kodu v tabulke
+		jp	nz, loc_7AC2
+		ld	b, 2
+
+loc_7AC2:
+		pop	hl
+		call	memcpy		; Skopirovnaie bloku pameti: HL=zdroj, DE=ciel,	B=kolko
+		pop	af
+		pop	bc
+		pop	de
+		ex	(sp), hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		jp	unk_E4F0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7AD0:				; Zamena systemoveho a debuggeroveho stacku
+		call	dbg_stack_xch
+		ex	(sp), hl
+		push	de
+		push	bc
+		push	af
+		push	hl
+
+loc_7AD8:
+		ex	(sp), hl
+		pop	de
+		push	de
+		ld	hl, loc_7C54
+		ld	a, h
+		cp	d
+		jp	nz, loc_7AF2
+		ld	a, l
+		cp	e
+		jp	nz, loc_7AF2
+		dec	hl
+		ex	(sp), hl
+
+loc_7AEA:				; zacatek bufferu dial.	radku
+		ld	hl, (ram_C030_BUF)
+		ld	(hl), 'E'
+		jp	dbg_mainloop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7AF2:
+		ld	hl, window_pc_0
+		call	test_for_windows ; Test	ci zadana hodnota v DE vyhovuje	nastavenym PC alebo Memory oknam v debuggeri
+		ld	a, 'P'
+		jp	z, loc_7C80
+		ld	hl, (jump_E4BC)
+		jp	(hl)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_inst_call:
+		inc	hl
+		inc	hl
+
+loc_7B03:				; Zamena systemoveho a debuggeroveho stacku
+		call	dbg_stack_xch
+		push	hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		jp	loc_7B17
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_inst_ret:				; Zamena systemoveho a debuggeroveho stacku
+		call	dbg_stack_xch
+		pop	hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		jp	loc_7AD8
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7B17:
+		dec	hl
+		dec	hl
+
+dbg_inst_jmp:
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ex	de, hl
+		jp	loc_7AD8
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_breakpoint:
+		ld	hl, word_E4B4
+		call	input_value	; Zadanie ciselnej hodnoty alebo vyrazu
+
+loc_7B26:
+		ld	hl,  word_E4BE+1
+		ld	(hl), 1
+		cp	0CDh ; ''
+		ret	nz
+
+dbgcmd_go:
+		ld	a, (word_E4BE+1)
+		dec	a
+		jp	nz, loc_7B41
+		dec	a
+		ld	(word_E4BE+1), a
+		ld	hl, byte_E4B6
+		ex	de, hl
+		ld	a, (hl)
+		ld	(de), a
+		ld	(hl), 0C7h ; ''
+
+loc_7B41:
+		pop	hl
+		pop	af
+		pop	bc
+		pop	de
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		push	hl
+		ld	hl, (dbg_reg_hl) ; Hodnota registra HL v debuggeri
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_calls:
+		pop	hl
+		push	hl
+		ld	a, 1
+		ld	(word_E4BE), a
+		ld	a, (hl)
+		cp	0CDh ; ''
+		jp	nz, dbgcmd_step
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	(word_E4B4), hl
+		ex	de, hl
+		jp	loc_7B26
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mrscmd_dbg:
+		ld	hl, breakpoint_processing
+		ld	(breakpoint_adr), hl
+		ld	hl, breakpoint_jmp
+		ld	(hl), 0C3h ; ''
+		ld	(word_E4BE), hl
+		add	hl, sp
+		ld	(word_E4FC), hl
+		dec	hl
+		dec	hl
+		ld	(dbg_reg_sp), hl ; Hodnota registra SP v debuggeri
+		ld	hl, loc_7C4E
+		push	hl
+		ld	hl, loc_7AD0
+		ld	(jump_E4F4), hl
+		ld	a, 0C3h	; ''
+		ld	(jump_E4F3), a
+		ld	hl, byte_E4B6
+		ld	(word_E4B4), hl
+		ld	sp, dbg_reg_pc	; Hodnota registra PC v	debuggeri
+
+dbg_warm_start:				; Teply	start debuggeru
+		ld	hl, (ram_C030_BUF)
+		ld	(hl), 20h ; ' '
+
+dbg_mainloop:
+		call	dbg_display_info
+
+dbg_waitkey:				; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		call	sysmod_inkey
+
+dbg_processkey:				; Zmazanie editacneho riadku a vypis jedneho znaku na zaciatku riadku
+		call	clear_print_char
+		cp	'R'
+		jp	z, dbgcmd_registers
+		cp	'C'
+		jp	z, dbgcmd_calls
+		ld	hl, (word_E4B4)
+		ex	de, hl
+		cp	'G'
+		jp	z, dbgcmd_go
+		cp	'T'
+		jp	z, dbgcmd_trace
+		cp	'N'
+		jp	z, dbgcmd_notrace
+		cp	'Q'
+		jp	z, dbgcmd_quit
+		cp	'W'
+		jp	z, dbgcmd_windows
+		cp	'S'
+		jp	z, dbgcmd_step
+		ld	hl, dbg_warm_start ; Teply start debuggeru
+		push	hl
+		cp	0Fh
+		jp	z, rom_8499_PTL	; PTL -	zapnuti/vypnuti	vypisu editacni	radky po EOL
+		ld	hl, dbg_modify_memory
+		cp	'M'
+		jp	z, loc_7D33
+		ld	hl, dbg_dump_memory
+		cp	'D'
+		jp	z, loc_7D33
+		cp	'I'
+		jp	z, dbgcmd_breakpoint
+		cp	'O'
+		jp	nz, sysmod_beep	; Vyda zvukovy signal.
+
+dbgcmd_outbreak:
+		ld	hl,  word_E4BE+1
+		ld	(hl), 0
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbgcmd_step:
+		ld	hl,  word_E4BE+1
+		ld	a, (hl)
+		ld	(hl), 0
+		ld	(byte_E4B7), a
+		call	loc_7996
+		ld	a, (byte_E4B7)
+
+loc_7C05:
+		ld	(word_E4BE+1), a
+		jp	dbg_mainloop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+display_16bit_values:
+		pop	hl
+		ld	a, (hl)
+		inc	hl
+		push	hl
+		dec	a
+		jp	m, rom_8855_WRBUFF ; Vypis textu editacni radky	na displej
+		ld	hl, (ram_C030_BUF) ; zacatek bufferu dial. radku
+		ld	l, a
+		inc	de
+		ld	a, (de)
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		dec	de
+		ld	a, (de)
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		inc	de
+		inc	de
+		jp	display_16bit_values
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_display_info:			; Hodnota registra PC v	debuggeri
+		ld	hl, (dbg_reg_pc)
+		ld	a, (sysmod_line) ; Buffer pre vypis jedneho riadku textu
+		push	af
+		call	disasm_code	; Disasembluje jednu instrukciu	v strojovom kode na adrese HL
+		pop	af
+		ld	(sysmod_line), a ; Buffer pre vypis jedneho riadku textu
+
+loc_7C34:				; Hodnota registra PC v	debuggeri
+		ld	de, dbg_reg_pc
+		call	display_16bit_values
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db    3			; Pozicie jednotlivych hodnot na riadku
+		db  15h
+		db  1Ah
+		db  1Fh
+		db  24h	; $
+		db  2Ah	; *
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		ld	l, 30h ; '0'
+		jp	rom_8D9B_eol_3	; Ukonceni editace v textovem bufferu
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+sysmod_inkey_0:
+		ld	a, 0
+		out	(0F6h),	a
+		jp	rom_84A1_KLAV	; Nacteni znaku	z klavesnice s cekanim na stisk
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db    0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7C4E:
+		push	hl
+		ld	hl, loc_7C4E
+		ex	(sp), hl
+		nop
+
+loc_7C54:
+		push	hl
+		ld	hl, (dbg_reg_pc) ; Hodnota registra PC v debuggeri
+		inc	hl
+		ex	(sp), hl
+		push	hl
+		push	af
+		call	loc_7C8C
+		pop	af
+		pop	hl
+
+breakpoint_processing:			; Hodnota registra HL v	debuggeri
+		ld	(dbg_reg_hl), hl
+		pop	hl
+		call	dbg_stack_xch	; Zamena systemoveho a debuggeroveho stacku
+		push	de
+		push	bc
+		push	af
+		dec	hl
+		push	hl
+		call	loc_7C8C
+		jp	p, loc_7AEA
+		ld	hl, word_E4BE
+		xor	a
+		cp	(hl)
+		jp	z, loc_7C7E
+		ld	(hl), a
+		inc	hl
+		ld	(hl), a
+
+loc_7C7E:
+		ld	a, 'B'
+
+loc_7C80:				; Zmazanie editacneho riadku a vypis jedneho znaku na zaciatku riadku
+		call	clear_print_char
+		call	sysmod_beep	; Vyda zvukovy signal.
+		call	dbg_display_info
+		jp	dbg_waitkey
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7C8C:
+		ld	hl,  word_E4BE+1
+		ld	a, (hl)
+		or	a
+		ret	p
+		ld	(hl), 1
+		ld	hl, (word_E4B4)
+		ld	a, (byte_E4B6)
+		ld	(hl), a
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+input_value:				; Zadanie ciselnej hodnoty alebo vyrazu
+		push	hl
+		ld	hl,  sysmod_line+2 ; Buffer pre	vypis jedneho riadku textu
+		ld	bc, 207h
+		ld	de, 0
+		call	mrs_pos0
+		ld	h, d
+		ld	l, e
+		call	sysmod_getmem	; Identifikacia	symbolu
+		ld	a, (hl)
+		or	a
+		jp	nz, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		ld	(hl), ' '
+		inc	b
+		jp	z, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		dec	b
+		jp	z, loc_7CDD
+		call	sysmod_vstoas	; Adresa labelu	(C = cislo labelu)
+		ld	a, (hl)
+		rlca
+		jp	c, loc_7CCD
+
+loc_7CC5:
+		ld	b, 6
+		call	loc_7188
+		jp	z, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+
+loc_7CCD:
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	a, (hl)
+		rlca
+		jp	c, loc_7CC5
+		inc	hl
+		inc	hl
+		inc	hl
+		ld	e, (hl)
+		inc	hl
+		ld	d, (hl)
+		ld	c, 0
+
+loc_7CDD:
+		dec	c
+		pop	hl
+		jp	p, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		ld	(hl), e
+		inc	hl
+		ld	(hl), d
+		ld	a, 20h ; ' '
+		ld	(sysmod_line), a ; Buffer pre vypis jedneho riadku textu
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+inst_notvalid:	db    8			; Instrukcie neplatne pre 8080
+		db  10h			; (+ halt a rst	0 ako breakpoint)
+		db  18h
+		db  28h	; (
+		db  38h	; 8
+		db 0CBh	; 
+		db 0D9h	; 
+		db 0DDh	; 
+		db 0EDh	; 
+		db 0FDh	; 
+		db 0C7h	; 
+		db  76h	; v
+		db  20h
+		db  30h	; 0
+
+inst_stack:	db 0CDh	; 		; Instrukcie pracujuce so stackom
+		db 0DCh	; 
+		db 0D4h	; 
+		db 0CCh	; 
+		db 0C4h	; 
+		db 0E4h	; 
+		db 0ECh	; 
+		db 0FCh	; 
+		db 0F4h	; 
+		db 0F5h	; 
+		db 0C5h	; 
+		db 0D5h	; 
+		db 0E5h	; 
+		db 0E3h	; 
+		db 0C7h	; 
+		db 0CFh	; 
+		db 0D7h	; 
+		db 0DFh	; 
+		db 0E7h	; 
+		db 0EFh	; 
+		db 0F7h	; 
+		db 0FFh
+
+inst_writeHL:	db  34h	; 4		; Instrukcie zapisujuce	na (HL)
+		db  35h	; 5
+		db  36h	; 6
+		db  77h	; w
+		db  70h	; p
+		db  71h	; q
+		db  72h	; r
+		db  73h	; s
+		db  74h	; t
+		db  75h	; u
+
+inst_word:	db  32h	; 2
+		db  22h	; "             ; Instrukcie s dvojbajtovym parametrom
+		db    1
+		db  11h
+		db  21h	; !
+		db  31h	; 1
+		db  2Ah	; *
+		db  3Ah	; :
+
+inst_byte:	db    6			; Instrukcie s jednobajtovym parametrom
+		db  0Eh
+		db  16h
+		db  1Eh
+		db  26h	; &
+		db  2Eh	; .
+		db  36h	; 6
+		db  3Eh	; >
+		db 0CEh	; 
+		db 0DEh	; 
+		db 0EEh	; 
+		db 0FEh	; 
+		db 0D3h	; 
+		db 0D6h	; 
+		db 0C6h	; 
+		db 0E6h	; 
+		db 0F6h	; 
+		db 0DBh	; 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7D33:
+		push	hl
+		ld	hl,  sysmod_line+2 ; Buffer pre	vypis jedneho riadku textu
+		call	input_value	; Zadanie ciselnej hodnoty alebo vyrazu
+		push	de
+		call	rom_8113_CLR	; CLR -	vymezerovani editacniho	bufferu
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_modify_memory:			; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+2
+		ld	b, 0Ch
+		call	loc_7DE0
+		push	de
+		nop
+		nop
+		nop
+		ld	a, 6
+		ld	(ram_C036_DCUR), a ; pozice kurzoru v bufferu
+		pop	de
+		ld	a, ':'
+
+loc_7D54:				; znak nacteni z klvesnice
+		ld	(ram_C134_ASCII), a
+		ld	b, a
+		cp	8
+		jp	z, loc_7D5F
+		ld	b, 18h
+
+loc_7D5F:				; Tisk znaku (puvodni adresa)
+		call	rom_8584_WRCHAR+27Ch
+		ld	a, (ram_C036_DCUR) ; pozice kurzoru v bufferu
+		cp	'*'
+		jp	z, loc_7D74
+		ld	l, a
+		ld	h, 7Fh ; ''
+		ld	a, (hl)
+		cp	' '
+		ld	a, b
+		jp	z, loc_7D54
+
+loc_7D74:
+		push	de
+		call	z, sysmod_beep	; Vyda zvukovy signal.
+		call	z, rom_8C33_LEFT ; Posun kurzoru v editacni radce doleva
+		pop	de
+
+loc_7D7C:				; Zmazanie kurzora + vypis znaku + zobrazenie kurzora na novej pozicii
+		call	curon_inkey_curoff
+		cp	1Ah
+		jp	nz, loc_7D8F
+		call	loc_7DC4
+		ld	hl, -0Ch
+		add	hl, de
+		ex	de, hl
+		jp	dbg_modify_memory
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7D8F:
+		cp	19h
+		jp	nz, loc_7D9F
+		call	loc_7DC4
+		ld	hl, 0Ch
+		add	hl, de
+		ex	de, hl
+		jp	dbg_modify_memory
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7D9F:
+		cp	0Dh
+		jp	z, loc_7DC4
+		cp	18h
+		jp	z, loc_7D54
+		ld	b, a
+		cp	8
+		jp	z, loc_7DBC
+		call	eval_hex_digit	; Vyhodnotenie jednej hexadecimalnej cislice 0-9,A-F
+
+loc_7DB2:
+		ld	a, b
+		jp	nc, loc_7D54
+		call	sysmod_beep	; Vyda zvukovy signal.
+		jp	loc_7D7C
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7DBC:				; pozice kurzoru v bufferu
+		ld	a, (ram_C036_DCUR)
+		cp	8
+		jp	loc_7DB2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7DC4:				; Buffer pre vypis jedneho riadku textu
+		ld	hl,  sysmod_line+6
+		push	de
+		ld	b, d
+		ld	c, e
+
+loc_7DCA:
+		inc	hl
+		ld	a, (hl)
+		call	eval_hex_digit	; Vyhodnotenie jednej hexadecimalnej cislice 0-9,A-F
+		jp	c, loc_7DD8
+		call	sysmod_hxbn	; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ld	a, e
+		ld	(bc), a
+		inc	bc
+
+loc_7DD8:
+		ld	a, l
+		cp	','
+		jp	c, loc_7DCA
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7DE0:
+		push	de
+		call	bnhx16		; BNHX16 - Konverzia 16-bitovej	hodnoty	na styri hexadecimalne cislice
+
+loc_7DE4:
+		ld	(hl), ' '
+		inc	hl
+		ld	a, (de)
+		inc	de
+		call	sysmod_bnhx	; Konverzia 8-bitovej hodnoty na dve hexadecimalne cislice
+		dec	b
+		jp	nz, loc_7DE4
+		pop	de
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+dbg_dump_memory:
+		call	loc_7E0B
+		call	sysmod_inkey	; Citanie jedneho znaku	z klavesnice s automatickym opakovanim (autorepeat)
+		cp	19h
+		jp	z, dbg_dump_memory
+		cp	1Ah
+		ret	nz
+		ld	a, e
+		sub	60h ; '`'
+		ld	e, a
+		ld	a, d
+		sbc	a, 1
+		ld	d, a
+		jp	dbg_dump_memory
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7E0B:				; Zmazanie obrazovky
+		call	sysmod_clear
+		ld	hl, 16h
+
+loc_7E11:
+		push	hl
+		ld	hl, sysmod_line	; Buffer pre vypis jedneho riadku textu
+		ld	b, 8
+		call	loc_7DE0
+		ld	b, 8
+		ld	(hl), ' '
+
+loc_7E1E:
+		inc	hl
+		ld	a, (de)
+		inc	de
+		cp	14h
+		jp	c, loc_7E2A
+		or	a
+		jp	p, loc_7E2C
+
+loc_7E2A:
+		ld	a, '.'
+
+loc_7E2C:
+		ld	(hl), a
+		dec	b
+		jp	nz, loc_7E1E
+		pop	hl
+		call	sysmod_outbuf	; Vypis	jedneho	riadku na obrazovku
+		inc	h
+		dec	l
+		jp	nz, loc_7E11
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+edicmd_dis:
+		ld	a, (de)
+		cp	' '
+		jp	nz, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		inc	de
+		ex	de, hl
+		call	sysmod_hxbn	; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ld	a, (hl)
+		cp	'-'
+		jp	nz, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+		inc	hl
+		push	de
+		call	sysmod_hxbn	; Konverzia retazca hexadecimalnych cislic na 16-bitovu	binarnu	hodnotu
+		ld	a, (hl)
+		pop	hl
+		or	a
+		jp	nz, sysmod_mrs2	; Oprava zadania na dialogovom riadku
+
+loc_7E57:
+		push	de
+		ld	a, (flag_edi_lib) ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		or	a
+		push	af
+		call	z, disasm_code	; Disasembluje jednu instrukciu	v strojovom kode na adrese HL
+		pop	af
+		jp	z, loc_7E6B
+		call	unpack_source_line ; Nacita a depakuje jeden riadok zdrojoveho textu do	textoveho buffera
+		ld	hl, (src_act_address) ;	Pracovna adresa	do zdrojoveho textu
+		inc	hl
+
+loc_7E6B:
+		push	hl
+		call	pack_source_line ; Spakuje jeden riadok	zdrojoveho textu z textoveho buffera do	formatu	zdrojoveho textu
+		ld	hl, byte_E5B0
+		xor	a
+		cp	(hl)
+		ld	(hl), a
+		jp	nz, loc_7E98
+		call	loc_6DC1
+		jp	nc, loc_7E98
+		ld	hl, (act_adr_line) ; Adresa akualneho riadku v zdrojovom texte
+		call	set_next_line_as_act ; Nastavi ako aktualny nasledujci riadok v	zdrojovom texte
+		pop	hl
+		pop	de
+		ld	a, l
+		sub	e
+		ld	a, h
+		sbc	a, d
+		ld	a, (flag_edi_lib) ; S cim sa pracuje: 0	= kniznica, #3F	= zdrojovy text
+		dec	a
+		jp	m, loc_7E92
+		ccf
+
+loc_7E92:
+		jp	nc, mrscmd_edi
+		jp	loc_7E57
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+loc_7E98:
+		pop	hl
+		pop	de
+
+loc_7E9A:
+		ld	hl, error_memfull
+		ld	bc, 801h
+		ld	de, 0
+		call	mrs_pos0
+		jp	mrs_modul
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+disasm_code:				; Disasembluje jednu instrukciu	v strojovom kode na adrese HL
+		push	hl
+		ld	a, (hl)
+		push	af
+		ld	hl, byte_E472
+		ld	(hl), 0
+		call	unpack_source_line ; Nacita a depakuje jeden riadok zdrojoveho textu do	textoveho buffera
+		pop	af
+		push	af
+		call	show_instruction
+		pop	bc
+		ld	c, b
+		ld	b, 0
+		or	a
+		jp	nz, show_argument
+		ld	hl,  sysmod_line+7 ; Buffer pre	vypis jedneho riadku textu
+		ld	(hl), 'D'
+		inc	hl
+		ld	(hl), 'B'
+		ld	hl,  sysmod_line+0Ch ; Buffer pre vypis	jedneho	riadku textu
+		jp	loc_7EE4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+show_argument:
+		and	0Ch
+		jp	z, loc_7EE7
+		cp	0Ch
+		jp	z, loc_7EE7
+		cp	4
+		ex	(sp), hl
+		inc	hl
+		ld	c, (hl)
+		jp	z, loc_7EE3
+		inc	hl
+		ld	b, (hl)
+
+loc_7EE3:
+		ex	(sp), hl
+
+loc_7EE4:				; Vypis	hexadecimalnej hodnoty v tvare XXh alebo 0XXh
+		call	show_hex_value
+
+loc_7EE7:
+		pop	hl
+		inc	hl
+
+locret_7EE9:
+		ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    OUTEND
+
+		ds 6
+byte_7EF0:	ds 1
+byte_7EF1:	ds 5
+byte_7EF6:	ds 2
+byte_7EF8:	ds 7
+unk_7EFF:	ds 1
+sysmod_line:	ds 44			; Buffer pre vypis jedneho riadku textu
+word_7F2C:	ds 2
+		ds 1
+		ds 1
+pck_src_length:	ds 1			; Pomocny bajt pre dlzku spakovaneho riadku zdrojoveho textu (Bit7:comment, Bit6:label,	Bit5-0:dlzka)
+pck_src_flags:	ds 1			; Pomocny bajt pre priznaky a pseudoinstrukciu v spakovanom riadku zdrojoveho textu
+		ds 3Eh
+dbg_reg_pc:	ds 2			; Hodnota registra PC v	debuggeri
+dbg_reg_af:	ds 2			; Hodnota registra AF v	debuggeri
+dbg_reg_bc:	ds 2			; Hodnota registra BC v	debuggeri
+dbg_reg_de:	ds 2			; Hodnota registra DE v	debuggeri
+dbg_reg_hl:	ds 2			; Hodnota registra HL v	debuggeri
+dbg_reg_sp:	ds 2			; Hodnota registra SP v	debuggeri
+		ds 81h
+end_of_stack:	ds 3
+
+; *** PMD85 ROM	Monitor	***
+
+		ds 113h
+rom_8113_CLR:	ds 12h			; CLR -	vymezerovani editacniho	bufferu
+rom_8125_PREVO1:ds 3Ch			; Vystupni sestnactkova	konverze 8 bitu	s tiskem
+rom_8161_curps3:ds 323h			; Vypocet adresy aktulniho znaku v editacnim bufferu
+rom_8484_XCCUR:	ds 15h			; Vykresleni/smazani kurzoru
+rom_8499_PTL:	ds 8			; PTL -	zapnuti/vypnuti	vypisu editacni	radky po EOL
+rom_84A1_KLAV:	ds 5Fh			; Nacteni znaku	z klavesnice s cekanim na stisk
+rom_8500_PRTOUT:ds 84h			; Vypsat znak
+rom_8584_WRCHAR:ds 2D1h			; Tisk znaku (puvodni adresa)
+rom_8855_WRBUFF:ds 16Eh			; Vypis	textu editacni radky na	displej
+rom_89C3_inkey3:ds 270h			; Test klavesnice bez cekani
+rom_8C33_LEFT:	ds 0Dh			; Posun	kurzoru	v editacni radce doleva
+rom_8C40_MONIT:	ds 34h			; Puvodni vstup	do monitoru
+rom_8C74_STOP:	ds 127h			; Test klavesy STOP
+rom_8D9B_eol_3:	ds 27h			; Ukonceni editace v textovem bufferu
+rom_8DC2_LOAD:	ds 0FCh			; Nacteni bloku	dat z magnetofonu
+rom_8EBE_HEADIN:ds 0A2h			; Nacteni synchronizace	a hlavicky souboru
+rom_8F60_PRGOUT:ds 0A0h			; Zapis	bloku dat do souboru
+byte_9000:	ds 3000h
+
+; PMD85	Videoramka
+
+		ds 30h
+ram_C030_BUF:	ds 2			; zacatek bufferu dial.	radku
+ram_C032_DIAL:	ds 2			; adr. zac. vypisu dial. radku na displeji
+		ds 2
+ram_C036_DCUR:	ds 1			; pozice kurzoru v bufferu
+		ds 7
+ram_C03E_CURSOR:ds 2			; adresa kurzoru na displeji
+		ds 0F4h
+ram_C134_ASCII:	ds 1			; znak nacteni z klvesnice
+		ds 1
+		ds 1
+ram_C137_SPTL:	ds 1			; priznak PTL
+		ds 40h
+ram_C178_OLDKEY:ds 2
+		ds 1
+		ds 1
+ram_C17C_KEYEND:ds 2			; adresa klicu
+		ds 34h
+ram_C1B6_NUMFIL:ds 1			; cislo	souboru
+ram_C1B6_TYPFIL:ds 1			; typ souboru
+ram_C1B6_ADRFIL:ds 2			; adresa zacatku dat souboru
+ram_C1B6_LENFIL:ds 2			; delka	souboru-1
+ram_C1B8_NAMFIL:ds 8			; 8 znaku nazvu	souboru, doplneno mezerami
+		ds 230h
+label_table:	ds 2000h
+txt_act_address:ds 2			; Pracovna adresa do textoveho buffera
+src_act_address:ds 2			; Pracovna adresa do zdrojoveho	textu
+word_E3F4:	ds 2
+byte_E3F6:	ds 1
+byte_E3F7:	ds 1
+byte_E3F8:	ds 1
+act_adr_line:	ds 2			; Adresa akualneho riadku v zdrojovom texte
+word_E3FB:	ds 2
+sysmod_lastln:	ds 2			; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		ds 31h
+sysmod_cursor:	ds 2			; Pozicia kurzora na obrazovke.	Prvy bajt je stlpca (0-43), druhy je riadok (0-22).
+act_num_line:	ds 2			; Cislo	akualneho riadku v zdrojovom texte
+		ds 1
+		ds 1
+word_E436:	ds 2
+word_E438:	ds 2
+word_E43A:	ds 2
+word_E43C:	ds 2
+word_E43E:	ds 2
+		ds 30h
+byte_E470:	ds 1
+byte_E471:	ds 1
+byte_E472:	ds 1
+word_E473:	ds 2
+word_E475:	ds 2
+store_address:	ds 2			; Aktualna adresa na ktoru sa kompiluje
+word_E479:	ds 2
+word_E47B:	ds 2
+word_E47D:	ds 2
+		ds 31h
+store_limit:	ds 2
+word_E4B2:	ds 2
+word_E4B4:	ds 2
+byte_E4B6:	ds 1
+byte_E4B7:	ds 1
+backup_reg_hl:	ds 2
+backup_return:	ds 2
+jump_E4BC:	ds 2
+word_E4BE:	ds 2
+		ds 30h
+unk_E4F0:	ds 1
+word_E4F1:	ds 2
+jump_E4F3:	ds 1
+jump_E4F4:	ds 2
+byte_E4F6:	ds 1
+word_E4F7:	ds 2
+word_E4F9:	ds 2
+		ds 1
+word_E4FC:	ds 2
+		ds 1
+		ds 1
+		ds 30h
+window_memory_0:ds 2
+window_memory_1:ds 2
+window_memory_2:ds 2
+window_memory_3:ds 2
+window_memory_4:ds 2
+window_memory_5:ds 2
+window_memory_6:ds 2
+window_memory_7:ds 2
+		ds 30h
+window_pc_0:	ds 2
+window_pc_1:	ds 2
+window_pc_2:	ds 2
+window_pc_3:	ds 2
+window_pc_4:	ds 2
+window_pc_5:	ds 2
+window_pc_6:	ds 2
+window_pc_7:	ds 2
+		ds 30h
+byte_E5B0:	ds 1
+flag_asm_ald:	ds 1			; Kompilacia: 0	= asm, 2 = ald
+flag_edi_lib:	ds 1			; S cim	sa pracuje: 0 =	kniznica, #3F =	zdrojovy text
+byte_E5B3:	ds 1
+		ds 1A4Ch
+; end of 'RAM'
+
+		end
