@@ -8,7 +8,7 @@
 ;;				;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Konverzia: Busy soft 13.09.2024
+; Konverzia: Busy soft 08.10.2024
 ;
 ; Zdrojovy text	pre SjASMPlus 1.20.2
 ;
@@ -20,17 +20,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     DEVICE ZXSPECTRUM48
+    ORG	   0
 
-rom_0:		ds 8			
-rst08:		ds 4Ah			
-return:		ds 363h			
-sysbep:		ds 111h			
-save_4C6:	ds 9Ch			
-load_562:	ds 19F2h		
-brktst:		ds 1CACh		
-rom_font:	ds 400h			
-ram:		ds 1C51h
-rst10_vektor:	ds 2			
+rom_0:		ds 8
+rst08:		ds 4Ah			; Basic	error handler
+return:		ds 363h			; Tu je	instrukcia RET
+sysbep:		ds 111h			; Rutinka BEEP
+save_4C6:	ds 9Ch			; Ukladanie na pasku
+load_562:	ds 19F2h		; Nacitanie z pasky
+brktst:		ds 1CACh		; Rychly test klavesy BREAK
+rom_font:	ds 400h			; Znakovy subor
+ram:		ds 1C51h		; Zaciatok ramky
+rst10_vektor:	ds 2
 		ds 78h
 
 ; Basic	loader
@@ -42,92 +43,40 @@ rst10_vektor:	ds 2
 
     OUTPUT Basic-loader.bas
 
-basic:		db    0
-		db  0Ah
-		db  22h	; "
-		db    0
+basic:		db   0,	10		; Riadok 10
+		dw 22h			; Basic	error handler
 		db 0EAh	; 		; REM
-		db  20h
-		db  6Dh	; m
-		db  72h	; r
-		db  73h	; s
-		db  20h
-		db  2Dh	; -
-		db  20h
-		db  70h	; p
-		db  72h	; r
-		db  6Fh	; o
-		db  67h	; g
-		db  72h	; r
-		db  61h	; a
-		db  6Dh	; m
-		db  20h
-		db  6Eh	; n
-		db  61h	; a
-		db  68h	; h
-		db  72h	; r
-		db  61h	; a
-		db  6Eh	; n
-		db  79h	; y
-		db  20h
-		db  38h	; 8
-		db  2Eh	; .
-		db  31h	; 1
-		db  30h	; 0
-		db  2Eh	; .
-		db  31h	; 1
-		db  39h	; 9
-		db  38h	; 8
-		db  36h	; 6
+		db ' mrs - program nahrany 8.10.1986'
 		db  0Dh
-		db    0
-		db  14h
-		db  0Ah
-		db    0
-		db 0EFh	; 		; LOAD
-		db  22h	; "
-		db  22h	; "
-		db 0AFh	; 		; CODE
+
+		db   0,	20		; Riadok 20
+		dw 0Ah
+		db 0EFh, 22h, 22h,0AFh	; LOAD "" CODE
 		db  3Ah	; :
-		db 0EFh	; 		; LOAD
-		db  22h	; "
-		db  22h	; "
-		db 0AFh	; 		; CODE
+		db 0EFh, 22h, 22h,0AFh	; LOAD "" CODE
 		db  0Dh
-		db    0
-		db  1Eh
-		db  0Eh
-		db    0
+
+		db   0,	30		; Riadok 30
+		dw 0Eh
 		db 0F9h	; 		; RANDOMIZE
 		db 0C0h	; 		; USR
-		db  35h	; 5
-		db  34h	; 4
-		db  38h	; 8
-		db  36h	; 6
-		db  37h	; 7
+		db '54867'
 		db  0Eh
 		db    0
 		db    0
-		db  53h	; S
-		db 0D6h	; 
+		dw cold_start
 		db    0
 		db  0Dh
-		db    0
-		db  28h	; (
-		db  0Eh
-		db    0
+
+		db   0,	40		; Riadok 40
+		dw 0Eh
 		db 0F9h	; 		; RANDOMIZE
 		db 0C0h	; 		; USR
-		db  35h	; 5
-		db  34h	; 4
-		db  38h	; 8
-		db  37h	; 7
-		db  30h	; 0
+		db '54870'
 		db  0Eh
 		db    0
 		db    0
-		db  56h	; V
-		db 0D6h	; 
+		dw warm_start
 		db    0
 		db  0Dh
 
@@ -139,259 +88,131 @@ basend:		ds 2DDh
 
     OUTPUT Sysmod-#6000.cod
 
-sysmod:					
-					
+sysmod:					; Entry	point do skompilovaneho	programu
 		jp	return
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-libtop:		dw fremem		
-libbeg:		db  73h	; s		
-		db  79h	; y
-		db  73h	; s
-		db  6Dh	; m
-		db  6Fh	; o
-		db  64h	; d
+libtop:		dw fremem		; Koniec kniznice a zaciatok volnej pamete
+libbeg:		db 'sysmod' ; Zaciatok kniznice a napis "sysmod"
 		dw fremem
-		dw entpnt
+		dw entpnt		; Pocet	navesti	v sysmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ii:					
+ii:					; Zoznam instrukcii oznacenych ako ilegalne
 		halt
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
-		nop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-entpnt:		db  12h			
-		db  6Dh	; m
-		db  65h	; e
-		db  6Dh	; m
-		db  6Fh	; o
-		db  72h	; r
-		db  79h	; y
-memory:		dw fremem		
-		db  6Dh	; m
-		db  65h	; e
-		db  6Dh	; m
-		db  74h	; t
-		db  6Fh	; o
-		db  70h	; p
-memtop:		dw 0			
-		db  64h	; d
-		db  63h	; c
-		db  62h	; b
-		db  6Eh	; n
-		db  20h
-		db  20h
-		dw dcbn
-		db  68h	; h
-		db  78h	; x
-		db  62h	; b
-		db  6Eh	; n
-		db  20h
-		db  20h
-		dw hxbn
-		db  62h	; b
-		db  6Eh	; n
-		db  64h	; d
-		db  63h	; c
-		db  20h
-		db  20h
-		dw bndc
-		db  62h	; b
-		db  6Eh	; n
-		db  68h	; h
-		db  78h	; x
-		db  20h
-		db  20h
-		dw bnhx
-		db  63h	; c
-		db  6Ch	; l
-		db  65h	; e
-		db  61h	; a
-		db  72h	; r
-		db  20h
-		dw clear
-		db  69h	; i
-		db  6Eh	; n
-		db  6Bh	; k
-		db  65h	; e
-		db  79h	; y
-		db  20h
-		dw inkey
-		db  73h	; s
-		db  63h	; c
-		db  61h	; a
-		db  6Eh	; n
-		db  20h
-		db  20h
-		dw scan
-		db  6Fh	; o
-		db  75h	; u
-		db  74h	; t
-		db  63h	; c
-		db  68h	; h
-		db  72h	; r
-		dw outchr
-		db  63h	; c
-		db  75h	; u
-		db  72h	; r
-		db  73h	; s
-		db  6Fh	; o
-		db  72h	; r
-		dw cursor
-		db  73h	; s
-		db  65h	; e
-		db  74h	; t
-		db  63h	; c
-		db  72h	; r
-		db  73h	; s
-		dw setcrs
-		db  69h	; i
-		db  6Eh	; n
-		db  76h	; v
-		db  70h	; p
-		db  69h	; i
-		db  78h	; x
-		dw invpix
-		db  6Dh	; m
-		db  72h	; r
-		db  73h	; s
-		db  20h
-		db  20h
-		db  20h
-		dw mrsp
-		db  6Dh	; m
-		db  72h	; r
-		db  73h	; s
-		db  32h	; 2
-		db  20h
-		db  20h
-		dw mrs2
-		db  73h	; s
-		db  63h	; c
-		db  68h	; h
-		db  65h	; e
-		db  6Eh	; n
-		db  74h	; t
-		dw schent
-		db  69h	; i
-		db  69h	; i
-		db  20h
-		db  20h
-		db  20h
-		db  20h
-		dw ii
-		db  70h	; p
-		db  6Eh	; n
-		db  74h	; t
-		db  63h	; c
-		db  68h	; h
-		db  72h	; r
-		dw pntchr
+		db    0,   0,	0,   0,	  0,   0,   0,	 0,   0,   0,	0,   0,	  0,   0,   0
+entpnt:		db  12h			; Pocet	navesti	v sysmode
+		db 'memory'
+memory:		dw fremem		; Koniec kniznice a zaciatok volnej pamete
+		db 'memtop'
+memtop:		dw 0			; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		db 'dcbn  '
+		dw dcbn			; Prevod desiatkoveho cisla na 16bit hodnotu
+		db 'hxbn  '
+		dw hxbn			; Prevod hexadecimalneho cisla na 16bit	hodnotu
+		db 'bndc  '
+		dw bndc			; Prevod 16bit hodnoty na desiatkove cislo
+		db 'bnhx  '
+		dw bnhx			; Prevod 8bit hodnoty na hexadecimalne cislo
+		db 'clear '
+		dw clear		; Zmazanie obrazovky
+		db 'inkey '
+		dw inkey		; ; Obsluha klavesnice s autorepeatom
+		db 'scan  '
+		dw scan			; Nacitanie stavu klavesnice
+		db 'outchr'
+		dw outchr		; Vypis	jedneho	znaku na obrazovku
+		db 'cursor'
+		dw cursor		; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
+		db 'setcrs'
+		dw setcrs		; Zmazanie kurzora na starej a zobrazenie na novej pozicii
+		db 'invpix'
+		dw invpix		; Invertovanie znaku na	obrazovke
+		db 'mrs   '
+		dw mrs			; Praca	s dialogovym riadkom
+		db 'mrs2  '
+		dw mrs2			; Oprava textu zadaneho	v module "mrs"
+		db 'schent'
+		dw schent		; Vyhladanie vstupneho bodu v kniznici
+		db 'ii    '
+		dw ii			; Zoznam instrukcii oznacenych ako ilegalne
+		db 'pntchr'
+		dw pntchr		; Vytlacenie jedneho znaku na tlaciaren
 		db    0
 
     OUTEND
 
-fremem:		ds 1			
+fremem:		ds 1
 		ds 7438h
-ramtop:		ds 1			
-lastln:		ds 2			
-adstab:		ds 2			
-lnnumb:		ds 2			
-curent:		ds 2			
-oldchr:		ds 2			
-atabr:		ds 2			
-anavp:		ds 2			
-leftm1:		ds 1			
-adzero:		ds 2			
-stack:		ds 2			
-newpag:		ds 1			
-page:		ds 1			
+ramtop:		ds 1			; Tu konci v pameti zdrojovy text
+lastln:		ds 2			; Adresa posledneho riadku v zdrojovom texte
+adstab:		ds 2			; Adresa tabulky navesti
+lnnumb:		ds 2			; Cislo	aktualneho riadku v zdrojovom texte
+curent:		ds 2			; Adresa aktualneho riadku v zdrojovom texte
+oldchr:		ds 2			; Miesto pre odlozenie aktualnej polohy	kurzoru
+atabr:		ds 2			; Adresa tabulky prikazov dekodovanych pri praci s dialogovym riadkom
+anavp:		ds 2			; Navratova adresa pri zavolani	"mrs" aby sa "mrs2" vedel kam sa vratit
+leftm1:		ds 1			; Pozicia prveho editovatelneho	znaku za promptom
+adzero:		ds 2			; Poloha nuloveho bajtu	za zadanym textom
+stack:		ds 2			; Hodnota SP pri spusteni systemu MRS
+newpag:		ds 1			; Pocet	riadkov	na jednu stranu	listingu zadany	pomocou	direktivy *p
+page:		ds 1			; Pocitadlo pre	pocet riadkov na jednu stranku listingu	(0 = bez stran)
 
     OUTPUT Maincd-#D500.cod
 
-tmf:		db  6Dh	; m		
-		db  65h	; e
-		db  6Dh	; m
-		db  20h
-		db  66h	; f
-		db  75h	; u
-		db  6Ch	; l
-		db  6Ch	; l
-tioer:		db  69h	; i		
-		db  6Fh	; o
-		db  20h
-		db  65h	; e
-		db  72h	; r
-		db  72h	; r
-		db  6Fh	; o
-		db  72h	; r
-tbreak:		db  62h	; b		
-		db  72h	; r
-		db  65h	; e
-		db  61h	; a
-		db  6Bh	; k
-		db  20h
-		db  20h
-		db  20h
-cchar:		db  18h			
-		dw right
+tmf:		db 'mem full' ; Chybove hlasenia
+tioer:		db 'io error'
+tbreak:		db 'break   '
+
+cchar:		db  18h			; Ovladacie klavesy pre	editaciu zdrojoveho textu
+		dw right		; Editacia zdrojoveho textu - CS+8 - posun vpravo
 		db  19h
-		dw left
+		dw left			; Editacia zdrojoveho textu - CS+5 - posun vlavo
 		db  1Dh
-		dw tabr
+		dw tabr			; Editacia zdrojoveho textu - CS+4 - presun na dalsie pole vpravo
 		db  1Eh
-		dw tabl
+		dw tabl			; Editacia zdrojoveho textu - CS+1 - presun na predchadzajuce pole vlavo
 		db  14h
-		dw endadr
+		dw endadr		; Editacia zdrojoveho textu - SS+SPACE - skok na posledny znak v poli adresy
 		db  12h
-		dw insert
+		dw insert		; Editacia zdrojoveho textu - GRAPH - insert - vytvorenie miesta pre znak
 		db  13h
-		dw delete
+		dw delete		; Editacia zdrojoveho textu - DELETE - zmazanie	znaku
 		db  0Dh
-		dw eol
+		dw eol			; Editacia zdrojoveho textu - ENTER - vytvorenie noveho	prazdneho riadku pod aktualnym
 		db    7
-		dw delln
+		dw delln		; Editacia zdrojoveho textu - SS+CS - Zmazanie aktualneho riadku
 		db  17h
-		dw prevln
+		dw prevln		; Editacia zdrojoveho textu - CS+7 - prechod na	predchadzajuci riadok
 		db  1Ah
-		dw nextln
+		dw nextln		; Editacia zdrojoveho textu - CS+6 - skok na nasledujuci riadok
 		db  1Ch
-		dw previm
+		dw previm		; Editacia zdrojoveho textu - CS+2 - skok na nasledujucu stranku
 		db  1Fh
-		dw nxtvim
+		dw nxtvim		; Editacia zdrojoveho textu - CS+3 - skok na nasledujucu stranku
 		db  11h
-		dw edi
+		dw edi			; BREAK	- Ukoncenie editacie zdrojoveho	textu a	skok do	"edi>"
 		db    3
-		dw homeim
+		dw homeim		; Editacia zdrojoveho textu - SS+ENTER - obnovenie obrazovky
 		db    5
-		dw copyln
+		dw copyln		; Editacia zdrojoveho textu - CS+ENTER - zdvojenie aktualneho riadku
+
 startf:		db 0
-startf_1:	db 7			
+startf_1:	db 7
 		db 0Ch
 		db 20h
 		db 40h
-newcur:		dw 1700h		
+newcur:		dw 1700h
 aldind:		db 0
-ldind:		db 0			
-insyes:		db 0			
-ktab0:		db    0
+ldind:		db 0
+insyes:		db 0
+
+ktab0:		db    0			; Tabulka klavesnice - bez shiftu
 		db  7Ah	; z
 		db  78h	; x
 		db  63h	; c
@@ -430,8 +251,9 @@ ktab0:		db    0
 		db    0
 		db  6Dh	; m
 		db  6Eh	; n
-ktab1_1:	db  62h	; b		
-ktab1:		db    0
+ktab1_1:	db  62h	; b
+
+ktab1:		db    0			; Tabulka klavesnice - caps shift
 		db  5Ah	; Z
 		db  58h	; X
 		db  43h	; C
@@ -446,32 +268,33 @@ ktab1:		db    0
 		db  45h	; E
 		db  52h	; R
 		db  54h	; T
-		db  1Eh
-		db  1Fh
-		db  1Ch
-		db  1Dh
-		db  19h
-		db  13h
-		db  12h
-		db  18h
-		db  17h
-		db  1Ah
+		db  1Eh			; CS+1 edit
+		db  1Fh			; CS+2 caps lock
+		db  1Ch			; CS+3 true video
+		db  1Dh			; CS+4 inv video
+		db  19h			; CS+5 vlavo
+		db  13h			; CS+0 delete
+		db  12h			; CS+9 graph
+		db  18h			; CS+8 vpravo
+		db  17h			; CS+7 hore
+		db  1Ah			; CS+6 dole
 		db  50h	; P
 		db  4Fh	; O
 		db  49h	; I
 		db  55h	; U
 		db  59h	; Y
-		db    5
+		db    5			; CS+Enter
 		db  4Ch	; L
 		db  4Bh	; K
 		db  4Ah	; J
 		db  48h	; H
-		db  11h
-		db    7
+		db  11h			; CS+Space
+		db    7			; CS+SS	extend mode
 		db  4Dh	; M
 		db  4Eh	; N
-ktab2_1:	db  42h	; B		
-ktab2:		db    0
+ktab2_1:	db  42h	; B
+
+ktab2:		db    0			; Tabulka klavesnice - symbol shift
 		db  3Ah	; :
 		db    0
 		db  3Fh	; ?
@@ -511,131 +334,61 @@ ktab2:		db    0
 		db  2Eh	; .
 		db  2Ch	; ,
 		db  2Ah	; *
-tedi:		db  65h	; e		
-		db  64h	; d
-		db  69h	; i
-		db  3Eh	; >
-cedi:		db  6Dh	; m		
-		db  65h	; e
-		db  72h	; r
-		dw mertxt
-		db  73h	; s
-		db  61h	; a
-		db  76h	; v
-		dw savtxt
-		db  6Ch	; l
-		db  6Fh	; o
-		db  61h	; a
-		dw loatxt
-		db  64h	; d
-		db  69h	; i
-		db  73h	; s
-		dw dis
-		db  69h	; i
-		db  6Eh	; n
-		db  73h	; s
-		dw instxt
-		db  69h	; i
-		db  6Eh	; n
-		db  69h	; i
-		dw begedi
-		db  6Ch	; l
-		db  6Eh	; n
-		db  3Dh	; =
-		dw lclneq
-		db  6Ch	; l
-		db  6Eh	; n
-		db  2Bh	; +
-		dw lclnpl
-		db  6Ch	; l
-		db  6Eh	; n
-		db  2Dh	; -
-		dw lclnmi
-		db  64h	; d
-		db  6Ch	; l
-		db  62h	; b
-		dw delblk
-		db  63h	; c
-		db  70h	; p
-		db  62h	; b
-		dw cpyblk
+
+tedi:		db 'edi>'      ; Prompt modulu "edi>"
+cedi:		db 'mer'          ; Prikazy modulu "edi>"
+		dw mertxt		; Prikaz edi>mer - prihratie noveho zdrojoveho textu do	stareho
+		db 'sav'
+		dw savtxt		; Prikaz edi>sav - ulozenie zdrojoveho textu
+		db 'loa'
+		dw loatxt		; Prikaz edi>loa - nahratie zdrojoveho textu
+		db 'dis'
+		dw dis			; Prikaz edi>dis - spetny prekladac strojoveho kodu do zdrojoveho textu
+		db 'ins'
+		dw instxt		; Prikaz edi>ins - moznost pluginu pre vytvaranie zdrojoveho textu
+		db 'ini'
+		dw begedi		; Prikaz edi>ini - Inicializacia zdrojaku a start celoobrazovkoveho editora
+		db 'ln='
+		dw lclneq		; Prikaz edi>ln= - skok	na dane	miesto zdrojoveho textu
+		db 'ln+'
+		dw lclnpl		; Prikaz edi>ln+ - skok	o dany pocet riadkov v zdrojovom texte dopredu
+		db 'ln-'
+		dw lclnmi		; Prikaz edi>ln- - skok	o dany pocet riadkov v zdrojovom texte nazad
+		db 'dlb'
+		dw delblk		; Prikaz edi>dlb - Zmazanie casti zdrojoveho textu
+		db 'cpb'
+		dw cpyblk		; Prikaz edi>dlb - Skopirovanie	casti zdrojoveho textu
 		db 0FFh
-tmonit:		db  6Dh	; m		
-		db  72h	; r
-		db  73h	; s
-		db  3Eh	; >
-cmonit:		db  65h	; e		
-		db  64h	; d
-		db  69h	; i
-		dw edi
-		db  61h	; a
-		db  73h	; s
-		db  6Dh	; m
-		dw asm
-		db  64h	; d
-		db  62h	; b
-		db  67h	; g
-		dw dbg
-		db  6Ch	; l
-		db  6Eh	; n
-		db  6Bh	; k
-		dw lnk
-		db  6Ch	; l
-		db  69h	; i
-		db  62h	; b
-		dw lib
-		db  61h	; a
-		db  6Ch	; l
-		db  64h	; d
-		dw ald
-		db  6Dh	; m
-		db  6Fh	; o
-		db  6Eh	; n
-		dw exit
-		db  72h	; r
-		db  75h	; u
-		db  6Eh	; n
-		dw run
+
+tmonit:		db 'mrs>'      ; Prompt modulu "mrs>"
+cmonit:		db 'edi'          ; Prikazy modulu "mrs>"
+		dw edi			; Prikaz mrs>edi - skok	do modulu edi>
+		db 'asm'
+		dw asm			; Prikaz mrs>asm - preklad zdrojoveho textu
+		db 'dbg'
+		dw dbg			; Prikaz mrs>dbg - spustenie debuggera
+		db 'lnk'
+		dw lnk			; Prikaz mrs>lnk - linkovanie zdrojoveho textu
+		db 'lib'
+		dw lib			; Prikaz mrs>lib - skok	do modulu lib>
+		db 'ald'
+		dw ald			; Prikaz mrs>ald - Preklad a linkovanie	zdrojoveho textu a potom skok do debuggera
+		db 'mon'
+		dw exit			; Prikaz mrs>mon - ukoncenie MRS a navrat do basicu
+		db 'run'
+		dw run			; Prikaz mrs>run - spustenie skompilovaneho programu od	jeho entry pointu
 		db    0
-cright:		db  70h	; p		
-		db  72h	; r
-		db  6Fh	; o
-		db  67h	; g
-		db  72h	; r
-		db  61h	; a
-		db  6Dh	; m
-		db  20h
-		db  7Ah	; z
-		db  61h	; a
-		db  64h	; d
-		db  61h	; a
-		db  72h	; r
-		db  6Dh	; m
-		db  6Fh	; o
-		db  20h
-		db  7Fh	; 
-		db  20h
-		db  55h	; U
-		db  41h	; A
-		db  4Bh	; K
-		db  20h
-		db  42h	; B
-		db  72h	; r
-		db  61h	; a
-		db  74h	; t
-		db  69h	; i
-		db  73h	; s
-		db  6Ch	; l
-		db  61h	; a
-		db  76h	; v
-		db  61h	; a
+
+cright:		db 'program zadarmo ' ; Copyright
+		db 7Fh
+		db ' UAK Bratislava'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Studeny start	MRS po nahradi do pameti
 ; Inicializuje a zmaze zdrojovy	text
 
-cold_start:
+cold_start:				; Vymazanie celeho zdrojoveho textu a tabulky navesti
 		call	inival
 
 ; Teply	start MRS
@@ -644,13 +397,13 @@ cold_start:
 warm_start:
 		di
 		ld	sp, stack_init
-		call	clear
-		call	bbc
-		ld	(stack), sp
+		call	clear		; Zmazanie obrazovky
+		call	bbc		; Zmazanie casti buffera pre cislo editovaneho riadku
+		ld	(stack), sp	; Hodnota SP pri spusteni systemu MRS
 		ld	hl, 2027h
 		ld	(sent),	hl
 		ld	hl, 5800h
-		ld	(poscur), hl
+		ld	(poscur), hl	; Aktualna pohoha blikajuceho atributu na obrazovke
 		ld	h, 0
 		ld	(krept), hl
 
@@ -660,28 +413,28 @@ warm_start:
 ;;		  ;;
 ;;;;;;;;;;;;;;;;;;;;
 
-monit:					
+monit:					; Vstup	do modulu "mrs>"
 		ld	hl, 50E0h
-		ld	de, cright
-		call	loutb
+		ld	de, cright	; Copyright
+		call	loutb		; Vypis	zadaneho textu a zmazanie kurzora
 		ld	h, 3
-		call	wmg
-		ld	hl, tmonit
-		ld	de, cmonit
+		call	wmg		; Chvilka cakania
+		ld	hl, tmonit	; Prompt modulu	"mrs>"
+		ld	de, cmonit	; Prikazy modulu "mrs>"
 
-ctrl:					
+ctrl:
 		ld	bc, 401h
-		call	mrs
+		call	mrs_x		; Dialogovy riadok a biely border
 		jp	(hl)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-run:					
+run:					; Prikaz mrs>run - spustenie skompilovaneho programu od	jeho entry pointu
 		call	getend
 		dec	de
-		ld	(memtop), de
-		call	sysmod
-		jr	monit
+		ld	(memtop), de	; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		call	sysmod		; Entry	point do skompilovaneho	programu
+		jr	monit		; Vstup	do modulu "mrs>"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -691,78 +444,80 @@ run:
 ;;		  ;;
 ;;;;;;;;;;;;;;;;;;;;
 
-edi:					
+edi:					; Prikaz mrs>edi - skok	do modulu edi>
 		xor	a
 		ld	(ldind), a
 		ld	(insyes), a
-		ld	hl, tedi
-		ld	de, cedi
+		ld	hl, tedi	; Prompt modulu	"edi>"
+		ld	de, cedi	; Prikazy modulu "edi>"
 		jp	ctrl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-inival:					
+inival:					; Vymazanie celeho zdrojoveho textu a tabulky navesti
 		call	slnini
-		ld	(lastln), hl
+		ld	(lastln), hl	; Adresa posledneho riadku v zdrojovom texte
 		ld	(hl), a
 		dec	hl
-		ld	(adstab), hl
+		ld	(adstab), hl	; Adresa tabulky navesti
 		ld	(hl), a
 		ld	h, a
 		ld	l, a
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Navrat do basicu
 
-exit:					
+exit:					; Prikaz mrs>mon - ukoncenie MRS a navrat do basicu
 		ld	iy, 5C3Ah
 		ei
-		rst	8
-		rst	38h
+		rst	8		; Basic	error handler
 
-begedi:					
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		db 0FFh			; Hlasenie "OK"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+begedi:					; Prikaz edi>ini - Inicializacia zdrojaku a start celoobrazovkoveho editora
 		call	clear
-		call	inival
+		call	inival		; Vymazanie celeho zdrojoveho textu a tabulky navesti
 		jr	edit2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-edit0:					
+edit0:					; Vyraznejsi zvukovy signal so zachovanim AF
 		call	beep
 
-edit1:					
-					
+edit1:
 		ld	a, (insyes)
 		or	a
-		call	z, unpln0
+		call	z, unpln0	; Nacita a depakuje aktualny riadok zdrojoveho textu do	textoveho buffera
 		jr	z, edit3
-		call	iinsln
+		call	iinsln		; Posun	obrazovky smerom dole
 
-edit2:					
+edit2:					; Zmazanie textoveho buffera
 		call	blank
 
-edit3:					
-					
+edit3:
 		xor	a
 		ld	(newcur), a
 		ld	l, a
-		call	wlnnum
-		ld	a, 9
+		call	wlnnum		; Vypis	cisla editovaneho riadku vpravo	dole
+		ld	a, 9		; ed3_jmp - ed3	- 2
 
-wrrow1:					
+wrrow1:
 		ld	(ed3+1), a
 
-wrrow:					
-					
+wrrow:
 		ld	a, (row)
 		ld	h, a
-		call	setcrs
-		call	outbf0
+		call	setcrs		; Zmazanie kurzora na starej a zobrazenie na novej pozicii
+		call	outbf0		; Vypis	textoveho buffera na riadok obrazovky dany kurzorom
 		ld	h, 0FEh	; ''
-		call	inkey
+		call	inkey		; ; Obsluha klavesnice s autorepeatom
 		ld	de, wrrow
 		push	de
 		ld	b, a
@@ -771,13 +526,13 @@ wrrow:
 		cp	20h ; ' '
 		jp	nc, ascii
 
-ctrlch:					
+ctrlch:
 		push	hl
 		ld	bc, 3
 		ld	de, 1007h
-		ld	hl, cchar
+		ld	hl, cchar	; Ovladacie klavesy pre	editaciu zdrojoveho textu
 
-ed1a:					
+ed1a:
 		cp	(hl)
 		jr	z, ed2
 		add	hl, bc
@@ -785,7 +540,7 @@ ed1a:
 		dec	d
 		jr	nz, ed1a
 
-ed2:					
+ed2:
 		inc	hl
 		ld	c, (hl)
 		inc	hl
@@ -797,8 +552,7 @@ ed2:
 		pop	bc
 		pop	af
 
-ed3:					
-					
+ed3:
 		jr	$
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -811,19 +565,20 @@ ed3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+ed3_jmp:
 		dec	d
 		jp	m, cherr
 		ld	a, d
 		cp	7
 		push	bc
 		ret	z
-		call	chblk
+		call	chblk		; Hladanie konca textu v textovom bufferi
 		jr	nz, ed4
-		ld	hl, (curent)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		ld	a, (hl)
 		or	a
 
-ed4:					
+ed4:
 		call	nz, pln
 		jr	z, ed5
 
@@ -831,24 +586,23 @@ cherr0:
 		ld	l, a
 		pop	af
 
-cherr:					
+cherr:					; Vyraznejsi zvukovy signal so zachovanim AF
 		call	beep
 		jp	wrrow
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ed5:					
+ed5:
 		ld	(insyes), a
 		inc	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pln:					
-
+pln:					; Spakovanie textoveho riadku do formatu zdrojoveho textu
 		call	packln
 		ret	nz
-		ld	hl, pdline
+		ld	hl, pdline	; Buffer pre spakovany riadok zdrojoveho textu
 		bit	7, (hl)
 		dec	hl
 		jr	nz, pc0
@@ -860,10 +614,10 @@ pln:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pc0:					
+pc0:
 		dec	hl
 
-pc0_1:					
+pc0_1:
 		ld	a, (hl)
 		rra
 		jr	c, pc3
@@ -874,7 +628,7 @@ pc0_1:
 		ld	a, (hl)
 		and	7
 
-pc1:					
+pc1:
 		cp	6
 		ld	a, 0Ch
 		ret	nz
@@ -882,48 +636,48 @@ pc1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pc2:					
+pc2:
 		cp	10h
 		jr	z, pc3
 		ld	a, (hl)
 		cp	0EBh ; ''
 		jr	z, pc1
 
-pc3:					
+pc3:					; Overenie ci je medzi koncom kniznice a zaciatkom zdrojoveho textu aspon 64 bajtov miesta
 		call	tstend
-		jp	nc, wtmf
-		ld	de, buffer
+		jp	nc, wtmf	; Chybove hlasenie "MEM FULL"
+		ld	de, buffer	; Textovy buffer pre jeden riadok na obrazovke
 		ld	bc, 40h	; '@'
 		ex	de, hl
 		ldir
 		push	de
-		ld	hl, pdline
-		call	unpln
+		ld	hl, pdline	; Buffer pre spakovany riadok zdrojoveho textu
+		call	unpln		; Nacita a depakuje riadok zdrojoveho textu do textoveho buffera
 		pop	de
 		ld	hl, buffer_end
 
-pc4:					
+pc4:
 		dec	de
 		ld	a, (de)
 		cp	(hl)
 		ld	a, l
 
-rnznop:					
+rnznop:
 		ret	nz
 		dec	l
 		jp	p, pc4
 		ld	a, (insyes)
 		or	a
 		jr	nz, rw2
-		ld	hl, (curent)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		or	(hl)
 		jr	z, rw2
-		ld	de, pdline
+		ld	de, pdline	; Buffer pre spakovany riadok zdrojoveho textu
 		ld	a, (de)
 		and	7Fh ; ''
 		ld	c, a
 
-rw1:					
+rw1:
 		dec	c
 		jp	m, rw3
 		ld	a, (de)
@@ -931,35 +685,31 @@ rw1:
 		dec	hl
 		dec	de
 		jr	z, rw1
-		call	mdelln
+		call	mdelln		; Zmazanie aktualneho riadku v zdrojovom texte
 
-rw2:					
+rw2:					; Vlozenie noveho riadku do zdrojoveho textu
 		call	minsln
 
-rw3:					
+rw3:					; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ld	hl, (cursor)
 		ld	a, 1Fh
 		cp	l
 		ld	l, 0
-		call	c, outbuf
+		call	c, outbuf	; Vypis	textoveho buffera na dany riadok obrazovky
 		xor	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outln:					
+outln:					; Nacita, depakuje a vypise aktualny riadok zdrojoveho textu
 		push	de
-		call	unpln0
+		call	unpln0		; Nacita a depakuje aktualny riadok zdrojoveho textu do	textoveho buffera
 		pop	de
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-outbf0:					
+outbf0:					; Vypis	textoveho buffera na riadok obrazovky dany kurzorom
 		ld	hl, (cursor)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-outbuf:					
+outbuf:					; Vypis	textoveho buffera na dany riadok obrazovky
 		push	bc
 		push	de
 		push	hl
@@ -972,10 +722,10 @@ outbuf:
 		jr	c, ob1
 		ld	e, a
 
-ob1:					
+ob1:
 		ld	a, (de)
 		push	hl
-		call	setch0
+		call	setch0		; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, H = riadok, L = stlpec)
 		pop	hl
 		dec	e
 		dec	l
@@ -986,16 +736,16 @@ ob1:
 		xor	a
 		inc	a
 
-expnt:					
+expnt:
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tstend:					
+tstend:					; Overenie ci je medzi koncom kniznice a zaciatkom zdrojoveho textu aspon 64 bajtov miesta
 		call	getend
 		ld	hl, -40h
 		add	hl, de
-		ld	de, (libtop)
+		ld	de, (libtop)	; Koniec kniznice a zaciatok volnej pamete
 		ld	a, e
 		sub	l
 		ld	a, d
@@ -1004,7 +754,7 @@ tstend:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-abscps:					
+abscps:					; Prepocet riadku v H (0-23) a stlpca v	L (0-31) na adresu vo videoramke
 		ld	a, h
 		rrca
 		rrca
@@ -1020,19 +770,15 @@ abscps:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setchr:					
+setchr:					; Vykreslenie jedneho znaku na aktualnu	poziciu	podla kurzora
 		ld	hl, (cursor)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-setch0:					
+setch0:					; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, H = riadok, L = stlpec)
 		push	af
-		call	abscps
+		call	abscps		; Prepocet riadku v H (0-23) a stlpca v	L (0-31) na adresu vo videoramke
 		pop	af
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-pixel:					
+pixel:					; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, DE = pozicia vo videoram)
 		push	hl
 		push	de
 		push	bc
@@ -1042,11 +788,11 @@ pixel:
 		add	hl, hl
 		add	hl, hl
 		add	hl, hl
-		ld	bc, rom_font
+		ld	bc, rom_font	; Znakovy subor
 		add	hl, bc
 		ld	b, 8
 
-px1:					
+px1:
 		ld	a, (hl)
 		ld	(de), a
 		inc	d
@@ -1059,14 +805,19 @@ px1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-invpix:					
-					
+;   invpix - invertuje znak obrazovky.
+;	     vstup:  <h> - riadok <0-23>
+;		     <l> - stlpec <0-31>
+;	     vystup:
+;	     meni sa:  <af>
+
+invpix:					; Invertovanie znaku na	obrazovke
 		push	hl
 		push	bc
-		call	abscps
+		call	abscps		; Prepocet riadku v H (0-23) a stlpca v	L (0-31) na adresu vo videoramke
 		ld	b, 8
 
-ipx1:					
+ipx1:
 		ld	a, (hl)
 		cpl
 		ld	(hl), a
@@ -1078,9 +829,15 @@ ipx1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-setcrs:					
+;   setcrs - na	povodnom mieste	sa jazdec (blikajuci stvorcek) zmaze
+;	     a na pozicii, ktoru udava premenna	cursor sa objavi.
+;	     vstup:  cursor = nova pozicia jazdca
+;	     vystup:
+;	     meni sa:<af>
+
+setcrs:					; Zmazanie kurzora na starej a zobrazenie na novej pozicii
 		push	hl
-		ld	hl, (poscur)
+		ld	hl, (poscur)	; Aktualna pohoha blikajuceho atributu na obrazovke
 		res	7, (hl)
 		pop	hl
 		push	hl
@@ -1090,7 +847,7 @@ setcrs:
 		jr	c, scr1
 		ld	a, 1Fh
 
-scr1:					
+scr1:
 		ld	d, 58h ; 'X'
 		ld	e, a
 		ld	l, h
@@ -1102,21 +859,26 @@ scr1:
 		add	hl, hl
 		add	hl, de
 		pop	de
-		ld	(poscur), hl
+		ld	(poscur), hl	; Aktualna pohoha blikajuceho atributu na obrazovke
 		set	7, (hl)
 		pop	hl
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-clear:					
+;   clear  - vymazanie obrazovky.
+;	     vstup:
+;	     vystup:
+;	     meni sa:  vsetko
+
+clear:					; Zmazanie obrazovky
 		ld	hl, 4000h
 		ld	de, 4001h
 		ld	bc, 1800h
 		ld	(hl), 0
 		ldir
-		ld	(poscur), hl
+		ld	(poscur), hl	; Aktualna pohoha blikajuceho atributu na obrazovke
 		ld	(hl), 38h ; '8'
 		ld	bc, 2FFh
 		ldir
@@ -1124,12 +886,12 @@ clear:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-iiid:					
+iiid:					; Skopirovanie jedneho textoveho riadku
 		push	hl
 		push	bc
 		ld	a, 8
 
-iid1:					
+iid1:
 		ld	bc, 20h	; ' '
 		push	de
 		push	hl
@@ -1146,17 +908,17 @@ iid1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-idelln:					
+idelln:					; Posun	(casti)	obrazovky smerom hore
 		ld	hl, (cursor)
 
-idel:					
+idel:					; Posun	(casti)	obrazovky smerom hore
 		sub	h
 		ret	z
 		ld	b, a
 		ld	l, 0
-		call	abscps
+		call	abscps		; Prepocet riadku v H (0-23) a stlpca v	L (0-31) na adresu vo videoramke
 
-ii0:					
+ii0:
 		ld	d, h
 		ld	a, l
 		add	a, 20h ; ' '
@@ -1167,16 +929,16 @@ ii0:
 		add	a, h
 		ld	h, a
 
-ii1:					
+ii1:					; Skopirovanie jedneho textoveho riadku
 		call	iiid
 		djnz	ii0
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-iinsln:					
+iinsln:					; Posun	obrazovky smerom dole
 		ld	a, 16h
-		ld	hl, (cursor)
+		ld	hl, (cursor)	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		sub	h
 		ret	z
 		ret	c
@@ -1184,7 +946,7 @@ iinsln:
 		ld	de, 50C0h
 		ld	b, a
 
-id0:					
+id0:					; Skopirovanie jedneho textoveho riadku
 		call	iiid
 		ex	de, hl
 		ld	a, e
@@ -1196,15 +958,19 @@ id0:
 		sub	8
 		ld	h, a
 
-id1:					
+id1:
 		djnz	id0
 		ret
 
-; Nacitanie stavu klavesnice
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-scan:					
+;   scan   - ohmatanie	klavesnice. modul zisti, ci je niektory	klaves stlaceny
+;	     vstup:
+;	     vystup: <a> = 0 ak	nie je nic stlacene, alebo ak je  slacena
+;			     nelegalna kombinacia klaves (napr ss alebo	ss/a)
+;	     meni sa:  <af>
+
+scan:					; Nacitanie stavu klavesnice
 		push	bc
 		ld	bc, 0FEh ; ''
 		in	a, (c)
@@ -1219,11 +985,11 @@ scan:
 		ld	hl, 0
 		ld	e, 1
 
-ks3:					
+ks3:
 		in	a, (c)
 		ld	d, 5
 
-ks4:					
+ks4:
 		rrca
 		jr	c, ks1
 		inc	h
@@ -1232,37 +998,37 @@ ks4:
 		ld	h, l
 		ld	l, e
 
-ks1:					
+ks1:
 		inc	e
 		dec	d
 		jr	nz, ks4
 		rlc	b
 		jr	c, ks3
 		ex	de, hl
-		ld	hl, insyes
+		ld	hl, insyes	; Tabulka klavesnice - bez shiftu
 		inc	d
 		dec	d
 		jr	z, kte
 		inc	e
 		dec	e
 		jr	z, addd
-		ld	hl, ktab1_1
+		ld	hl, ktab1_1	; Tabulka klavesnice - caps shift
 		ld	a, 1
 		cp	d
 		jr	z, adde
 		cp	e
 		jr	z, addd
-		ld	hl, ktab2_1
+		ld	hl, ktab2_1	; Tabulka klavesnice - symbol shift
 		ld	a, 25h ; '%'
 		cp	d
 		jr	z, adde
 		cp	e
 		jr	z, addd
 
-kerr:					
+kerr:
 		xor	a
 
-kret:					
+kret:
 		pop	hl
 		pop	de
 		pop	bc
@@ -1270,10 +1036,10 @@ kret:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-addd:					
+addd:
 		ld	e, d
 
-adde:					
+adde:
 		ld	d, 0
 		add	hl, de
 		ld	a, (hl)
@@ -1281,20 +1047,27 @@ adde:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-kte:					
+kte:
 		inc	e
 		dec	e
 		jr	z, kerr
 		jr	adde
 
-; Obsluha klavesnice s autorepeatom
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-inkey:					
+;   inkey  - citanie jedneho znaku z klavesnice	 s  automatickym  opakovanim.
+;	     modul  caka,  kym	nie je stlaceny	klaves.	 po opaetovnom volani
+;	     vykonava  automaticke  opakovanie,	 teda  podrzanie  klavesu  ma
+;	     rovnaky  ucinok  ako jej opaetovne	stlacanie.  stlacenie klavesu
+;	     je	indikovane zvukom.
+;	     vstup:
+;	     vystup: <a> = ascii kod stlacenej klavesy
+;	     meni sa:  <af>
+
+inkey:					; ; Obsluha klavesnice s autorepeatom
 		push	bc
 
-inkey1:					
+inkey1:					; Nacitanie stavu klavesnice
 		call	scan
 		or	a
 		jr	nz, in3
@@ -1303,15 +1076,15 @@ inkey1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-in3:					
+in3:
 		ld	bc, 1000h
 
-wait1:					
+wait1:
 		dec	c
 		jr	nz, wait1
 		djnz	wait1
 		ld	c, a
-		call	scan
+		call	scan		; Nacitanie stavu klavesnice
 		cp	c
 		jr	nz, inkey1
 		ld	a, (krept+1)
@@ -1322,150 +1095,146 @@ wait1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-repeat:					
+repeat:
 		ld	a, (krept)
 		ld	b, a
 
-rep1:					
+rep1:
 		xor	a
 
-rep2:					
+rep2:
 		dec	a
 		jr	nz, rep2
-		call	scan
+		call	scan		; Nacitanie stavu klavesnice
 		cp	c
 		jr	nz, inkey1
 		djnz	rep1
 		ld	a, 19h
 
-sin1:					
+sin1:
 		ld	(krept), a
 		ld	a, c
 		ld	(krept+1), a
 		push	af
 		or	a
-		call	bbeep
+		call	bbeep		; Zvukovy signal (CY=0:kratsi pip, CY=1:dlhsi pip)
 		pop	af
 		pop	bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-scroll:
+scroll:					; Posun	obrazovky smerom hore
 		ld	hl, (cursor)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-scrol1:					
+scrol1:					; Posun	obrazovky smerom hore
 		ld	a, 17h
 		push	hl
 		push	de
 		ld	hl, 0
-		ld	(cursor), hl
-		call	idelln
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
+		call	idelln		; Posun	(casti)	obrazovky smerom hore
 		pop	de
 		pop	hl
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-copyln:					
+copyln:					; Editacia zdrojoveho textu - CS+ENTER - zdvojenie aktualneho riadku
 		call	iinsln
 		scf
 
-eol:					
+eol:					; Editacia zdrojoveho textu - ENTER - vytvorenie noveho	prazdneho riadku pod aktualnym
 		ld	a, 1
 		ld	(insyes), a
 
-nextln:					
+nextln:					; Editacia zdrojoveho textu - CS+6 - skok na nasledujuci riadok
 		ld	d, a
 		ld	hl, edit1
 		jr	nc, nl1
 		ld	hl, edit3
 
-nl1:					
+nl1:
 		push	hl
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-rollup:					
+rollup:					; Adresa aktualneho riadku v zdrojovom texte
 		ld	hl, (curent)
-		call	skln
-		jp	z, beep
-		call	outcrl
+		call	skln		; Preskoc riadok zdrojoveho textu na ktory ukazuje HL a	nastav sa na dalsi riadok
+		jp	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
+		call	outcrl		; Presun kurzora na zaciatok noveho riadku
 		ld	a, (insyes)
 		or	a
-		call	z, outln
+		call	z, outln	; Nacita, depakuje a vypise aktualny riadok zdrojoveho textu
 		dec	d
 		jr	nz, rollup
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prevln:					
+prevln:					; Editacia zdrojoveho textu - CS+7 - prechod na	predchadzajuci riadok
 		ld	hl, edit1
 		push	hl
 
-rolldw:
+rolldw:					; Cislo	aktualneho riadku v zdrojovom texte
 		ld	hl, (lnnumb)
 		ex	de, hl
 		dec	de
 		inc	d
-		jp	z, beep
+		jp	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		dec	d
-		call	sline
+		call	sline		; Najdi	DE-ty riadok v zdrojovom texte
 		ld	hl, row
 		dec	(hl)
 		ret	p
 		inc	(hl)
-		call	iinsln
-		jp	outln
+		call	iinsln		; Posun	obrazovky smerom dole
+		jp	outln		; Nacita, depakuje a vypise aktualny riadok zdrojoveho textu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lcln1:					
+lcln1:					; Nacitaj ciselny parameter a dalsiu navratovu adresu natav na potom vstup do editora
 		ex	de, hl
-		call	dcbn
+		call	dcbn		; Prevod desiatkoveho cisla na 16bit hodnotu
 		ld	a, (hl)
 		or	a
 		jp	nz, mrs3
 		ld	a, d
 		or	e
-		ld	hl, cted
+		ld	hl, cted	; Vstup	do celoobrazovkoveho editora
 		ex	(sp), hl
 		jp	(hl)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lclneq:					
+lclneq:					; Prikaz edi>ln= - skok	na dane	miesto zdrojoveho textu
 		ex	de, hl
-		call	getlbl
+		call	getlbl		; Vyhladanie navestia v	tabulke	navesti
 		jr	nc, lclnlb
-		call	dcbn
+		call	dcbn		; Prevod desiatkoveho cisla na 16bit hodnotu
 		ld	a, (hl)
 		or	a
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		ld	a, d
 		or	e
 		dec	de
 		jp	nz, cted
 
-homeim:					
+homeim:					; Editacia zdrojoveho textu - SS+ENTER - obnovenie obrazovky
 		ld	hl, (lnnumb)
 		ex	de, hl
 		jp	cted
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lclnlb:					
+lclnlb:					; Aktualny riadok zdrojoveho textu bude	prvy (nastavi aj cislo riadku)
 		call	slnini
 		ld	e, c
 
-llb1:					
+llb1:
 		ld	a, (hl)
 		add	a, a
-		jp	z, mrs2
+		jp	z, mrs2		; Oprava textu zadaneho	v module "mrs"
 		jr	nc, llb2
 		dec	hl
 		ld	a, (hl)
@@ -1473,31 +1242,31 @@ llb1:
 		cp	e
 		jp	z, outscr
 
-llb2:					
+llb2:					; Preskoc riadok zdrojoveho textu na ktory ukazuje HL a	nastav sa na dalsi riadok
 		call	skln
 		jr	llb1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lclnpl:					
+lclnpl:					; Prikaz edi>ln+ - skok	o dany pocet riadkov v zdrojovom texte dopredu
 		call	lcln1
-		ld	hl, (lnnumb)
+		ld	hl, (lnnumb)	; Cislo	aktualneho riadku v zdrojovom texte
 		add	hl, de
 		jr	c, llp1
 		ex	de, hl
 		ret	nz
 
-llp1:					
+llp1:
 		ld	de, -1
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lclnmi:					
+lclnmi:					; Prikaz edi>ln- - skok	o dany pocet riadkov v zdrojovom texte nazad
 		call	lcln1
-		call	neg
+		call	neg		; Zneguje hodnotu DE = -DE
 
-imctn:					
+imctn:					; Cislo	aktualneho riadku v zdrojovom texte
 		ld	hl, (lnnumb)
 		add	hl, de
 		ex	de, hl
@@ -1509,10 +1278,10 @@ imctn:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-previm:					
+previm:					; Editacia zdrojoveho textu - CS+2 - skok na nasledujucu stranku
 		scf
 
-nxtvim:					
+nxtvim:					; Editacia zdrojoveho textu - CS+3 - skok na nasledujucu stranku
 		sbc	a, a
 		ld	d, a
 		xor	17h
@@ -1527,84 +1296,79 @@ nxtvim:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-slnini:					
+slnini:					; Aktualny riadok zdrojoveho textu bude	prvy (nastavi aj cislo riadku)
 		xor	a
 		ld	h, a
 		ld	l, a
-		ld	(lnnumb), hl
+		ld	(lnnumb), hl	; Cislo	aktualneho riadku v zdrojovom texte
 
-crtnin:					
+crtnin:					; Aktualny riadok zdrojoveho textu bude	prvy
 		ld	hl, ramtop
-		ld	(curent), hl
+		ld	(curent), hl	; Adresa aktualneho riadku v zdrojovom texte
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-sline:					
+sline:					; Najdi	DE-ty riadok v zdrojovom texte
 		call	slnini
 
-sl1:					
+sl1:
 		ld	a, d
 		or	e
 		ret	z
-		call	skln
+		call	skln		; Preskoc riadok zdrojoveho textu na ktory ukazuje HL a	nastav sa na dalsi riadok
 		ret	z
 		dec	de
 		jr	sl1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cntedi:
+cntedi:					; Najdi	posledny riadok	v zdrojovom texte
 		call	slln
 		ld	d, a
 		ld	e, a
 
-cted:					
-					
+cted:					; Najdi	DE-ty riadok v zdrojovom texte
 		call	sline
 
-outscr:					
+outscr:					; Zmazanie obrazovky
 		call	clear
-		ld	hl, (lnnumb)
+		ld	hl, (lnnumb)	; Cislo	aktualneho riadku v zdrojovom texte
 		push	hl
 		ld	hl, 0
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		push	hl
-		ld	hl, (curent)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		push	hl
 		ld	d, 16h
 		call	rollup
 		pop	hl
-		ld	(curent), hl
+		ld	(curent), hl	; Adresa aktualneho riadku v zdrojovom texte
 		pop	hl
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		pop	hl
-		ld	(lnnumb), hl
+		ld	(lnnumb), hl	; Cislo	aktualneho riadku v zdrojovom texte
 		jp	edit1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-slln0:					
+slln0:					; Zrus navratovu adresu	a najdi	posledny riadok	v zdrojovom texte
 		pop	de
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-slln:					
+slln:					; Najdi	posledny riadok	v zdrojovom texte
 		ld	de, -1
-		call	sline
-		ld	(lastln), hl
+		call	sline		; Najdi	DE-ty riadok v zdrojovom texte
+		ld	(lastln), hl	; Adresa posledneho riadku v zdrojovom texte
 		dec	hl
-		ld	(adstab), hl
+		ld	(adstab), hl	; Adresa tabulky navesti
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-negbc0:					
+negbc0:					; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		ld	a, (hl)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-negbc:					
+negbc:					; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		and	7Fh ; ''
 		ld	b, 0FFh
 		cpl
@@ -1614,7 +1378,7 @@ negbc:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-neg:					
+neg:					; Zneguje hodnotu DE = -DE
 		ld	a, e
 		cpl
 		ld	e, a
@@ -1626,7 +1390,7 @@ neg:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cmhlde:					
+cmhlde:					; Porovnanie HL	a DE
 		ld	a, h
 		cp	d
 		ret	nz
@@ -1636,35 +1400,35 @@ cmhlde:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-skln:					
+skln:					; Preskoc riadok zdrojoveho textu na ktory ukazuje HL a	nastav sa na dalsi riadok
 		ld	a, (hl)
 		or	a
 		ret	z
 		push	hl
-		ld	hl, (lnnumb)
+		ld	hl, (lnnumb)	; Cislo	aktualneho riadku v zdrojovom texte
 		inc	hl
-		ld	(lnnumb), hl
+		ld	(lnnumb), hl	; Cislo	aktualneho riadku v zdrojovom texte
 		pop	hl
 
-skipln:					
+skipln:					; Presun na dalsi riadok v zdrojovom texte
 		call	negbc0
 		add	hl, bc
-		ld	(curent), hl
+		ld	(curent), hl	; Adresa aktualneho riadku v zdrojovom texte
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-chblk:					
+chblk:					; Hladanie konca textu v textovom bufferi
 		ld	b, 40h ; '@'
 
 chblk1:
 		ld	l, b
 
-endad1:					
+endad1:					; Hladanie konca textu od danej	pozicie
 		ld	h, 0FEh	; ''
 		ld	a, 20h ; ' '
 
-ea1:					
+ea1:
 		dec	l
 		ret	m
 		cp	(hl)
@@ -1675,64 +1439,64 @@ ea1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-mdelln:					
+mdelln:					; Zmazanie aktualneho riadku v zdrojovom texte
 		ld	a, (insyes)
 		or	a
 		ret	nz
-		call	getend
-		call	negbc0
+		call	getend		; Zistenie kde v pameti	zacina zdrojovy	text
+		call	negbc0		; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		ret	z
 
-md1:					
+md1:
 		push	hl
 		add	hl, bc
-		call	cmhlde
+		call	cmhlde		; Porovnanie HL	a DE
 		ld	a, (hl)
 		pop	hl
 		ld	(hl), a
 		dec	hl
 		jr	nz, md1
-		ld	hl, (lastln)
+		ld	hl, (lastln)	; Adresa posledneho riadku v zdrojovom texte
 		sbc	hl, bc
-		ld	(lastln), hl
+		ld	(lastln), hl	; Adresa posledneho riadku v zdrojovom texte
 		dec	hl
-		ld	(adstab), hl
+		ld	(adstab), hl	; Adresa tabulky navesti
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-minsln:					
+minsln:					; Vlozenie noveho riadku do zdrojoveho textu
 		call	getend
 		ex	de, hl
 		dec	hl
-		ld	a, (pdline)
-		call	negbc
+		ld	a, (pdline)	; Buffer pre spakovany riadok zdrojoveho textu
+		call	negbc		; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		ret	z
 
-mi1:					
+mi1:
 		inc	hl
 		push	hl
 		ld	a, (hl)
 		add	hl, bc
 		ld	(hl), a
 		pop	hl
-		call	cmhlde
+		call	cmhlde		; Porovnanie HL	a DE
 		jr	nz, mi1
-		ld	hl, (lastln)
+		ld	hl, (lastln)	; Adresa posledneho riadku v zdrojovom texte
 		add	hl, bc
-		ld	(lastln), hl
+		ld	(lastln), hl	; Adresa posledneho riadku v zdrojovom texte
 		dec	hl
-		ld	(adstab), hl
-		ld	hl, (curent)
+		ld	(adstab), hl	; Adresa tabulky navesti
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 
-cpl2:
+cpl2:					; Buffer pre spakovany riadok zdrojoveho textu
 		ld	de, pdline
 		push	de
 		ld	a, (de)
 		and	7Fh ; ''
 		ld	c, a
 
-mi2:					
+mi2:
 		ld	a, (de)
 		ld	(hl), a
 		dec	de
@@ -1745,29 +1509,29 @@ mi2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getend:					
+getend:					; Zistenie kde v pameti	zacina zdrojovy	text
 		ld	hl, (adstab)
 		ld	c, (hl)
-		call	vstoas
-		ld	hl, (curent)
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-delln:					
+delln:					; Editacia zdrojoveho textu - SS+CS - Zmazanie aktualneho riadku
 		ld	bc, 0
-		call	wlnnu0
-		call	chblk
-		ld	hl, (curent)
+		call	wlnnu0		; Vypis	cisla vpravo dole (0 = iba zmazanie)
+		call	chblk		; Hladanie konca textu v textovom bufferi
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		jr	nz, dl10
 		ld	a, (hl)
 		or	a
 		jp	z, edit0
 
-dl10:					
+dl10:
 		push	hl
 		ld	a, 16h
-		call	idelln
+		call	idelln		; Posun	(casti)	obrazovky smerom hore
 		ld	hl, insyes
 		ld	d, (hl)
 		ld	(hl), 0
@@ -1780,7 +1544,7 @@ dl10:
 		add	a, d
 		ld	e, a
 
-dl1:					
+dl1:					; Presun na dalsi riadok v zdrojovom texte
 		call	skipln
 		ld	a, e
 		jr	z, dl2
@@ -1789,61 +1553,72 @@ dl1:
 		cp	e
 		jr	nc, dl1
 
-dl2:					
+dl2:
 		ld	(row), a
-		call	outln
+		call	outln		; Nacita, depakuje a vypise aktualny riadok zdrojoveho textu
 		pop	hl
-		ld	(curent), hl
+		ld	(curent), hl	; Adresa aktualneho riadku v zdrojovom texte
 		pop	af
 		ld	(row), a
 
-dl3:					
+dl3:
 		dec	d
-		call	m, mdelln
+		call	m, mdelln	; Zmazanie aktualneho riadku v zdrojovom texte
 		jp	edit1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outcrl:					
+outcrl:					; Presun kurzora na zaciatok noveho riadku
 		ld	a, 0Dh
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;   outchr - vypisuje znak na  poziciu	oznacenu  jazdcom  a  jazdca  posunie
+;	     doprava.	na  konci  riadku  prejde  na  novy  riadok, na	konci
+;	     obrazovky posunie obrazovku hore.	outchr spravne	osetri	tieto
+;	     riadiace znaky:
+;
+;	       #19 - posun jazdca vlavo
+;	       #18 - posun jazdca vpravo
+;	       #0d - ukoncenie riadku a	prechod	na novy	riadok
+;
+;	     na	obrazovke sa jazdec nezobrazi, (zabezpecuje to modul  setcrs)
+;	     modifikuje	sa len premenna	cursor.
+;	     vstup:  <a> = kod znaku
+;	     vystup:
+;	     meni sa:  <af>
 
-outchr:					
-					
+outchr:					; Vypis	jedneho	znaku na obrazovku
 		cp	0Ah
 		ret	z
 		cp	0Ch
 		ret	z
 		push	hl
-		ld	hl, (cursor)
+		ld	hl, (cursor)	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		cp	20h ; ' '
 		jp	c, spec
 		push	hl
-		call	setchr
+		call	setchr		; Vykreslenie jedneho znaku na aktualnu	poziciu	podla kurzora
 		pop	hl
 		inc	l
 		ld	a, 20h ; ' '
 		sub	l
 		jr	nz, newc
 
-newl:					
+newl:
 		ld	l, a
 		ld	a, h
 		sub	16h
 		adc	a, 16h
 		ld	h, a
-		call	nc, scrol1
+		call	nc, scrol1	; Posun	obrazovky smerom hore
 
-newc:					
-					
+newc:					; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ld	(cursor), hl
 		pop	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-spec:					
+spec:
 		sub	0Dh
 		jr	z, newl
 		ld	de, newc
@@ -1860,7 +1635,7 @@ spec:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lvlavo:					
+lvlavo:
 		dec	l
 		ret	p
 		inc	l
@@ -1868,7 +1643,7 @@ lvlavo:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-delete:					
+delete:					; Editacia zdrojoveho textu - DELETE - zmazanie	znaku
 		ld	a, (hl)
 		cp	20h ; ' '
 		jr	nz, de1
@@ -1876,7 +1651,7 @@ delete:
 		push	hl
 		ld	l, 40h ; '@'
 
-de0:					
+de0:
 		dec	l
 		cp	(hl)
 		jr	z, de0
@@ -1894,11 +1669,11 @@ de0:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-de1:					
+de1:
 		call	field0
 		ld	e, l
 
-de2:					
+de2:
 		cp	l
 		ld	(hl), 20h ; ' '
 		ex	de, hl
@@ -1913,13 +1688,13 @@ de2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-insert:					
+insert:					; Editacia zdrojoveho textu - GRAPH - insert - vytvorenie miesta pre znak
 		call	field0
 		ld	d, a
 		ld	a, l
 		ld	l, d
 
-in1:					
+in1:
 		cp	l
 		ld	(hl), 20h ; ' '
 		ret	z
@@ -1932,24 +1707,24 @@ in1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ascii:					
+ascii:
 		call	qcomst
 		jr	c, spctab
 		ld	(hl), b
 
-right:					
+right:					; Editacia zdrojoveho textu - CS+8 - posun vpravo
 		ld	a, 3Eh ; '>'
 		cp	l
-		jr	c, beep
+		jr	c, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		inc	l
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-spctab:					
+spctab:
 		inc	a
 
-st1:					
+st1:
 		cp	l
 		ret	z
 		ld	(hl), 20h ; ' '
@@ -1958,7 +1733,7 @@ st1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-chcc:					
+chcc:					; Textovy buffer pre jeden riadok na obrazovke
 		ld	a, (buffer)
 		cp	3Bh ; ';'
 		ret	z
@@ -1970,28 +1745,28 @@ chcc:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabr:					
+tabr:					; Editacia zdrojoveho textu - CS+4 - presun na dalsie pole vpravo
 		call	chcc
-		jr	z, beep
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		call	field
 		sub	3Fh ; '?'
 		adc	a, 3Fh ; '?'
 		cp	l
-		jr	z, beep
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		ld	l, a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabl:					
+tabl:					; Editacia zdrojoveho textu - CS+1 - presun na predchadzajuce pole vlavo
 		call	chcc
-		jr	z, beep
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		call	field
 		ld	a, l
 		or	a
-		jr	z, beep
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 
-tl1:					
+tl1:
 		dec	de
 		ld	a, (de)
 		cp	l
@@ -2001,35 +1776,35 @@ tl1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-endadr:					
+endadr:					; Editacia zdrojoveho textu - SS+SPACE - skok na posledny znak v poli adresy
 		call	chcc
-		jr	z, beep
-		ld	a, (buffer)
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
+		ld	a, (buffer)	; Textovy buffer pre jeden riadok na obrazovke
 		ld	b, 20h ; ' '
 		ld	l, 20h ; ' '
-		jp	endad1
+		jp	endad1		; Hladanie konca textu od danej	pozicie
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-left:					
+left:					; Editacia zdrojoveho textu - CS+5 - posun vlavo
 		ld	a, (newcur)
 		cp	l
-		jr	z, beep
+		jr	z, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		dec	l
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-beep:					
+beep:					; Vyraznejsi zvukovy signal so zachovanim AF
 		push	af
 		scf
-		call	bbeep
+		call	bbeep		; Zvukovy signal (CY=0:kratsi pip, CY=1:dlhsi pip)
 		pop	af
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-bbeep:					
+bbeep:					; Zvukovy signal (CY=0:kratsi pip, CY=1:dlhsi pip)
 		push	hl
 		push	de
 		push	bc
@@ -2041,7 +1816,7 @@ bbeep:
 		ld	hl, 50h	; 'P'
 		ld	de, 14h
 
-bbp:					
+bbp:					; Rutinka BEEP
 		call	sysbep
 		di
 		pop	iy
@@ -2052,15 +1827,15 @@ bbp:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-field0:					
+field0:
 		call	chcc
 		ld	a, 3Fh ; '?'
 		ret	z
 
-field:					
+field:
 		ld	de, startf_1
 
-fd1:					
+fd1:
 		ld	a, (de)
 		dec	a
 		cp	l
@@ -2070,7 +1845,7 @@ fd1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-qcomst:					
+qcomst:
 		sub	20h ; ' '
 		ret	nz
 		ld	a, (row)
@@ -2091,11 +1866,11 @@ qcoms0:
 		ret	c
 		ld	de, buffer_params
 
-qc1:					
+qc1:
 		ccf
 		push	af
 
-qc2:					
+qc2:
 		ld	a, l
 		cp	e
 		jr	nz, qc3
@@ -2104,7 +1879,7 @@ qc2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-qc3:					
+qc3:
 		ld	a, (de)
 		inc	de
 		cp	27h ; '''
@@ -2114,30 +1889,59 @@ qc3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-mrsb:					
+mrsb:					; Vypis	osemznakoveho chyboveho	hlasenia
 		ld	bc, 801h
 
-mrsd:					
+mrsd:					; Dialogovy riadok bez vyhodnocovania prikazov
 		ld	de, 0
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-mrs:					
+mrs_x:					; Dialogovy riadok a biely border
 		ld	a, 0Fh
 		out	(0FEh),	a
 		xor	a
 
-mrsp:					
+;   mrs	   - praca s dialogovym	riadkom.  modul	 vypise	 pozadovany  text  do
+;	     dialogoveho  riadku,  nacita  vstupny text	a podla	poziadavky ho
+;	     analyzuje na trojznakove prikazy.	 vyvolanim  tohto  modulu  ma
+;	     uzivatel  k dispozicii vsetky funkcie, ktore su popisane v	opise
+;	     prace s modulom mrs.  to znamena,	ze  na	editovanie  textu  je
+;	     mozne   vyuzit   klavesy  caps shift/5,8,9,0  vstup  textu	 vzdy
+;	     ukoncuje klavesa enter
+;
+;	     vstup:  <a> = cislo pozicie v dialogovom riadku, od ktorej	sa ma
+;	     vypisat pozadovany	text (0-31)
+;		     <hl> = adresa vypisovaneho	textu
+;		     <b> = dlzka vypisovaneho textu.  ak  <b>  =  0  text  sa
+;	     nevypisuje
+;		     <c> = 0 nic sa necita.  inac sa cita text z klavesnice a
+;	     uklada sa do bufra	od adresy #fe00.
+;		     <de> = adresa tabulky trojznakovych prikazov.  ak <de> =
+;	     0	, nacitany text	sa neanalyzuje.	 v tabulke nasleduju za	sebou
+;	     vzdy trojznakova skratka prikazu a	adresa	obsluzneho  programu.
+;	     tabulka  je zakoncena binarnou 0.	ak je pozadovana tato analyza
+;	     modul nevrati riadenie,  kym  uzivatel  nenapise  riadok,	ktory
+;	     zacina pripustnym prikazom.
+;
+;	     vystup: <b> = pocet  nacitanych  znakov  bez  enter.    nacitany
+;	     retazec je	ukonceny binarnou 0.
+;		     <de> = adresa   nacitaneho	  retazca.     pokial	 bola
+;	     pozadovana	 analyza trojznakovych prikazov, ukazuje <de> na prvy
+;	     znak za prikazom.
+;		     <hl> = ak	 bola	pozadovana   analyza	trojznakovych
+;	     prikazov, obsahuje	adresu prislusneho podprogramu.
+;	     meni sa:  <af>, <bc>, <de>, <hl>
+
+mrs:					; Praca	s dialogovym riadkom
 		push	hl
-		call	blank
+		call	blank		; Zmazanie textoveho buffera
 		pop	hl
 
-mrsin:					
+mrsin:					; Praca	s nezmazanym dialogovym	riadkom
 		push	de
 		ld	e, a
 		ld	d, 0FEh	; ''
 
-mrs1:					
+mrs1:
 		ld	a, (hl)
 		ld	(de), a
 		inc	hl
@@ -2145,43 +1949,43 @@ mrs1:
 		djnz	mrs1
 		ld	l, b
 		ld	h, 17h
-		call	outbuf
+		call	outbuf		; Vypis	textoveho buffera na dany riadok obrazovky
 		ld	a, e
 		pop	de
 		dec	c
 		ret	m
-		ld	(atabr), de
+		ld	(atabr), de	; Adresa tabulky prikazov dekodovanych pri praci s dialogovym riadkom
 		ld	(newcur), a
-		ld	(leftm1), a
+		ld	(leftm1), a	; Pozicia prveho editovatelneho	znaku za promptom
 		pop	hl
-		ld	(anavp), hl
+		ld	(anavp), hl	; Navratova adresa pri zavolani	"mrs" aby sa "mrs2" vedel kam sa vratit
 
-znovu:					
+znovu:
 		push	hl
-		ld	hl, (cursor)
-		ld	(oldchr), hl
+		ld	hl, (cursor)	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
+		ld	(oldchr), hl	; Miesto pre odlozenie aktualnej polohy	kurzoru
 		ld	hl, (newcur)
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		xor	a
 		call	wrrow1
-		call	chblk
+		call	chblk		; Hladanie konca textu v textovom bufferi
 		inc	l
 		ld	(hl), 0
-		ld	(adzero), hl
-		ld	hl, (oldchr)
-		ld	(cursor), hl
-		ld	hl, (atabr)
+		ld	(adzero), hl	; Poloha nuloveho bajtu	za zadanym textom
+		ld	hl, (oldchr)	; Miesto pre odlozenie aktualnej polohy	kurzoru
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
+		ld	hl, (atabr)	; Adresa tabulky prikazov dekodovanych pri praci s dialogovym riadkom
 		ld	a, h
 		or	l
 		ret	z
 		ld	d, 0FEh	; ''
 
-nextc:					
+nextc:					; Pozicia prveho editovatelneho	znaku za promptom
 		ld	a, (leftm1)
 		ld	e, a
 		ld	bc, 3
 
-nc3:					
+nc3:
 		ld	a, (de)
 		sub	(hl)
 		jr	nz, nc1
@@ -2197,67 +2001,79 @@ nc3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-nc1:					
+nc1:
 		inc	c
 		inc	c
 		add	hl, bc
 		xor	a
 		sub	(hl)
 		jp	m, nextc
-		ld	hl, cmonit
+		ld	hl, cmonit	; Prikazy modulu "mrs>"
 		jr	nz, nextc
 
-mrs3:					
+mrs3:
 		pop	af
 
-mrs2:					
+;   mrs2   - umozni opravit text nacitany modulom mrs.
+;	     musi mu predchadzat volanie modulu	mrs s citanim retazca.
+;	     vstup:  pouzije informacie	ziskane	pri praci modulu mrs.
+;		     modul mrs2	sa !!!!!!  musi	volat instrukciou jp mrs2 !!!!!!
+;	     vystup:  rovnaky ako pri module mrs
+;	     meni sa:  <af>, <bc>, <de>, <hl>
+
+mrs2:					; Oprava textu zadaneho	v module "mrs"
 		call	beep
-		ld	a, (leftm1)
+		ld	a, (leftm1)	; Pozicia prveho editovatelneho	znaku za promptom
 		ld	(newcur), a
-		ld	hl, (adzero)
+		ld	hl, (adzero)	; Poloha nuloveho bajtu	za zadanym textom
 		ld	(hl), 20h ; ' '
-		ld	hl, (anavp)
+		ld	hl, (anavp)	; Navratova adresa pri zavolani	"mrs" aby sa "mrs2" vedel kam sa vratit
 		jr	znovu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pntchr:					
+;   pntchr - vytlacenie	jedneho	znaku na tlaciaren.
+;	     vstup:  <a> - kod tlaceneho znaku.
+;	     vystup:
+;	     meni sa:  <af>
+
+pntchr:					; Vytlacenie jedneho znaku na tlaciaren
 		jp	expnt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-opschr:					
+opschr:					; Vypis	jedneho	znaku pre vypis	listingu na obrazovke alebo tlaciarni
 		push	bc
 		push	hl
 
-opsch3:					
+opsch3:					; Volanie rutinky pre vypis jedneho znaku listingu (outchr = obrazovka,	pntchr = tlaciaren)
 		call	rom_0
-		call	scan
+		call	scan		; Nacitanie stavu klavesnice
 		cp	11h
 
-break:					
+break:
 		ld	hl, tbreak
 		jp	z, wtmf_3
 		cp	53h ; 'S'
 		jr	nz, wt2
 
-wt1:					
+wt1:					; Nacitanie stavu klavesnice
 		call	scan
 		cp	51h ; 'Q'
 		jr	nz, wt1
 
-wt2:					
+wt2:
 		pop	hl
 		pop	bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-analax:					
+analax:					; Vyhodnotenie riadku zacinajuceho hviezdickou
 		push	de
 		push	hl
 		push	hl
-		call	chblk
+		call	chblk		; Hladanie konca textu v textovom bufferi
 		inc	hl
 		ld	(hl), 0
 		ex	(sp), hl
@@ -2266,58 +2082,58 @@ analax:
 		inc	hl
 		cp	70h ; 'p'
 		jr	nz, ax0
-		call	dcbn
+		call	dcbn		; Prevod desiatkoveho cisla na 16bit hodnotu
 		ld	a, d
 		or	a
 		jr	nz, ax6
 		ld	d, 1
-		ld	(newpag), de
+		ld	(newpag), de	; Pocet	riadkov	na jednu stranu	listingu zadany	pomocou	direktivy *p
 		jr	ax5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ax0:					
+ax0:
 		cp	63h ; 'c'
 		jr	nz, ax1
-		call	hxbn
-		ld	(pcode), de
+		call	hxbn		; Prevod hexadecimalneho cisla na 16bit	hodnotu
+		ld	(pcode), de	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		jr	ax5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ax1:					
+ax1:					; Vypis	jedneho	znaku na obrazovku
 		ld	bc, outchr
 		cp	74h ; 't'
 		jr	z, ax2
-		ld	bc, pntchr
+		ld	bc, pntchr	; Vytlacenie jedneho znaku na tlaciaren
 		cp	6Ch ; 'l'
 		jr	nz, ax3
 		ld	a, 87h ; ''
 
-ax2:					
+ax2:
 		sub	67h ; 'g'
-		ld	(scrlp+1), a
-		ld	(opsch3+1), bc
+		ld	(scrlp+1), a	; Znak pre vypis listingu (0x0D	= obrazovka, 0x20 = tlaciaren)
+		ld	(opsch3+1), bc	; Volanie rutinky pre vypis jedneho znaku listingu (outchr = obrazovka,	pntchr = tlaciaren)
 		jr	ax5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ax3:					
+ax3:
 		sub	61h ; 'a'
 		jr	z, ax4
 		cp	4
 		jr	nz, ax6
-		ld	a, 2Ch ; ','
+		ld	a, 2Ch ;     ; bbc - lind - 2 - 4
 
-ax4:					
+ax4:
 		add	a, 4
-		ld	(lind+1), a
+		ld	(lind+1), a	; Skok pre vypis listingu: 0x04	= vsetko, 0x30 = iba chybne riadky
 
-ax5:					
+ax5:
 		ld	a, (hl)
 		or	a
 
-ax6:					
+ax6:
 		pop	hl
 		ld	(hl), 20h ; ' '
 		pop	hl
@@ -2326,37 +2142,37 @@ ax6:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wmg:					
+wmg:					; Chvilka cakania
 		djnz	$
 		dec	hl
 		ld	a, h
 		or	l
-		jr	nz, wmg
+		jr	nz, wmg		; Chvilka cakania
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-savtxt:					
+savtxt:					; Prikaz edi>sav - ulozenie zdrojoveho textu
 		call	getend
-		ld	hl, lastln
-		ld	bc, edi
+		ld	hl, lastln	; Adresa posledneho riadku v zdrojovom texte
+		ld	bc, edi		; Prikaz mrs>edi - skok	do modulu edi>
 		ld	a, 0FFh
 
-save:					
+save:
 		push	bc
 		ld	(ind_1+1), a
 		ld	bc, buffer_instr
 		push	bc
 		ld	a, (bc)
 		cp	20h ; ' '
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		sbc	hl, de
 		ex	de, hl
 		ex	(sp), hl
 		ld	(hl), 3
 		xor	a
 
-sa1_edi:				
+sa1_edi:
 		inc	hl
 		cp	(hl)
 		jr	nz, sa1_edi
@@ -2373,7 +2189,7 @@ sa1_edi:
 		inc	hl
 		ld	(hl), d
 
-ind_1:					
+ind_1:
 		ld	a, 0
 		inc	hl
 		ld	(hl), a
@@ -2382,54 +2198,54 @@ ind_1:
 		xor	a
 		ld	de, 11h
 		ld	ix, buffer_instr
-		call	save_4C6
+		call	save_4C6	; Ukladanie na pasku
 		jr	nc, exsav
 		ld	hl, 500h
-		call	wmg
+		call	wmg		; Chvilka cakania
 		ld	de, (buffer_dlzka)
 		ld	ix, (buffer_adresa)
 		ld	a, 0FFh
-		call	save_4C6
+		call	save_4C6	; Ukladanie na pasku
 
-exsav:					
+exsav:
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-loatxt:					
+loatxt:					; Prikaz edi>loa - nahratie zdrojoveho textu
 		ld	hl, slln0
 		ld	a, 21h ; '!'
 		jr	lmtxt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-mertxt:					
+mertxt:					; Prikaz edi>mer - prihratie noveho zdrojoveho textu do	stareho
 		ld	hl, text
 		ld	a, 1
 
-lmtxt:					
+lmtxt:
 		ld	(ld10+1), hl
 		ld	(loamer), a
 		ld	a, 1
-		ld	hl, edi
+		ld	hl, edi		; Prikaz mrs>edi - skok	do modulu edi>
 
-load:					
+load:
 		ld	(ldind), a
 		ld	a, (de)
 		inc	de
 		cp	20h ; ' '
 		jr	z, lo1
 		or	a
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		dec	a
 		ld	(de), a
 
-lo1:					
+lo1:
 		push	hl
 		ld	hl, 50E0h
 		call	blvst
 
-lo2:					
+lo2:					; Rychly test klavesy BREAK
 		call	brktst
 		ret	nc
 		xor	a
@@ -2440,7 +2256,7 @@ lo2:
 		jr	nc, lo2
 		ld	h, 17h
 		ld	l, 0
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ld	hl, buffer_comment
 		ld	a, (hl)
 		cp	3
@@ -2450,9 +2266,9 @@ lo2:
 		ld	c, b
 		ld	de, buffer_meno
 
-lo3:					
+lo3:
 		ld	a, (hl)
-		call	outchr
+		call	outchr		; Vypis	jedneho	znaku na obrazovku
 		ld	a, (de)
 		inc	a
 		jr	z, lo52
@@ -2461,15 +2277,15 @@ lo3:
 		dec	de
 		ld	a, 20h ; ' '
 
-lo51:					
+lo51:
 		cp	(hl)
 		jr	z, lo5
 		ld	c, 1
 
-lo5:					
+lo5:
 		inc	de
 
-lo52:					
+lo52:
 		inc	hl
 		djnz	lo3
 		dec	c
@@ -2492,7 +2308,7 @@ lo52:
 		jr	nz, lo2
 		inc	a
 
-lo53:					
+lo53:
 		ld	hl, ldind
 		cp	(hl)
 		jr	nz, lo2
@@ -2507,7 +2323,7 @@ lo53:
 		push	hl
 		add	hl, de
 		ex	de, hl
-		ld	hl, (lastln)
+		ld	hl, (lastln)	; Adresa posledneho riadku v zdrojovom texte
 		ld	a, e
 		sub	l
 		ld	a, d
@@ -2517,53 +2333,45 @@ lo53:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lo6:					
+lo6:					; Adresa posledneho riadku v zdrojovom texte
 		ld	hl, (lastln)
 		ld	bc, -852h
 		add	hl, bc
 
-loamer:					
+loamer:					; Adresa posledneho riadku v zdrojovom texte
 		ld	bc,  lastln+1
 		sbc	hl, de
-		jr	c, wtmf
+		jr	c, wtmf		; Chybove hlasenie "MEM FULL"
 		push	de
 		ex	de, hl
-		ld	hl, (libtop)
-		ld	(memory), hl
+		ld	hl, (libtop)	; Koniec kniznice a zaciatok volnej pamete
+		ld	(memory), hl	; Koniec kniznice a zaciatok volnej pamete
 		ld	a, l
 		sub	e
 		ld	a, h
 		sbc	a, d
 		ex	de, hl
 
-lo7:					
+lo7:
 		pop	de
 		jr	c, lo9
 
-wtmf:					
+wtmf:					; Chybove hlasenie "MEM FULL"
 		ld	hl, tmf
 
-wtmf_3:					
+wtmf_3:					; Hodnota SP pri spusteni systemu MRS
 		ld	sp, (stack)
-		call	mrsb
-		jp	monit
+		call	mrsb		; Vypis	osemznakoveho chyboveho	hlasenia
+		jp	monit		; Vstup	do modulu "mrs>"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lo9:					
+lo9:
 		call	text
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		db  20h
-		db  6Ch	; l
-		db  6Fh	; o
-		db  61h	; a
-		db  64h	; d
-		db  69h	; i
-		db  6Eh	; n
-		db  67h	; g
-		db    0
+		db ' loading',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -2576,25 +2384,19 @@ lo9:
 		call	mgld
 		pop	hl
 		jr	c, ld10
-		call	brktst
+		call	brktst		; Rychly test klavesy BREAK
 		ret	nc
 		ld	hl, tioer
-		jp	mrsb
+		jp	mrsb		; Vypis	osemznakoveho chyboveho	hlasenia
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ld10:					
-					
+ld10:
 		call	text
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		db  20h
-		db  77h	; w
-		db  61h	; a
-		db  69h	; i
-		db  74h	; t
-		db    0
+		db ' wait',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -2602,17 +2404,17 @@ ld10:
 		ld	e, l
 		ld	d, h
 
-lo11:					
+lo11:					; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		call	negbc0
 		add	hl, bc
 		jr	nz, lo11
 		dec	hl
 		ex	de, hl
 
-loains:					
+loains:					; Vkladanie novych riadkov do zdrojoveho textu
 		ld	(calins+1), bc
 
-ld2:					
+ld2:
 		push	de
 		ld	a, 1
 		ld	(insyes), a
@@ -2620,34 +2422,34 @@ ld2:
 		dec	a
 		jr	z, ld3
 		push	hl
-		call	blank
-		call	tstend
+		call	blank		; Zmazanie textoveho buffera
+		call	tstend		; Overenie ci je medzi koncom kniznice a zaciatkom zdrojoveho textu aspon 64 bajtov miesta
 		pop	hl
 		pop	de
-		jr	nc, wtmf
+		jr	nc, wtmf	; Chybove hlasenie "MEM FULL"
 
-calins:					
+calins:					; Volanie daneho podprogramu pre ziskanie jedneho riadku zdrojoveho textu
 		call	rom_0
-		jp	c, edi
+		jp	c, edi		; Prikaz mrs>edi - skok	do modulu edi>
 		push	de
 		jr	ld4
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ld3:					
+ld3:
 		ex	(sp), hl
-		ld	de, (adstab)
-		ld	(adstab), hl
+		ld	de, (adstab)	; Adresa tabulky navesti
+		ld	(adstab), hl	; Adresa tabulky navesti
 		ex	(sp), hl
 		push	de
-		call	unpln
+		call	unpln		; Nacita a depakuje riadok zdrojoveho textu do textoveho buffera
 		pop	de
-		ld	(adstab), de
+		ld	(adstab), de	; Adresa tabulky navesti
 
-ld4:					
+ld4:
 		push	hl
 
-ld5:					
+ld5:
 		xor	a
 		ld	(rnznop), a
 		call	pln
@@ -2655,10 +2457,10 @@ ld5:
 		ld	(rnznop), a
 		jr	z, ld6
 		ld	h, 3
-		call	wmg
-		call	brktst
+		call	wmg		; Chvilka cakania
+		call	brktst		; Rychly test klavesy BREAK
 		jp	nc, break
-		call	wlnnum
+		call	wlnnum		; Vypis	cisla editovaneho riadku vpravo	dole
 		xor	a
 		ld	(row), a
 		call	wrrow1
@@ -2666,9 +2468,9 @@ ld5:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ld6:					
+ld6:					; Adresa aktualneho riadku v zdrojovom texte
 		ld	hl, (curent)
-		call	skln
+		call	skln		; Preskoc riadok zdrojoveho textu na ktory ukazuje HL a	nastav sa na dalsi riadok
 		pop	hl
 		pop	de
 		ld	a, (ldind)
@@ -2680,80 +2482,77 @@ ld6:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-instxt:					
+instxt:					; Prikaz edi>ins - moznost pluginu pre vytvaranie zdrojoveho textu
 		ld	bc, hxbn
-		call	getli0
-		jp	nz, mrs2
+		call	getli0		; Nacitanie intervalu dvoch cislic (BC = hxbn alebo dcbn)
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		ld	b, h
 		ld	c, l
 		ex	de, hl
-		jr	loains
+		jr	loains		; Vkladanie novych riadkov do zdrojoveho textu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dis1h:					
+dis1h:
 		ld	a, e
 		sub	l
 		ld	a, d
 		sbc	a, h
 		ret	c
 		push	de
-		call	disrow
+		call	disrow		; Disasemblovanie jednej instrukcie na adrese HL
 		pop	de
 		or	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-mgld:					
+mgld:
 		inc	d
 		ex	af, af'
 		dec	d
 		di
 		ld	a, 0Fh
 		out	(0FEh),	a
-		jp	load_562
+		jp	load_562	; Nacitanie z pasky
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-text:					
-					
+text:
 		ex	(sp), hl
 
-txt:					
+txt:
 		ld	a, (hl)
 		inc	hl
 		or	a
 		jr	z, endtx
-		call	outchr
+		call	outchr		; Vypis	jedneho	znaku na obrazovku
 		jr	txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-endtx:					
+endtx:
 		ex	(sp), hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getlim:					
+getlim:					; Nacitanie intervalu dvoch desiatkovych cislic	 DDDDD-DDDDD
 		ld	bc, dcbn
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-getli0:					
+getli0:					; Nacitanie intervalu dvoch cislic (BC = hxbn alebo dcbn)
 		ld	a, (de)
 		cp	20h ; ' '
 		ret	nz
 		inc	de
 		ex	de, hl
-		call	dh
+		call	dh		; call (bc)
 		ld	a, (hl)
 		cp	2Dh ; '-'
 		ret	nz
 		push	de
 		inc	hl
-		call	dh
+		call	dh		; call (bc)
 		ld	a, (hl)
 		pop	hl
 		or	a
@@ -2761,59 +2560,59 @@ getli0:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dis:					
+dis:					; Prikaz edi>dis - spetny prekladac strojoveho kodu do zdrojoveho textu
 		ld	bc, hxbn
-		call	getli0
-		jp	nz, mrs2
+		call	getli0		; Nacitanie intervalu dvoch cislic (BC = hxbn alebo dcbn)
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		ld	bc, dis1h
-		jp	loains
+		jp	loains		; Vkladanie novych riadkov do zdrojoveho textu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dh:					
+dh:					; call (bc)
 		push	bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wlnnum:					
+wlnnum:					; Vypis	cisla editovaneho riadku vpravo	dole
 		ld	bc, (lnnumb)
 		inc	bc
 
-wlnnu0:					
+wlnnu0:					; Vypis	cisla vpravo dole (0 = iba zmazanie)
 		push	hl
 		ld	hl, edi_riadok
 		push	hl
 		ld	a, b
 		or	c
-		call	nz, bndc
+		call	nz, bndc	; Prevod 16bit hodnoty na desiatkove cislo
 		pop	de
 		ld	hl, 50FCh
 
-wln1:					
+wln1:
 		ld	a, (de)
-		call	pixel
+		call	pixel		; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, DE = pozicia vo videoram)
 		inc	l
 		inc	e
 		jr	nz, wln1
-		call	bbc
+		call	bbc		; Zmazanie casti buffera pre cislo editovaneho riadku
 		pop	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-delblk:					
+delblk:					; Prikaz edi>dlb - Zmazanie casti zdrojoveho textu
 		call	getlim
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		cp	a
 		ex	de, hl
 		sbc	hl, de
-		jp	c, mrs2
+		jp	c, mrs2		; Oprava textu zadaneho	v module "mrs"
 		push	hl
 		dec	de
-		call	sline
+		call	sline		; Najdi	DE-ty riadok v zdrojovom texte
 
-dlb1:					
+dlb1:					; Zmazanie aktualneho riadku v zdrojovom texte
 		call	mdelln
 		pop	hl
 		ld	a, h
@@ -2822,17 +2621,17 @@ dlb1:
 		push	hl
 		jr	nz, dlb1
 		pop	hl
-		jp	edi
+		jp	edi		; Prikaz mrs>edi - skok	do modulu edi>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cpyblk:					
+cpyblk:					; Prikaz edi>dlb - Skopirovanie	casti zdrojoveho textu
 		call	getlim
 		dec	de
 		dec	hl
 		ld	a, 13h
 		ld	(inc2),	a
-		ld	bc, (lnnumb)
+		ld	bc, (lnnumb)	; Cislo	aktualneho riadku v zdrojovom texte
 		ld	a, c
 		sub	l
 		ld	a, b
@@ -2844,54 +2643,54 @@ cpyblk:
 		sub	c
 		ld	a, d
 		sbc	a, b
-		jp	nc, mrs2
+		jp	nc, mrs2	; Oprava textu zadaneho	v module "mrs"
 
-cpb1:					
+cpb1:
 		ccf
 		ex	de, hl
 		sbc	hl, de
 
-cpb2:					
+cpb2:
 		push	hl
 		push	de
 		push	bc
-		call	sline
-		ld	de, pdline
+		call	sline		; Najdi	DE-ty riadok v zdrojovom texte
+		ld	de, pdline	; Buffer pre spakovany riadok zdrojoveho textu
 		ld	a, (hl)
 		and	7Fh ; ''
 		ld	c, a
 		jr	z, cpb3
 		ld	b, 0
 		lddr
-		call	tstend
-		jp	nc, wtmf
+		call	tstend		; Overenie ci je medzi koncom kniznice a zaciatkom zdrojoveho textu aspon 64 bajtov miesta
+		jp	nc, wtmf	; Chybove hlasenie "MEM FULL"
 		pop	de
 		push	de
-		call	sline
-		call	minsln
+		call	sline		; Najdi	DE-ty riadok v zdrojovom texte
+		call	minsln		; Vlozenie noveho riadku do zdrojoveho textu
 
-cpb3:					
+cpb3:
 		pop	bc
 		pop	de
 		pop	hl
 		inc	bc
 		inc	de
 
-inc2:					
+inc2:
 		nop
 		ld	a, h
 		or	l
 		dec	hl
 		jr	nz, cpb2
-		jp	edi
+		jp	edi		; Prikaz mrs>edi - skok	do modulu edi>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-code:		db 0			
-flags:		db 0			
-nxtadr:		dw 0			
-erradr:		dw 0			
-errind:		db 0			
+code:		db 0			; Operacny kod instrukcie
+flags:		db 0
+nxtadr:		dw 0			; Adresa dalsej	instrukcie
+erradr:		dw 0
+errind:		db 0
 gstabh:		dw reg1
 		dw pair
 		dw _byte
@@ -2907,52 +2706,42 @@ gstabh:		dw reg1
 		dw agreg
 		dw shcnd
 		dw creg
-lastlb:		db 0			
-oprts:		db  2Bh	; +
+lastlb:		db 0
+
+oprts:		db  2Bh	; +		; Operatory pre	vyrazy v zdrojovom texte
 		db  2Dh	; -
 		db  2Ah	; *
 		db  2Fh	; /
 		db  26h	; &
 		db  21h	; !
-oprts_6:	db  40h	; @		
-regbse:		db  62h	; b
+oprts_6:	db  40h	; @
+
+regbse:		db  62h	; b		; 8-bitove registre
 		db  63h	; c
 		db  64h	; d
 		db  65h	; e
 		db  68h	; h
 		db  6Ch	; l
 		db    0
-regbse_7:	db  61h	; a		
-parbse:		db  62h	; b		
-		db  63h	; c
-		db  64h	; d
-		db  65h	; e
-		db  68h	; h
-		db  6Ch	; l
-		db  73h	; s
-		db  70h	; p
-		db  61h	; a
-		db  66h	; f
-		db  69h	; i
-		db  78h	; x
-		db  69h	; i
-		db  79h	; y
-cdrsf:		db  6Eh	; n		
-		db  7Ah	; z
-		db  7Ah	; z
-		db    0
-		db  6Eh	; n
-		db  63h	; c
-		db  63h	; c
-		db    0
-		db  70h	; p
-		db  6Fh	; o
-		db  70h	; p
-		db  65h	; e
-		db  70h	; p
-		db    0
-		db  6Dh	; m
-		db    0
+regbse_7:	db  61h	; a		; 8-bitove registre
+
+parbse:		db 'bc'              ; 16-bitove registre
+		db 'de'
+		db 'hl'
+		db 'sp'
+		db 'af'
+		db 'ix'
+		db 'iy'
+
+cdrsf:		db 'nz'              ; Podmienky v podmienenych skokoch
+		db 'z',  0
+		db 'nc'
+		db 'c',  0
+		db 'po'
+		db 'pe'
+		db 'p',  0
+		db 'm',  0
+
 mstab:		db 0FFh
 		db 0C7h	; 
 		db 0CFh	; 
@@ -2969,7 +2758,8 @@ mstab:		db 0FFh
 		db 0FFh
 		db 0E7h	; 
 		db 0FFh
-insbse:		db  68h	; h		
+
+insbse:		db  68h	; h
 		db  6Ch	; l
 		db 0F4h	; 
 		db  80h	; 
@@ -3501,7 +3291,7 @@ insbse:		db  68h	; h
 		db    0
 		db 0C7h	; 
 		db    0
-psibse:		db  65h	; e		
+psibse:		db  65h	; e
 		db  6Eh	; n
 		db 0F4h	; 
 		db    0
@@ -3534,41 +3324,41 @@ psibse:		db  65h	; e
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-packln:					
+packln:					; Spakovanie textoveho riadku do formatu zdrojoveho textu
 		ld	hl, pdline
 		xor	a
 		ld	(hl), a
 		ld	(errind), a
 		push	hl
 		ex	de, hl
-		ld	hl, buffer
+		ld	hl, buffer	; Textovy buffer pre jeden riadok na obrazovke
 		ld	a, (hl)
 		cp	20h ; ' '
 		jr	z, fnl
 		sub	3Bh ; ';'
 		jr	z, onlycm
-		cp	0EFh ; ''
+		cp	0EFh ; ''      ; cp '*'
 		jr	nz, lab
-		call	analax
+		call	analax		; Vyhodnotenie riadku zacinajuceho hviezdickou
 		jr	nz, emsg
 
-onlycm:					
+onlycm:
 		dec	de
 		ld	c, 41h ; 'A'
 
-onlylb:					
+onlylb:
 		dec	a
 		ld	(de), a
 		dec	de
 		ex	de, hl
-		ld	(nxtadr), hl
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
 		jp	comfld
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lab:					
+lab:
 		push	de
-		call	fndlbl
+		call	fndlbl		; Vyhladanie navestia v	tabulke	navesti
 		pop	de
 		jr	nz, emsg
 		ld	a, 80h ; ''
@@ -3579,7 +3369,7 @@ lab:
 		jr	c, emsg
 		ld	(de), a
 
-fnl:					
+fnl:
 		ld	a, 7
 		ld	(errind), a
 		ld	l, a
@@ -3589,16 +3379,16 @@ fnl:
 		sub	21h ; '!'
 		jr	c, onlylb
 		push	de
-		call	instr_asm
+		call	instr_asm	; Najdenie instrukcie Z80 podla	jej nazvu
 		pop	de
-		call	nz, pseudo
+		call	nz, pseudo	; Najdenie pseudoinstrukcie podla jej nazvu
 		jr	nz, emsg
 
-fn:					
+fn:
 		push	de
 		dec	de
 		dec	de
-		ld	(nxtadr), de
+		ld	(nxtadr), de	; Adresa dalsej	instrukcie
 		ld	a, (bc)
 		ld	d, a
 		rra
@@ -3609,7 +3399,7 @@ fn:
 		ld	e, a
 		inc	bc
 		ld	a, (bc)
-		ld	(code),	a
+		ld	(code),	a	; Operacny kod instrukcie
 		inc	bc
 		ld	a, d
 		or	e
@@ -3627,7 +3417,7 @@ fn:
 		call	getop1
 		jr	z, f2
 
-fx:					
+fx:
 		pop	af
 		pop	bc
 		pop	hl
@@ -3635,32 +3425,32 @@ fx:
 		rla
 		jr	nc, fn
 
-emsg:					
+emsg:
 		pop	de
 		ld	a, (errind)
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-f2:					
+f2:
 		pop	de
 		push	de
 		ld	a, e
 		or	a
 		jr	z, f5
 		ld	a, (hl)
-		cp	2Ch ; ','
+		cp	2Ch ; 
 		jr	nz, fx
 		inc	hl
 
-f4:					
+f4:
 		ld	a, e
 		or	a
 		jr	z, f5
 		call	getop2
 		jr	nz, fx
 
-f5:					
+f5:
 		ld	a, (hl)
 		cp	20h ; ' '
 		jr	nz, fx
@@ -3668,7 +3458,7 @@ f5:
 		pop	bc
 		pop	bc
 
-f6:					
+f6:
 		pop	bc
 		ld	a, (flags)
 		ld	(bc), a
@@ -3677,13 +3467,13 @@ f6:
 		and	10h
 		jr	nz, emsg
 
-f7:					
+f7:
 		dec	bc
-		ld	a, (code)
+		ld	a, (code)	; Operacny kod instrukcie
 		ld	(bc), a
 		push	af
 
-psq:					
+psq:
 		pop	af
 		ld	c, 21h ; '!'
 		ld	e, 1Fh
@@ -3695,23 +3485,23 @@ psq:
 		inc	e
 		jr	c, emsg
 
-comfld:					
+comfld:
 		ld	a, 20h ; ' '
 		ld	l, 3Fh ; '?'
 		ld	h, 0FEh	; ''
 
-cf1:					
+cf1:
 		dec	c
 		jr	z, cf2
 		cp	(hl)
 		dec	hl
 		jr	z, cf1
 
-cf2:					
+cf2:					; Adresa dalsej	instrukcie
 		ld	hl, (nxtadr)
 		jr	z, cf4
 
-cf3:					
+cf3:
 		ld	a, (de)
 		ld	(hl), a
 		inc	de
@@ -3719,7 +3509,7 @@ cf3:
 		dec	c
 		jr	nz, cf3
 
-cf4:					
+cf4:
 		pop	de
 		ex	de, hl
 		ld	a, l
@@ -3731,7 +3521,7 @@ cf4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-fndlbl:					
+fndlbl:					; Vyhladanie navestia v	tabulke	navesti
 		ld	a, (hl)
 		cp	24h ; '$'
 		ld	c, 0
@@ -3745,24 +3535,24 @@ fndlbl:
 		cp	(hl)
 		ret	c
 		ex	de, hl
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		ld	c, (hl)
 		inc	c
 		ex	de, hl
 		push	de
 
-fl1:					
+fl1:
 		pop	af
 		push	de
 		ld	a, c
 		ld	(lastlb), a
 
-fl3:					
+fl3:
 		dec	c
 
-jrz:					
+jrz:
 		jr	z, wrlbl
-		call	vstoas
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ld	a, (de)
 		or	a
 		jr	z, fl1
@@ -3770,7 +3560,7 @@ jrz:
 		push	de
 		ld	b, 6
 
-fl4:					
+fl4:
 		ld	a, (de)
 		and	7Fh ; ''
 		cp	(hl)
@@ -3779,7 +3569,7 @@ fl4:
 		inc	de
 		djnz	fl4
 
-leq:					
+leq:
 		pop	de
 		pop	de
 		inc	sp
@@ -3789,36 +3579,36 @@ leq:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-chneq:					
+chneq:
 		cp	20h ; ' '
 		jr	nz, lneq
-		call	aphnum
+		call	aphnum		; Zistenie ci dany znak	je alfanumericky 0-9 a-z
 		jr	nc, leq
 
-lneq:					
+lneq:
 		pop	de
 		pop	hl
 		jr	fl3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wrlbl:					
+wrlbl:
 		ex	(sp), hl
 		push	hl
 		ld	a, (hl)
 		or	a
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		jr	nz, wrl1
 		or	(hl)
 		jr	nz, wrl2
 
-wrl1:					
+wrl1:
 		inc	(hl)
 		ld	c, (hl)
 		jr	z, stf
-		call	vstoas
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ex	(sp), hl
-		ld	hl, (libtop)
+		ld	hl, (libtop)	; Koniec kniznice a zaciatok volnej pamete
 		ld	a, l
 		sub	e
 		ld	a, h
@@ -3826,28 +3616,28 @@ wrl1:
 		pop	hl
 		jr	c, wrl5
 
-stf:					
+stf:
 		dec	(hl)
-		jp	wtmf
+		jp	wtmf		; Chybove hlasenie "MEM FULL"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wrl2:					
+wrl2:
 		pop	de
 		ld	a, (lastlb)
 		ld	c, a
 
-wrl5:					
+wrl5:
 		pop	hl
 		ld	b, 6
 
-wrl3:					
+wrl3:					; Zistenie ci dany znak	je alfanumericky 0-9 a-z
 		call	aphnum
 		jr	c, wrl4
 		ld	a, 20h ; ' '
 		dec	hl
 
-wrl4:					
+wrl4:
 		ld	(de), a
 		inc	de
 		inc	hl
@@ -3857,7 +3647,7 @@ wrl4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-aphnum:					
+aphnum:					; Zistenie ci dany znak	je alfanumericky 0-9 a-z
 		ld	a, (hl)
 		cp	7Bh ; '{'
 		ret	nc
@@ -3867,22 +3657,22 @@ aphnum:
 		ret	nc
 		cp	30h ; '0'
 
-apq:					
+apq:
 		ccf
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getlbl:					
+getlbl:					; Vyhladanie navestia v	tabulke	navesti
 		ld	a, 17h
 		ld	(jrz+1), a
 		push	hl
-		call	fndlbl
+		call	fndlbl		; Vyhladanie navestia v	tabulke	navesti
 		ld	a, 28h ; '('
 		ld	(jrz+1), a
 		jr	c, glb2
 
-glb1:					
+glb1:					; Zistenie ci dany znak	je alfanumericky 0-9 a-z
 		call	aphnum
 		inc	hl
 		jr	c, glb1
@@ -3890,7 +3680,7 @@ glb1:
 		xor	a
 		cp	(hl)
 
-glb2:					
+glb2:
 		ex	de, hl
 		pop	hl
 		ret	c
@@ -3899,16 +3689,14 @@ glb2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-instr_asm:				
+instr_asm:				; Najdenie instrukcie Z80 podla	jej nazvu
 		ld	bc, insbse
 		ld	d, 1
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-fndpsi:					
+fndpsi:
 		push	hl
 
-a1:					
+a1:
 		ld	a, (bc)
 		cp	1
 		jr	nc, a2
@@ -3917,23 +3705,23 @@ a1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-a2:					
+a2:
 		ld	a, (bc)
 		and	7Fh ; ''
 		cp	(hl)
 		jr	z, ac
 
-a3:					
+a3:
 		ld	a, (bc)
 		inc	bc
 		rla
 		jr	nc, a3
 
-ax:					
+ax:
 		pop	hl
 		push	hl
 
-a4:					
+a4:
 		ld	a, (bc)
 		inc	bc
 		inc	d
@@ -3947,7 +3735,7 @@ a4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ac:					
+ac:
 		ld	a, (bc)
 		inc	bc
 		inc	hl
@@ -3962,48 +3750,45 @@ ac:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getop2:					
-
+getop2:
 		cp	1
 		jr	z, reg2
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-getop1:					
+getop1:
 		ld	de,  erradr+1
 		ld	b, a
 		and	10h
 		ld	a, b
-		jp	z, pgcnt
+		jp	z, pgcnt	; Skok na adresu ulozenu v N-tej polozke v tabulke (A =	index polozky)
 		ld	a, (hl)
 		inc	hl
 		cp	28h ; '('
 		ld	a, b
-		call	z, pgcix
+		call	z, pgcix	; Skok na adresu ulozenu v N-tej polozke v tabulke (A bity 0-3 = index polozky)
 		ret	nz
 		ld	a, (hl)
 		inc	hl
 
-errhl:					
+errhl:
 		cp	29h ; ')'
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-reg2:					
+reg2:
 		ld	c, 0FFh
 		jr	reg1_2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-reg1:					
+reg1:
 		ld	c, 0
 
-reg1_2:					
+reg1_2:					; 8-bitove registre
 		ld	de, regbse_7
 		ld	b, 7
 
-cl:					
+cl:
 		ld	a, (de)
 		cp	(hl)
 		jr	z, ce
@@ -4013,7 +3798,7 @@ cl:
 		ld	a, 28h ; '('
 		cp	(hl)
 		jr	z, indx0
-		ld	a, (code)
+		ld	a, (code)	; Operacny kod instrukcie
 		cp	70h ; 'p'
 		jr	z, errhl
 		call	indreg
@@ -4029,7 +3814,7 @@ cl:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-indx0:					
+indx0:
 		inc	hl
 		ld	a, 68h ; 'h'
 		cp	(hl)
@@ -4046,65 +3831,64 @@ indx0:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ci:					
+ci:
 		inc	a
 		cp	(hl)
 		ret	nz
 		inc	hl
 		call	indreg
 		ld	b, 8
-		call	stflg
+		call	stflg		; Nastavenie bitov v priznakoch
 		inc	hl
 		push	bc
 		call	grelad
 		pop	bc
 		ret	nz
 
-cc:					
+cc:
 		ld	a, 29h ; ')'
 		cp	(hl)
 		ret	nz
 		ld	b, 6
 
-ce:					
+ce:
 		inc	c
 		jr	z, c2
 		ld	a, b
 
-dc:					
-					
+dc:
 		rlca
 		rlca
 		rlca
 		ld	b, a
 
-c2:					
+c2:
 		inc	hl
 
-c22:					
+c22:					; Operacny kod instrukcie
 		ld	a, (code)
 		add	a, b
-		ld	(code),	a
+		ld	(code),	a	; Operacny kod instrukcie
 		cp	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-indreg:					
+indreg:
 		ld	b, 80h ; ''
 		ld	a, 78h ; 'x'
 		cp	(hl)
-		jp	z, stflg
+		jp	z, stflg	; Nastavenie bitov v priznakoch
 		ld	b, 40h ; '@'
 		inc	a
 		cp	(hl)
-		jp	z, stflg
+		jp	z, stflg	; Nastavenie bitov v priznakoch
 		pop	bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-regx:					
+regx:
 		ld	b, 8
 		ld	a, 72h ; 'r'
 		cp	(hl)
@@ -4116,12 +3900,12 @@ regx:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-rest:					
+rest:
 		ld	a, (hl)
 		cp	23h ; '#'
 		ret	nz
 		inc	hl
-		call	hxbn
+		call	hxbn		; Prevod hexadecimalneho cisla na 16bit	hodnotu
 		ld	b, e
 		ld	a, b
 		and	0C7h ; ''
@@ -4130,22 +3914,22 @@ rest:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-agreg:					
+agreg:
 		ld	de, 'af'
 		jr	patrs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dfreg:					
+dfreg:
 		ld	de, 'de'
 		jr	patrs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-spreg:					
+spreg:
 		ld	de, 'sp'
 
-patrs:					
+patrs:
 		ld	a, (hl)
 		cp	d
 		ret	nz
@@ -4157,45 +3941,43 @@ patrs:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-shcnd:					
+shcnd:
 		cp	a
 
-cond:					
+cond:
 		push	af
 		ld	b, 8
-		ld	de, cdrsf
-		call	search
+		ld	de, cdrsf	; Podmienky v podmienenych skokoch
+		call	search		; Vyhladanie dvojbajtovej polozky v tabulke
 		pop	af
 		jr	nz, cond1
 		ld	a, b
 		cp	4
 		ret	c
 
-cond1:					
+cond1:
 		ld	a, 8
 		sub	b
 		jr	dc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hlreg:					
+hlreg:
 		call	hlc
 		inc	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pair:					
+pair:
 		ld	de, dc
 		push	de
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-hlc:					
+hlc:					; 16-bitove registre
 		ld	de, parbse
 		ld	b, 7
-		call	search
-		ld	a, (code)
+		call	search		; Vyhladanie dvojbajtovej polozky v tabulke
+		ld	a, (code)	; Operacny kod instrukcie
 		or	0Ch
 		cp	0CDh ; ''
 		jr	z, pushfs
@@ -4205,18 +3987,18 @@ hlc:
 		cp	6
 		jr	c, err_x
 
-nobcde:					
+nobcde:
 		cp	3
 		jr	nz, tstix
 
-err_x:					
+err_x:
 		inc	a
 		pop	bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pushfs:					
+pushfs:
 		ld	a, b
 		cp	4
 		jr	z, err_x
@@ -4224,7 +4006,7 @@ pushfs:
 		jr	nz, tstix
 		inc	b
 
-tstix:					
+tstix:
 		dec	a
 		jr	nz, tstiy
 		ld	b, 40h ; '@'
@@ -4232,16 +4014,16 @@ tstix:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tstiy:					
+tstiy:
 		dec	a
 		jr	nz, endcu
 		ld	b, 80h ; ''
 
-ixpr:					
+ixpr:					; Nastavenie bitov v priznakoch
 		call	stflg
 		ld	b, 5
 
-endcu:					
+endcu:
 		ld	a, 7
 		sub	b
 		rla
@@ -4250,7 +4032,7 @@ endcu:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-search:					
+search:					; Vyhladanie dvojbajtovej polozky v tabulke
 		ld	a, (de)
 		inc	de
 		cp	(hl)
@@ -4263,10 +4045,10 @@ search:
 		ret	z
 		dec	hl
 
-srch1:					
+srch1:
 		inc	de
 		dec	b
-		jr	nz, search
+		jr	nz, search	; Vyhladanie dvojbajtovej polozky v tabulke
 		inc	b
 		pop	de
 		pop	de
@@ -4274,23 +4056,23 @@ srch1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-creg:					
+creg:
 		ld	a, 63h ; 'c'
 		jr	areg_2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-areg:					
+areg:
 		ld	a, 61h ; 'a'
 
-areg_2:					
+areg_2:
 		cp	(hl)
 		inc	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-num:					
+num:
 		ld	a, 37h ; '7'
 		cp	(hl)
 		ret	c
@@ -4301,7 +4083,7 @@ num:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-stflg:					
+stflg:					; Nastavenie bitov v priznakoch
 		ld	a, (flags)
 		or	b
 		ld	(flags), a
@@ -4309,7 +4091,7 @@ stflg:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pseudo:					
+pseudo:					; Najdenie pseudoinstrukcie podla jej nazvu
 		inc	bc
 		push	de
 		ld	d, a
@@ -4323,22 +4105,22 @@ pseudo:
 		inc	a
 		ld	(de), a
 		dec	de
-		ld	(nxtadr), de
+		ld	(nxtadr), de	; Adresa dalsej	instrukcie
 		cp	0Fh
 		jp	z, psq
 		inc	de
 
-gpsil:					
+gpsil:
 		push	de
-		ld	de, (nxtadr)
+		ld	de, (nxtadr)	; Adresa dalsej	instrukcie
 		call	gpsi
-		ld	(nxtadr), de
+		ld	(nxtadr), de	; Adresa dalsej	instrukcie
 		pop	de
 		ret	nz
 		ld	a, (hl)
 		cp	20h ; ' '
 		jp	z, psq
-		cp	2Ch ; ','
+		cp	2Ch ; 
 		inc	hl
 		ret	nz
 		ld	a, (de)
@@ -4351,15 +4133,15 @@ gpsil:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-extent:					
+extent:
 		push	de
-		call	fndlbl
+		call	fndlbl		; Vyhladanie navestia v	tabulke	navesti
 		ld	a, c
 		jp	extcnt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-db:					
+db:
 		push	hl
 		call	getexp
 		pop	bc
@@ -4368,13 +4150,13 @@ db:
 		cp	27h ; '''
 		ret	nz
 		inc	bc
-		ld	hl, (nxtadr)
+		ld	hl, (nxtadr)	; Adresa dalsej	instrukcie
 		ld	d, h
 		ld	e, l
 		dec	de
 		ld	(hl), 80h ; ''
 
-dbl:					
+dbl:
 		ld	a, (bc)
 		inc	bc
 		cp	27h ; '''
@@ -4386,39 +4168,34 @@ dbl:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dbq:					
+dbq:
 		ld	h, b
 		ld	l, c
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-word:					
+word:
 		ld	b, 2
-		call	stflg
+		call	stflg		; Nastavenie bitov v priznakoch
 
-_byte:					
+_byte:
 		ld	b, 4
-		call	stflg
+		call	stflg		; Nastavenie bitov v priznakoch
 		jr	getexp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gpsi:					
-
+gpsi:
 		and	0Eh
 		cp	4
 		jp	m, extent
 		jr	z, db
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-getexp:					
+getexp:
 		ld	b, 1
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-grelad:					
+grelad:					; Adresa dalsej	instrukcie
 		ld	de, (nxtadr)
 		ld	a, (hl)
 		ld	c, 10h
@@ -4430,7 +4207,7 @@ grelad:
 		ret	nz
 		dec	hl
 
-gv1_a:					
+gv1_a:
 		inc	hl
 		ld	a, (hl)
 		cp	3Ch ; '<'
@@ -4441,13 +4218,13 @@ gv1_a:
 		jr	nz, gv2
 		ld	c, 8
 
-gv3:					
+gv3:
 		inc	hl
 
-gv2:					
+gv2:
 		push	de
 		dec	de
-		call	getmem_asm
+		call	getmem_asm	; Nacitanie jednej ciselnej hodnoty z textu a ulozenie do riadku
 		jr	nz, gvend
 		ld	a, c
 		rlca
@@ -4462,19 +4239,19 @@ gv2:
 		ld	hl, oprts_6
 		ld	b, 7
 
-gv6:					
+gv6:
 		cp	(hl)
 		jr	z, gv4
 		dec	hl
 		djnz	gv6
 		or	a
 
-gv4:					
+gv4:
 		pop	hl
 		jr	nz, gv5
 		inc	hl
 
-gv5:					
+gv5:
 		ld	a, c
 		or	b
 		rlca
@@ -4482,9 +4259,9 @@ gv5:
 		ld	c, a
 		ld	a, b
 		or	a
-		call	nz, getmem_asm
+		call	nz, getmem_asm	; Nacitanie jednej ciselnej hodnoty z textu a ulozenie do riadku
 		ex	de, hl
-		ld	(nxtadr), hl
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
 		ex	(sp), hl
 		ld	(hl), c
 		pop	hl
@@ -4493,13 +4270,13 @@ gv5:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gvend:					
+gvend:
 		pop	de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getmem_asm:				
+getmem_asm:				; Nacitanie jednej ciselnej hodnoty z textu a ulozenie do riadku
 		push	de
 		ld	a, (hl)
 		cp	27h ; '''
@@ -4513,18 +4290,18 @@ getmem_asm:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lbl:					
+lbl:
 		inc	c
 		push	bc
-		call	fndlbl
+		call	fndlbl		; Vyhladanie navestia v	tabulke	navesti
 		ld	e, c
 		pop	bc
 		jr	nz, dec
 
-chrcnt:					
+chrcnt:
 		ld	a, e
 
-extcnt:					
+extcnt:
 		pop	de
 		ld	(de), a
 		dec	de
@@ -4532,23 +4309,23 @@ extcnt:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dec:					
+dec:
 		inc	c
 		cp	23h ; '#'
 		jr	z, hex_a
 		ld	b, l
-		call	dcbn
+		call	dcbn		; Prevod desiatkoveho cisla na 16bit hodnotu
 		jr	cnst
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hex_a:					
+hex_a:
 		inc	c
 		inc	hl
 		ld	b, l
-		call	hxbn
+		call	hxbn		; Prevod hexadecimalneho cisla na 16bit	hodnotu
 
-cnst:					
+cnst:
 		ex	(sp), hl
 		ld	(hl), e
 		dec	hl
@@ -4564,16 +4341,16 @@ cnst:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-error:					
+error:
 		inc	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pgcix:					
+pgcix:					; Skok na adresu ulozenu v N-tej polozke v tabulke (A bity 0-3 = index polozky)
 		and	0Fh
 
-pgcnt:					
+pgcnt:					; Skok na adresu ulozenu v N-tej polozke v tabulke (A =	index polozky)
 		add	a, a
 		push	hl
 		ld	l, a
@@ -4585,7 +4362,7 @@ pgcnt:
 		pop	hl
 		push	de
 
-pstadr_2:				
+pstadr_2:
 		ld	a, c
 		ret
 
@@ -4593,8 +4370,8 @@ pstadr_2:
 
 pstadr:		dw preg1
 		dw ppair
-		dw putv8
-		dw putv16
+		dw putv8		; Depak	jedneho	8-bitoveho ciselneho argumentu zo zdrojoveho textu do textoveho	buffera
+		dw putv16		; Depak	jedneho	16-bitoveho ciselneho argumentu	zo zdrojoveho textu do textoveho buffera
 		dw pcond
 		dw pnum
 		dw prest
@@ -4606,19 +4383,18 @@ pstadr:		dw preg1
 		dw paf
 		dw pshcnd
 		dw pc
-tdolar:		db  24h	; $		
-		db  20h
-errad:		dw 0			
-xy:		db 0			
+tdolar:		db '$ '
+errad:		dw 0
+xy:		db 0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-blank:					
+blank:					; Zmazanie textoveho buffera
 		push	hl
 		ld	l, 40h ; '@'
 		ld	h, 0FEh	; ''
 
-bl1:					
+bl1:
 		dec	l
 		ld	(hl), 20h ; ' '
 		jr	nz, bl1
@@ -4627,9 +4403,9 @@ bl1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-vstoas:					
+vstoas:					; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		push	hl
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		ld	e, c
 		xor	a
 		ld	d, a
@@ -4645,7 +4421,7 @@ vstoas:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prxdd:					
+prxdd:
 		ld	a, 78h ; 'x'
 		ld	(xy), a
 		ld	b, 81h ; ''
@@ -4656,7 +4432,7 @@ prxdd:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prxfd:					
+prxfd:
 		ld	a, 79h ; 'y'
 		ld	(xy), a
 		ld	b, 41h ; 'A'
@@ -4666,10 +4442,10 @@ prxfd:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-disrow:					
+disrow:					; Disasemblovanie jednej instrukcie na adrese HL
 		ld	a, 20h ; ' '
 		ld	(xy), a
-		ld	(nxtadr), hl
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
 		ld	(errad), hl
 		ld	b, 1
 		ld	a, (hl)
@@ -4686,7 +4462,7 @@ disrow:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prxcb:					
+prxcb:
 		cp	0CBh ; ''
 		jr	nz, woprx
 		inc	a
@@ -4694,17 +4470,17 @@ prxcb:
 		jr	z, nbm
 		inc	hl
 
-nbm:					
+nbm:
 		or	21h ; '!'
 
-prxcbc:					
+prxcbc:
 		ld	b, a
 		inc	hl
 
-woprx:					
+woprx:
 		ld	c, (hl)
 		inc	hl
-		ld	(nxtadr), hl
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
 		ld	a, b
 		and	0E0h ; ''
 		jr	z, pfxok
@@ -4714,7 +4490,7 @@ woprx:
 		cp	6
 		jp	nz, noins
 
-pfxok:					
+pfxok:					; Hladanie nazvu Z80 instrukcie
 		call	discnt
 		ld	hl, buffer_params
 		push	hl
@@ -4733,14 +4509,12 @@ pfxok:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-unpln0:					
+unpln0:					; Nacita a depakuje aktualny riadok zdrojoveho textu do	textoveho buffera
 		ld	hl, (curent)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-unpln:					
+unpln:					; Nacita a depakuje riadok zdrojoveho textu do textoveho buffera
 		call	blank
-		call	negbc0
+		call	negbc0		; Vrati	zapornu	dlzku spakovaneho riadku v zdrojovom texte
 		ret	z
 		ld	a, (hl)
 		rla
@@ -4752,21 +4526,21 @@ unpln:
 		ld	a, (hl)
 		inc	hl
 
-un1:					
+un1:
 		push	hl
 		add	hl, bc
 		ex	(sp), hl
-		ld	bc, buffer
+		ld	bc, buffer	; Textovy buffer pre jeden riadok na obrazovke
 		inc	a
 		jr	z, unc
-		call	upmain
-		ld	de, (nxtadr)
+		call	upmain		; Vypis	navestia a nazvu instrukcie
+		ld	de, (nxtadr)	; Adresa dalsej	instrukcie
 		ld	bc, buffer_comment
 
-unc:					
+unc:
 		pop	hl
 
-unc1:					
+unc1:					; Porovnanie HL	a DE
 		call	cmhlde
 		ret	z
 		ld	a, (de)
@@ -4777,8 +4551,7 @@ unc1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-upmain:					
-
+upmain:					; Vypis	navestia a nazvu instrukcie
 		ld	a, (hl)
 		rlca
 		dec	hl
@@ -4786,11 +4559,11 @@ upmain:
 		ld	c, (hl)
 		dec	hl
 		push	hl
-		ld	hl, buffer
-		call	outlab
+		ld	hl, buffer	; Textovy buffer pre jeden riadok na obrazovke
+		call	outlab		; Vypis	navestia do buffera
 		pop	hl
 
-pwolbl:					
+pwolbl:
 		ld	b, (hl)
 		dec	hl
 		ld	a, b
@@ -4802,31 +4575,31 @@ pwolbl:
 		ld	c, (hl)
 		dec	hl
 
-psd:					
+psd:					; Adresa dalsej	instrukcie
 		ld	(nxtadr), hl
 		ret	z
-		jr	c, ppseud
+		jr	c, ppseud	; Hladanie nazvu pseudoinstrukcie
 
-discnt:					
+discnt:					; Hladanie nazvu Z80 instrukcie
 		ld	hl, insbse
 
-loop2:					
+loop2:
 		push	hl
 
-fnd1:					
+fnd1:
 		ld	a, (hl)
 		rla
 		inc	hl
 		jr	nc, fnd1
 
-loop3:					
+loop3:
 		push	hl
 		ld	a, (hl)
-		call	getms1
+		call	getms1		; Nacitanie N-teho bajtu z tabulky mstab
 		ld	d, a
 		inc	hl
 		ld	a, (hl)
-		call	getms2
+		call	getms2		; Nacitanie N-teho bajtu z tabulky mstab (Pre N=1 vratri #F8)
 		and	d
 		and	c
 		inc	hl
@@ -4839,7 +4612,7 @@ loop3:
 		and	30h ; '0'
 		jr	z, isamf
 
-cddif:					
+cddif:
 		inc	hl
 		ld	a, (de)
 		rla
@@ -4849,11 +4622,11 @@ cddif:
 		and	a
 		jr	nz, loop2
 
-noins:					
+noins:
 		ld	hl, (errad)
 		ld	a, (hl)
 		inc	hl
-		ld	(nxtadr), hl
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
 		ld	hl, buffer_instr
 		ld	(hl), 64h ; 'd'
 		inc	hl
@@ -4865,21 +4638,21 @@ noins:
 		inc	hl
 		ld	(hl), 23h ; '#'
 		inc	hl
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 
-okins:					
+okins:					; Adresa dalsej	instrukcie
 		ld	hl, (nxtadr)
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ppseud:					
+ppseud:					; Hladanie nazvu pseudoinstrukcie
 		ld	hl, psibse
 
-tstant:					
+tstant:
 		push	hl
 
-skname:					
+skname:
 		ld	a, (hl)
 		rla
 		inc	hl
@@ -4894,28 +4667,27 @@ skname:
 		jr	nz, tstant
 		push	bc
 		ex	de, hl
-		call	outnam_asm
+		call	outnam_asm	; Prekopirovanie nazvu instrukcie do pola instrukcie v textovom	bufferi
 		pop	af
 
-ppsil:					
+ppsil:
 		push	af
-		ld	de, (nxtadr)
+		ld	de, (nxtadr)	; Adresa dalsej	instrukcie
 		call	ppsi
-		ld	(nxtadr), de
+		ld	(nxtadr), de	; Adresa dalsej	instrukcie
 		pop	af
 		sub	10h
 		ret	c
-		ld	(hl), 2Ch ; ','
+		ld	(hl), 2Ch ; 
 		inc	hl
 		jr	ppsil
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ppsi:					
-
+ppsi:
 		and	0Fh
 		cp	4
-		jp	c, pentex
+		jp	c, pentex	; Depak	jedneho	navestia
 		cp	0Eh
 		ret	nc
 		ld	a, (de)
@@ -4925,7 +4697,7 @@ ppsi:
 		dec	de
 		ld	(hl), 27h ; '''
 
-pstrl:					
+pstrl:
 		inc	hl
 		dec	c
 		jp	p, pstrq
@@ -4936,17 +4708,17 @@ pstrl:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pstrq:					
+pstrq:
 		ld	(hl), 27h ; '''
 		inc	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-isamf:					
+isamf:
 		ex	de, hl
 		ex	(sp), hl
-		call	outnam_asm
+		call	outnam_asm	; Prekopirovanie nazvu instrukcie do pola instrukcie v textovom	bufferi
 		pop	de
 		ld	a, b
 		and	0C0h ; ''
@@ -4967,23 +4739,23 @@ isamf:
 		cp	2
 		jp	nc, noins
 
-okpref:					
+okpref:
 		ld	a, (de)
 		inc	de
 		and	1Fh
 		jr	z, wo1op
 		push	de
 		push	bc
-		call	putop1
+		call	putop1		; Vypis	parametra instrukcie
 		pop	bc
 		pop	de
 		ld	a, (de)
 		and	a
 		ret	z
-		ld	(hl), 2Ch ; ','
+		ld	(hl), 2Ch ; 
 		inc	hl
 
-wo1op:					
+wo1op:
 		ld	a, (de)
 		and	a
 		ret	z
@@ -4992,34 +4764,32 @@ putop2:
 		cp	1
 		jr	z, preg2
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-putop1:					
+putop1:					; Vypis	parametra instrukcie
 		ld	de, pstadr_2
 		push	bc
 		ld	b, a
 		and	10h
 		ld	a, b
 		pop	bc
-		jp	z, pgcnt
+		jp	z, pgcnt	; Skok na adresu ulozenu v N-tej polozke v tabulke (A =	index polozky)
 
 hlcnt:
 		ld	(hl), 28h ; '('
 		inc	hl
-		call	pgcix
+		call	pgcix		; Skok na adresu ulozenu v N-tej polozke v tabulke (A bity 0-3 = index polozky)
 
-hlcnti:					
+hlcnti:
 		ld	(hl), 29h ; ')'
 		inc	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outnam_asm:				
+outnam_asm:				; Prekopirovanie nazvu instrukcie do pola instrukcie v textovom	bufferi
 		push	bc
 		ld	de, buffer_instr
 
-onl:					
+onl:
 		ldi
 		ld	a, (hl)
 		rla
@@ -5033,30 +4803,30 @@ onl:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pc:					
+pc:
 		ld	(hl), 63h ; 'c'
 		inc	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pa:					
+pa:
 		ld	a, 38h ; '8'
 
-preg1:					
+preg1:
 		rrca
 		rrca
 		rrca
 		ld	c, a
 
-preg2:					
+preg2:
 		ld	a, c
 		and	7
 		cp	6
 		jr	nz, rg1
 		push	bc
 		ld	a, 1Bh
-		call	putop1
+		call	putop1		; Vypis	parametra instrukcie
 		pop	bc
 		ld	a, b
 		and	0C0h ; ''
@@ -5067,14 +4837,14 @@ preg2:
 		cp	21h ; '!'
 		jr	z, pxc8
 		ld	c, 0FFh
-		call	putv8
+		call	putv8		; Depak	jedneho	8-bitoveho ciselneho argumentu zo zdrojoveho textu do textoveho	buffera
 		jr	hlcnti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pxc8:					
+pxc8:
 		push	hl
-		ld	hl, (nxtadr)
+		ld	hl, (nxtadr)	; Adresa dalsej	instrukcie
 		dec	hl
 		dec	hl
 		ld	a, (hl)
@@ -5083,12 +4853,12 @@ pxc8:
 		inc	hl
 		ld	(hl), 23h ; '#'
 		inc	hl
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		jr	hlcnti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-rg1:					
+rg1:
 		cp	7
 		jr	z, rg2
 		cp	4
@@ -5100,7 +4870,7 @@ rg1:
 		bit	6, b
 		jr	z, rg2
 
-rg3:					
+rg3:
 		bit	3, b
 		jr	nz, rg2
 		ld	a, c
@@ -5114,11 +4884,11 @@ rg3:
 		jr	z, rg4
 		inc	hl
 
-rg4:					
+rg4:
 		ld	a, c
 		and	7
 
-rg2:					
+rg2:
 		add	a, 0EBh	; ''
 		ld	e, a
 		ld	a, 0
@@ -5131,32 +4901,32 @@ rg2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pde:					
+pde:
 		ld	c, 2
 		jr	pr3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-psp:					
+psp:
 		ld	c, 6
 		jr	pr3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-paf:					
+paf:
 		ld	c, 8
 		jr	pr3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-phl:					
+phl:
 		ld	c, 20h ; ' '
 		ld	a, c
 
-ppair:					
+ppair:
 		or	8
 		cp	3Ah ; ':'
-		jr	z, putv16
+		jr	z, putv16	; Depak	jedneho	16-bitoveho ciselneho argumentu	zo zdrojoveho textu do textoveho buffera
 		ld	a, c
 		rra
 		rra
@@ -5174,7 +4944,7 @@ ppair:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pr1:					
+pr1:
 		cp	4
 		ld	c, a
 		jr	nz, pr3
@@ -5187,11 +4957,11 @@ pr1:
 		jr	nz, pr2
 		ld	c, 2
 
-pr2:					
+pr2:
 		inc	c
 		inc	c
 
-pr3:					
+pr3:
 		ld	a, c
 		add	a, 0F3h	; ''
 		ld	c, a
@@ -5211,10 +4981,10 @@ pr3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pshcnd:					
+pshcnd:
 		and	18h
 
-pcond:					
+pcond:
 		and	38h ; '8'
 		rra
 		rra
@@ -5224,7 +4994,7 @@ pcond:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pregy:					
+pregy:
 		ld	(hl), 69h ; 'i'
 		inc	hl
 		and	8
@@ -5236,7 +5006,7 @@ pregy:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pnum:					
+pnum:
 		rra
 		rra
 		rra
@@ -5248,15 +5018,15 @@ pnum:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getms2:					
+getms2:					; Nacitanie N-teho bajtu z tabulky mstab (Pre N=1 vratri #F8)
 		cp	1
-		jr	nz, getms1
+		jr	nz, getms1	; Nacitanie N-teho bajtu z tabulky mstab
 		ld	a, 0F8h	; ''
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getms1:					
+getms1:					; Nacitanie N-teho bajtu z tabulky mstab
 		and	0Fh
 		push	de
 		add	a, 11h		; low mstab
@@ -5270,23 +5040,21 @@ getms1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-putv8:					
-					
+putv8:					; Depak	jedneho	8-bitoveho ciselneho argumentu zo zdrojoveho textu do textoveho	buffera
 		ld	a, b
 		and	1
 		jr	q11
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-putv16:					
-					
+putv16:					; Depak	jedneho	16-bitoveho ciselneho argumentu	zo zdrojoveho textu do textoveho buffera
 		ld	a, b
 		and	1
 		or	2
 
-q11:					
+q11:
 		ld	b, a
-		ld	de, (nxtadr)
+		ld	de, (nxtadr)	; Adresa dalsej	instrukcie
 		ld	a, b
 		rra
 		jr	nc, unpc
@@ -5298,23 +5066,23 @@ q11:
 		jr	nz, q12
 		inc	hl
 
-q12:					
+q12:
 		ld	(hl), 23h ; '#'
 		inc	hl
 		jr	nc, q33
 		ld	b, a
 		ld	a, (de)
 		inc	de
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	a, b
 
-q33:					
+q33:					; Prevod 8bit hodnoty na hexadecimalne cislo
 		call	bnhx
 		jr	pvq
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-unpc:					
+unpc:
 		ld	a, (de)
 		and	1Fh
 		cp	2
@@ -5325,7 +5093,7 @@ unpc:
 		ld	(hl), 2Bh ; '+'
 		inc	hl
 
-pv2:					
+pv2:
 		dec	a
 		ld	(hl), 3Eh ; '>'
 		jr	z, pv1_a
@@ -5333,17 +5101,17 @@ pv2:
 		ld	(hl), 3Ch ; '<'
 		jr	nz, pv3
 
-pv1_a:					
+pv1_a:
 		inc	hl
 
-pv3:					
+pv3:
 		ld	a, (de)
 		push	af
 		dec	de
 		rlca
 		rlca
 		rlca
-		call	putmem
+		call	putmem		; Depak	jednej ciselnej	hodnoty	zo zdrojoveho textu do textoveho buffera
 		pop	af
 		ld	c, a
 		rrca
@@ -5360,21 +5128,18 @@ pv3:
 		pop	hl
 		ld	(hl), c
 		inc	hl
-		call	putmem
+		call	putmem		; Depak	jednej ciselnej	hodnoty	zo zdrojoveho textu do textoveho buffera
 
-pvq:					
+pvq:					; Adresa dalsej	instrukcie
 		ld	(nxtadr), de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pentex:					
+pentex:					; Depak	jedneho	navestia
 		ld	a, 1
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-putmem:					
-
+putmem:					; Depak	jednej ciselnej	hodnoty	zo zdrojoveho textu do textoveho buffera
 		and	3
 		ex	de, hl
 		ld	c, (hl)
@@ -5391,21 +5156,19 @@ putmem:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pm1:					
+pm1:
 		dec	a
 		jr	nz, pm2
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-outlab:					
+outlab:					; Vypis	navestia do buffera
 		push	de
 		ld	a, c
 		or	a
 		ld	de, tdolar
-		call	nz, vstoas
+		call	nz, vstoas	; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ld	b, 6
 
-ol1:					
+ol1:
 		ld	a, (de)
 		and	7Fh ; ''
 		ld	(hl), a
@@ -5415,44 +5178,51 @@ ol1:
 		inc	de
 		djnz	ol1
 
-ol2:					
+ol2:
 		pop	de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pm2:					
+pm2:
 		dec	a
 		ld	a, (de)
 		ld	b, a
 		dec	de
 		jr	nz, bin
 		push	de
-		call	bndc
+		call	bndc		; Prevod 16bit hodnoty na desiatkove cislo
 		pop	de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-bin:					
-		ld	(hl), 23h ; '#'
+bin:
+		ld	(hl), '#'
 		inc	hl
 		or	a
-		call	nz, bnhx
+		call	nz, bnhx	; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	a, c
-		jp	bnhx
+		jp	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prest:					
+prest:
 		and	38h ; '8'
-		ld	(hl), 23h ; '#'
+		ld	(hl), '#'
 		inc	hl
-		jp	bnhx
+		jp	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-bndc:					
+;   bndc   - konverzia 16-bitovej hodnoty na retazec decimalnych cislic
+;	     vstup:  <bc> = konvertovane cislo
+;		     <hl> = adresa pamati, kde sa ma vysledok ulozit
+;	     vystup: <hl> = adresa pamati, za retazcom decimalnych cislic
+;	     cislo je ulozene v	pamati ako retazec ascii znakov, predradene 0 sa vypustia
+;	     meni sa:  <af>, <bc>, <de>, <hl>
+
+bndc:					; Prevod 16bit hodnoty na desiatkove cislo
 		ld	a, 1
 
 bd0:
@@ -5462,11 +5232,11 @@ bd0:
 		ex	de, hl
 		push	bc
 
-bd1:					
+bd1:
 		xor	a
 		ld	b, 10h
 
-bd2:					
+bd2:
 		add	hl, hl
 		adc	a, a
 		cp	0Ah
@@ -5474,7 +5244,7 @@ bd2:
 		sub	0Ah
 		inc	l
 
-bd3:					
+bd3:
 		dec	b
 		jr	nz, bd2
 		or	30h ; '0'
@@ -5488,7 +5258,7 @@ bd3:
 		sbc	a, a
 		ld	b, a
 
-bd4:					
+bd4:
 		pop	af
 		ret	c
 		ld	(hl), a
@@ -5497,14 +5267,18 @@ bd4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-bnhx2:					
+bnhx2:					; Prevod 16bit hodnoty na hexadecimalne	cislo
 		ld	a, d
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	a, e
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;   bnhx   - konverzia 8-bitovej hodnoty na dve	hexadecimalne cislice
+;	     vstup:  <a> = konvertovane	cislo
+;		     <hl> = adresa pamati, kde sa ma vysledok konverzie	ulozit
+;	     vystup: <hl> = adresa pamati za ulozenou dvojicou znakov
+;	     meni sa:  <af>, <hl>
 
-bnhx:					
+bnhx:					; Prevod 8bit hodnoty na hexadecimalne cislo
 		push	af
 		rrca
 		rrca
@@ -5513,9 +5287,7 @@ bnhx:
 		call	bnhx1
 		pop	af
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-bnhx1:					
+bnhx1:
 		and	0Fh
 		add	a, 90h ; ''
 		daa
@@ -5530,12 +5302,18 @@ dnum:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hxbn:					
+;   hxbn   - konverzia retazca hexadecimalnych cislic na 16-bitovu binarnu hodnotu.
+;	     vstup:  <hl> = adresa retazca
+;	     vystup: <hl> = adresa konca retazca (retazec konci	lubovolnym symbolom mimo cislic	0-9 a pismen a-f.
+;		     <de> = konvertovana binarna hodnota
+;	     meni sa:  <af>, <de>, <hl>
+
+hxbn:					; Prevod hexadecimalneho cisla na 16bit	hodnotu
 		ld	de, 0
 
-hxbn_3:					
+hxbn_3:
 		ld	a, (hl)
-		call	hxbn1
+		call	hxbn1		; Zistenie hodnoty jednej hexadecimalnej cislice
 		ret	c
 		ex	de, hl
 		add	hl, hl
@@ -5550,29 +5328,36 @@ hxbn_3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hxbn1:					
-		add	a, 0C6h	; ''
+hxbn1:					; Zistenie hodnoty jednej hexadecimalnej cislice
+		add	a, -3Ah
 		jr	c, hxbn2
-		sub	0F6h ; ''
+		sub	-0Ah
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hxbn2:					
+hxbn2:
 		and	0DFh ; ''
 		sub	7
 		ret	c
-		add	a, 0FAh	; ''
+		add	a, -6
 		ret	c
-		sub	0F0h ; ''
+		sub	-10h
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dcbn:					
+;   dcbn   - konverzia retazca decimalnych cislic na 16-bitovu binarnu hodnotu
+;	     vstup:  <hl> = adresa retazca
+;	     vystup: <hl> = adresa konca retazca (retazec konci	lubovolnym symbolom mimo cislic	0-9.
+;		     <de> = konvertovana binarna hodnota
+;		     <a>  = ukoncovaci znak
+;	     meni sa:  <af>, <de>, <hl>
+
+dcbn:					; Prevod desiatkoveho cisla na 16bit hodnotu
 		ld	de, 0
 
-dcbn_3:					
+dcbn_3:
 		ld	a, (hl)
 		cp	3Ah ; ':'
 		ret	nc
@@ -5596,23 +5381,21 @@ dcbn_3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-blkbdb:					
+blkbdb:					; Zmazanie spodneho riadku obrazovky
 		ld	hl, 50C0h
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-blvst:					
+blvst:
 		ld	a, 20h ; ' '
-		call	pixel
+		call	pixel		; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, DE = pozicia vo videoram)
 		inc	l
 		jr	nz, blvst
-		ld	hl, (poscur)
+		ld	hl, (poscur)	; Aktualna pohoha blikajuceho atributu na obrazovke
 		res	7, (hl)
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-vstup:					
+vstup:					; Zadanie jednej hodnoty
 		call	blkbdb
 		ld	b, 3
 		ld	de, 0
@@ -5626,9 +5409,9 @@ vstup:
 		ld	a, b
 		ld	(vst+1), a
 		xor	a
-		call	mrsin
+		call	mrsin		; Praca	s nezmazanym dialogovym	riadkom
 
-vst:					
+vst:
 		ld	l, 0
 		ld	h, 0FEh	; ''
 		ld	a, (hl)
@@ -5637,7 +5420,7 @@ vst:
 		ld	de, 0
 		ld	a, 5Ah ; 'Z'
 
-vst0:					
+vst0:
 		ld	(retvst+1), de
 		ld	(adcsbc+1), a
 		ld	a, (hl)
@@ -5645,24 +5428,23 @@ vst0:
 		jr	z, hex_b
 		cp	3Ah ; ':'
 		jr	nc, nav
-		call	dcbn
+		call	dcbn		; Prevod desiatkoveho cisla na 16bit hodnotu
 		jr	exvst
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hex_b:					
+hex_b:
 		inc	hl
-		call	hxbn
+		call	hxbn		; Prevod hexadecimalneho cisla na 16bit	hodnotu
 
-exvst:					
+exvst:
 		push	hl
 
-retvst:					
-					
+retvst:
 		ld	hl, 0
 		or	a
 
-adcsbc:					
+adcsbc:
 		adc	hl, de
 		ex	de, hl
 		pop	hl
@@ -5674,7 +5456,7 @@ adcsbc:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-exv1:					
+exv1:
 		cp	2Bh ; '+'
 		ld	a, 5Ah ; 'Z'
 		jr	z, vst1
@@ -5682,20 +5464,20 @@ exv1:
 		cp	2Dh ; '-'
 		ld	a, 52h ; 'R'
 
-vst1:					
+vst1:
 		inc	hl
 		jr	z, vst0
-		jp	mrs2
+		jp	mrs2		; Oprava textu zadaneho	v module "mrs"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-nav:					
+nav:					; Vyhladanie navestia v	tabulke	navesti
 		call	getlbl
 		push	de
 		xor	a
 		or	c
 		jr	z, sche
-		call	vstoax
+		call	vstoax		; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		push	hl
 		inc	hl
 		inc	hl
@@ -5706,11 +5488,11 @@ nav:
 		bit	7, (hl)
 		jr	nz, nval
 
-sche:					
+sche:					; Vyhladanie vstupneho bodu v kniznici
 		call	schent
 		jp	z, mrs3
 
-nval:					
+nval:
 		ld	de, 6
 		add	hl, de
 		ld	e, (hl)
@@ -5720,28 +5502,26 @@ nval:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outbdb:					
+outbdb:					; Vypis	buffera	na spodny riadok obrazovky
 		ld	hl, 50C0h
-		ld	de, buffer
+		ld	de, buffer	; Textovy buffer pre jeden riadok na obrazovke
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-loutb:					
+loutb:					; Vypis	zadaneho textu a zmazanie kurzora
 		ld	a, (de)
-		call	pixel
+		call	pixel		; Vykreslenie jedneho znaku na obrazovku (A = ascii kod, DE = pozicia vo videoram)
 		inc	e
 		inc	l
-		jr	nz, loutb
-		ld	hl, (poscur)
+		jr	nz, loutb	; Vypis	zadaneho textu a zmazanie kurzora
+		ld	hl, (poscur)	; Aktualna pohoha blikajuceho atributu na obrazovke
 		res	7, (hl)
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-clrd:					
+clrd:					; Zmazanie textoveho buffera
 		ld	hl, buffer_end
 
-clrd1:					
+clrd1:
 		ld	(hl), 20h ; ' '
 		dec	l
 		jr	nz, clrd1
@@ -5749,35 +5529,35 @@ clrd1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dwhx:					
+dwhx:					; Vypis	hexadecimalnej hodnoty z pameti
 		ld	a, (de)
 		push	af
 		inc	de
 		ld	a, (de)
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		pop	af
 		inc	de
-		jp	bnhx
+		jp	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dump1r:					
+dump1r:					; Vypis	styroch	bajtov pamete pre dump a modify
 		push	hl
 		push	bc
-		call	clrd
+		call	clrd		; Zmazanie textoveho buffera
 		ld	a, d
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	a, e
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	(hl), 3Ah ; ':'
 		inc	hl
 		inc	hl
 		push	de
 		ld	b, 4
 
-d1r1:					
+d1r1:
 		ld	a, (de)
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		inc	hl
 		inc	de
 		djnz	d1r1
@@ -5786,17 +5566,17 @@ d1r1:
 		inc	hl
 		ld	b, 4
 
-d1r2:					
+d1r2:
 		ld	a, (de)
 		cp	20h ; ' '
 		jr	c, d1r3
 		cp	7Fh ; ''
 		jr	c, d1r4
 
-d1r3:					
+d1r3:
 		ld	a, 2Eh ; '.'
 
-d1r4:					
+d1r4:
 		ld	(hl), a
 		inc	hl
 		inc	de
@@ -5807,34 +5587,34 @@ d1r4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-modify:					
+modify:					; Debugger klavesa M - modifikacia obsahu pameti
 		ld	hl,  mod1+1
-		call	reg02
+		call	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
-mod1:					
+mod1:
 		ld	de, 0
 
-mod2:					
+mod2:
 		ld	l, 6
 
-mod0:					
+mod0:
 		push	de
-		call	dump1r
+		call	dump1r		; Vypis	styroch	bajtov pamete pre dump a modify
 		pop	de
 
-modnew:					
+modnew:					; Vypis	buffera	na spodny riadok obrazovky
 		call	outdlg
 		ld	h, 16h
-		call	setcrs
+		call	setcrs		; Zmazanie kurzora na starej a zobrazenie na novej pozicii
 		ld	h, 0FEh	; ''
 
-mod3:					
+mod3:					; ; Obsluha klavesnice s autorepeatom
 		call	inkey
 		cp	7
 		jr	z, mod2
 		ld	bc, 5
 		push	hl
-		ld	hl, tabmf
+		ld	hl, tabmf	; Klavesy pre pohyby po	pameti v prikaze Modify
 		cpir
 		add	hl, bc
 		add	hl, bc
@@ -5847,24 +5627,24 @@ mod3:
 		cp	(hl)
 		inc	l
 		jr	c, mod5
-		call	inkey
-		call	bnhx
+		call	inkey		; ; Obsluha klavesnice s autorepeatom
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		jr	modd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-mod4:					
+mod4:
 		ld	b, a
-		call	hxbn1
+		call	hxbn1		; Zistenie hodnoty jednej hexadecimalnej cislice
 
-mod5:					
+mod5:					; Vyraznejsi zvukovy signal so zachovanim AF
 		call	c, beep
 		jr	c, mod3
 
 mod7:
 		ld	(hl), b
 
-modd:					
+modd:
 		ld	a, c
 		rlca
 		sbc	a, a
@@ -5872,7 +5652,7 @@ modd:
 		bit	0, c
 		jr	z, mod9
 
-mod8:					
+mod8:
 		add	hl, bc
 		ld	a, (hl)
 		cp	20h ; ' '
@@ -5880,13 +5660,13 @@ mod8:
 		cp	3Ah ; ':'
 		jr	nz, modnew
 
-mod9:					
+mod9:
 		push	de
 		ld	l, 6
 
-mod10:					
+mod10:
 		push	de
-		call	hxbn
+		call	hxbn		; Prevod hexadecimalneho cisla na 16bit	hodnotu
 		ld	a, e
 		pop	de
 		ld	(de), a
@@ -5907,12 +5687,13 @@ mod10:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabmf:		db  1Eh			
+tabmf:		db  1Eh			; Klavesy pre pohyby po	pameti v prikaze Modify
 		db  1Dh
 		db  0Dh
 		db  19h
 		db  18h
-		db    1
+
+		db    1			; Prirastky adresy pre jednotlive pohyby
 		db 0FFh
 		db    0
 		db    4
@@ -5920,36 +5701,34 @@ tabmf:		db  1Eh
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-window:					
+window:					; Zistenie ci HL padne do jedneho zo styroch okien definovanych	na adrese DE
 		ld	a, 7
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-window_2:				
+window_2:				; Zistenie ci HL padne do okna definovaneho na adrese DE
 		call	compar
 		jr	z, wind0
 		jr	nc, wind1
-		call	compar
+		call	compar		; Porovnanie hodnoty HL	s wordom na adrese DE
 		jr	c, wind2
 
-wind0:					
+wind0:
 		scf
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wind1:					
+wind1:
 		dec	de
 		dec	de
 
-wind2:					
+wind2:
 		rrca
-		jr	c, window_2
+		jr	c, window_2	; Zistenie ci HL padne do okna definovaneho na adrese DE
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-compar:					
+compar:					; Porovnanie hodnoty HL	s wordom na adrese DE
 		push	bc
 		ex	de, hl
 		ld	b, (hl)
@@ -5966,7 +5745,7 @@ compar:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hard:					
+hard:					; Kontrola zadaneho prikazu v debuggeri
 		ld	a, (zac+1)
 		cp	4Ah ; 'J'
 		scf
@@ -5976,25 +5755,24 @@ hard:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wmem:					
-
+wmem:					; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		push	de
-		ld	de,  wm_x+1
-		call	window
+		ld	de,  wm2+0Dh
+		call	window		; Zistenie ci HL padne do jedneho zo styroch okien definovanych	na adrese DE
 		pop	de
 		jr	nc, wmem2
-		call	hard
+		call	hard		; Kontrola zadaneho prikazu v debuggeri
 		ld	a, 4Dh ; 'M'
 
-wmem1:					
+wmem1:					; Vyraznejsi zvukovy signal so zachovanim AF
 		call	nc, beep
-		jp	nc, errtxt
+		jp	nc, errtxt	; Pracovny priestor pre	stack
 
-wmem2:					
+wmem2:
 		push	de
 		ld	de,  prtadr_2+1
 		xor	a
-		call	window_2
+		call	window_2	; Zistenie ci HL padne do okna definovaneho na adrese DE
 		pop	de
 		ret	nc
 		ld	a, 2Eh ; '.'
@@ -6003,25 +5781,25 @@ wmem2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wpc:					
+wpc:					; Zistenie ci adresa vykonavaneho programu je v	niektorom pametovom okne
 		push	de
-		ld	de,  pr+1
-		call	window
+		ld	de,  countr+0Fh	; Hranice pre PC okna
+		call	window		; Zistenie ci HL padne do jedneho zo styroch okien definovanych	na adrese DE
 		pop	de
 		ret	c
-		call	hard
+		call	hard		; Kontrola zadaneho prikazu v debuggeri
 		ld	a, 50h ; 'P'
 		jr	nc, wmem1
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dumplr:					
+dumplr:					; Vypis	L riadkov dumpu	pamete pre prikaz Dump
 		ld	h, 0
 
-dumpl1:					
+dumpl1:					; Vypis	styroch	bajtov pamete pre dump a modify
 		call	dump1r
-		call	outbuf
+		call	outbuf		; Vypis	textoveho buffera na dany riadok obrazovky
 		inc	h
 		dec	l
 		jr	nz, dumpl1
@@ -6029,72 +5807,72 @@ dumpl1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-anti:					
+anti:					; Debugger klavesa A - disasembler - vypise strojovy kod od danej adresy
 		ld	hl,  an2+1
-		call	reg02
+		call	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
-an1:
+an1:					; Zmazanie obrazovky
 		call	clear
 
-an2:					
+an2:
 		ld	de, 0
 		ld	b, 16h
 
-an3:					
+an3:
 		push	bc
-		call	clrd
+		call	clrd		; Zmazanie textoveho buffera
 		ld	a, d
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	a, e
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ex	de, hl
-		call	disrow
+		call	disrow		; Disasemblovanie jednej instrukcie na adrese HL
 		ex	de, hl
 		xor	a
-		call	rolup1
+		call	rolup1		; Posun	casti obrazovky	o jeden	riadok hore
 		push	hl
 		ld	h, 15h
 		ld	l, 0
-		call	outbuf
+		call	outbuf		; Vypis	textoveho buffera na dany riadok obrazovky
 		pop	hl
 		pop	bc
 		djnz	an3
 		inc	b
 
-an4:					
+an4:					; ; Obsluha klavesnice s autorepeatom
 		call	inkey
 		cp	61h ; 'a'
 		jr	z, an3
 		cp	0Dh
-		call	nz, beep
+		call	nz, beep	; Vyraznejsi zvukovy signal so zachovanim AF
 		jr	nz, an4
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dump:					
+dump:					; Debugger klavesa D - vypis pameti a hladanie bajtov/textov v pameti
 		ld	hl,  dump1+1
-		call	reg02
+		call	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
-dump0:
+dump0:					; Zmazanie obrazovky
 		call	clear
 
-dump1:					
+dump1:
 		ld	de, 0
 
-dump2:					
+dump2:
 		push	de
 		ld	l, 10h
-		call	dumplr
+		call	dumplr		; Vypis	L riadkov dumpu	pamete pre prikaz Dump
 		pop	de
 
-dump3:					
+dump3:					; Zmazanie spodneho riadku obrazovky
 		call	blkbdb
-		call	inkey
+		call	inkey		; ; Obsluha klavesnice s autorepeatom
 		cp	0Dh
 		ret	z
-		call	dumpp
-		call	nz, beep
+		call	dumpp		; Ovladacie klavesy pre	zmeny adresy dumpu
+		call	nz, beep	; Vyraznejsi zvukovy signal so zachovanim AF
 		jr	nz, dump3
 		add	hl, de
 		ex	de, hl
@@ -6102,7 +5880,7 @@ dump3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-dumpp:					
+dumpp:					; Ovladacie klavesy pre	zmeny adresy dumpu
 		ld	hl, 40h
 		cp	1Ah
 		ret	z
@@ -6116,23 +5894,23 @@ dumpp:
 		cp	68h ; 'h'
 		ret	nz
 
-paket:					
+paket:					; Zmazanie textoveho buffera
 		call	clrd
 		ld	(hl), a
 		inc	hl
 		ld	(hl), 3Ah ; ':'
 		inc	hl
 
-err_ret:				
+err_ret:				; Vyraznejsi zvukovy signal so zachovanim AF
 		call	c, beep
 		ld	(hl), 20h ; ' '
 		push	hl
 		ld	h, 16h
-		call	setcrs
-		call	outdlg
+		call	setcrs		; Zmazanie kurzora na starej a zobrazenie na novej pozicii
+		call	outdlg		; Vypis	buffera	na spodny riadok obrazovky
 		ld	hl, err_ret
 		ex	(sp), hl
-		call	inkey
+		call	inkey		; ; Obsluha klavesnice s autorepeatom
 		cp	0Dh
 		jr	nz, pt1
 
@@ -6155,7 +5933,7 @@ ptfnc:
 		ldir
 		pop	de
 
-ptf0:					
+ptf0:
 		bit	1, c
 		jr	z, ptf2
 		push	de
@@ -6163,7 +5941,7 @@ ptf0:
 		ld	b, h
 		ld	c, l
 
-ptf1:					
+ptf1:					; Prevod hexadecimalneho cisla na 16bit	hodnotu
 		call	hxbn
 		ld	a, e
 		ld	(bc), a
@@ -6175,11 +5953,11 @@ ptf1:
 		pop	de
 		ld	a, c
 
-ptf2:					
+ptf2:
 		ld	(ptfb+1), a
 		ld	bc, -1
 
-ptf3:					
+ptf3:
 		ld	hl, buffer_2
 		inc	de
 		ld	a, (hl)
@@ -6190,7 +5968,7 @@ ptf3:
 		dec	de
 		push	de
 
-ptf4:					
+ptf4:
 		ld	a, (de)
 		cp	(hl)
 		jr	nz, ptf6
@@ -6198,17 +5976,17 @@ ptf4:
 		inc	l
 		ld	a, l
 
-ptfb:					
+ptfb:
 		sub	3
 		jr	nz, ptf4
 		sbc	hl, de
 		jr	z, ptf5
 		inc	a
 
-ptf5:					
+ptf5:
 		dec	a
 
-ptf6:					
+ptf6:
 		pop	de
 		jr	nz, ptf3
 		ld	h, a
@@ -6217,7 +5995,7 @@ ptf6:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pt1:					
+pt1:
 		cp	13h
 		jr	nz, pt2
 		ld	a, l
@@ -6235,12 +6013,12 @@ pt1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-pt2:					
+pt2:
 		cp	20h ; ' '
 		ret	c
 		ld	b, a
 		bit	1, c
-		call	nz, hxbn1
+		call	nz, hxbn1	; Zistenie hodnoty jednej hexadecimalnej cislice
 		ret	c
 		ld	(hl), b
 		ld	a, 1Bh
@@ -6262,50 +6040,44 @@ tbflag:		db  40h	; @
 		db    1
 		db    4
 		db  80h	; 
-tflg:		db  53h	; S		
-		db  5Ah	; Z
-		db  41h	; A
-		db  50h	; P
-		db  43h	; C
+tflg:		db 'SZAPC'  ; Priznaky pre ich vypis v debuggeri
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-quit:					
+quit:					; Debugger klavesa Q - ukoncenie debuggera
 		call	blkbdb
-		ld	sp, (stack)
-		jp	monit
+		ld	sp, (stack)	; Hodnota SP pri spusteni systemu MRS
+		jp	monit		; Vstup	do modulu "mrs>"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-regist:					
+regist:					; Debugger klavesa R - nastavenie registrov
 		call	inkey
 		and	0DFh ; ''
 		ld	(hl), a
 		cp	50h ; 'P'
-		jr	nz, reg00
+		jr	nz, reg00	; Zadanie hodnoty pre 16-bit register
 		ld	hl, oebrpc
 		ex	(sp), hl
-		ld	hl, rpc
-		jr	reg02
+		ld	hl, rpc		; Hodnota registra PC v	debuggeri
+		jr	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-reg00:					
-		ld	hl, tabreg_6
+reg00:					; Zadanie hodnoty pre 16-bit register
+		ld	hl,  tabreg+6
 		ld	bc, 7
 		cpdr
 		ret	nz
-		ld	hl,  raf+1
+		ld	hl,  raf+1	; Hodnota registra AF v	debuggeri
 		add	hl, bc
 		add	hl, bc
 		add	hl, bc
 		add	hl, bc
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-reg02:					
+reg02:					; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 		push	hl
-		call	vstup
+		call	vstup		; Zadanie jednej hodnoty
 		pop	hl
 		ret	z
 		ld	(hl), e
@@ -6315,84 +6087,78 @@ reg02:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabreg:		db  41h	; A
-		db  42h	; B
-		db  44h	; D
-		db  48h	; H
-		db  58h	; X
-		db  59h	; Y
-tabreg_6:	db  53h	; S		
+tabreg:		db 'ABDHXYS' ; 16-bitove registre pre zadavanie ich hodnot
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-wmpc:					
+wmpc:					; Debugger klavesa W - nastavenie PC a memory okien
 		call	inkey
 		and	0DFh ; ''
 		ld	(hl), a
-		ld	de, wm
+		ld	de, wm		; Hranice pre pametove okna
 		cp	4Dh ; 'M'
 		jr	z, wpm0
 		cp	50h ; 'P'
-		jp	nz, beep
-		ld	de, countr
+		jp	nz, beep	; Vyraznejsi zvukovy signal so zachovanim AF
+		ld	de, countr	; Hranice pre PC okna
 
-wpm0:					
+wpm0:
 		push	de
 		push	af
 		ld	bc, 831h
 		inc	hl
 		inc	hl
 
-wpm1:					
+wpm1:
 		ld	(hl), c
 		inc	hl
 		ld	(hl), 3Ah ; ':'
 		inc	hl
-		call	dwhx
+		call	dwhx		; Vypis	hexadecimalnej hodnoty z pameti
 		ld	a, b
 		rrca
 		jr	nc, wpm2
 		inc	hl
 		inc	hl
 
-wpm2:					
+wpm2:
 		inc	hl
 		inc	c
 		djnz	wpm1
-		call	outdlg
-		call	clrd
+		call	outdlg		; Vypis	buffera	na spodny riadok obrazovky
+		call	clrd		; Zmazanie textoveho buffera
 		ld	b, l
 		inc	hl
 		pop	af
 		ld	(hl), a
 		inc	hl
-		call	inkey
+		call	inkey		; ; Obsluha klavesnice s autorepeatom
 		ld	(hl), a
 		pop	hl
 		sub	31h ; '1'
-		jp	c, beep
+		jp	c, beep		; Vyraznejsi zvukovy signal so zachovanim AF
 		cp	8
-		jp	nc, beep
+		jp	nc, beep	; Vyraznejsi zvukovy signal so zachovanim AF
 		ld	c, a
 		add	hl, bc
 		add	hl, bc
-		jr	reg02
+		jr	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-print:					
+print:					; Debugger klavesa P - zobrazenie zadanej oblasti pamete pri zapise do nej
 		call	vstup
 		jr	z, print1
 		ld	(prtadr), de
 
-print1:					
+print1:					; Zmazanie textoveho buffera
 		call	clrd
 		ld	(hl), 4Ch ; 'L'
-		call	vstup
+		call	vstup		; Zadanie jednej hodnoty
 		jr	nz, print2
 		ld	e, 0
 
-print2:					
+print2:
 		ld	a, e
 		cp	17h
 		ret	nc
@@ -6400,7 +6166,7 @@ print2:
 		ld	de, 4
 		ld	hl, (prtadr)
 
-print3:					
+print3:
 		add	hl, de
 		dec	a
 		jr	nz, print3
@@ -6410,17 +6176,17 @@ print3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prtadr:		dw 0			
-prtadr_2:	dw 0			
+prtadr:		dw 0
+prtadr_2:	dw 0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-list:					
+list:					; Debugger klavesa L - urcenie poctu zobrazovanych zakladnych stavovych	informacii
 		call	vstup
 		jr	nz, list1
 		ld	e, 17h
 
-list1:					
+list1:
 		ld	a, 16h
 		sub	e
 		sub	e
@@ -6435,111 +6201,108 @@ list1:
 ;;	      ;;
 ;;;;;;;;;;;;;;;;
 
-dbg:					
+dbg:					; Prikaz mrs>dbg - spustenie debuggera
 		call	getend
 		dec	de
-		ld	(memtop), de
-		call	outbr
+		ld	(memtop), de	; Koniec volnej	pamete a zaciatok zdrojoveho textu
+		call	outbr		; Debugger klavesa O - deaktivacia breakpointu
 
-oebrpc:					
+oebrpc:					; Hodnota SP pri spusteni systemu MRS
 		ld	sp, (stack)
-		ld	hl, retgo
+		ld	hl, retgo	; Navratova adresa pre spustane	programy
 		push	hl
-		ld	(rsp+1), sp
+		ld	(rsp+1), sp	; Hodnota registra SP v	debuggeri
 
-retfnc:					
-					
+retfnc:
 		ld	a, 20h ; ' '
-		jr	errtxt
+		jr	errtxt		; Pracovny priestor pre	stack
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-bm1:					
-					
+bm1:					; Naposledy zadany prikaz debuggera (kod klavesy)
 		jr	zac
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 		or	a
-		ld	hl, (rpc)
-		ld	de, (adrbrk+1)
+		ld	hl, (rpc)	; Hodnota registra PC v	debuggeri
+		ld	de, (adrbrk+1)	; Adresa zadaneho breakpointu (0 = ziadny nie je)
 		sbc	hl, de
-		ld	hl,  zac+1
+		ld	hl,  zac+1	; Naposledy zadany prikaz debuggera (kod klavesy)
 		ld	a, (hl)
-		jr	z, cross
+		jr	z, cross	; Pocet	prechodov cez breakpoint
 		cp	47h ; 'G'
-		jr	nz, zac
+		jr	nz, zac		; Naposledy zadany prikaz debuggera (kod klavesy)
 		set	5, (hl)
-		jp	go
+		jp	go		; Debugger klavesa G - spustenie programu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cross:					
-					
+cross:					; Pocet	prechodov cez breakpoint
 		ld	de, 0
 		ld	a, d
 		or	e
 		jr	z, loop
 		ld	a, (hl)
 		cp	67h ; 'g'
-		jr	nz, zac
+		jr	nz, zac		; Naposledy zadany prikaz debuggera (kod klavesy)
 		res	5, (hl)
-		call	brktst
+		call	brktst		; Rychly test klavesy BREAK
 		jp	c, sprac
 
-loop:					
+loop:
 		ld	a, 0C2h	; ''
-		call	beep
-		jr	errtxt
+		call	beep		; Vyraznejsi zvukovy signal so zachovanim AF
+		jr	errtxt		; Pracovny priestor pre	stack
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-crosst:					
+crosst:					; Pocitanie prechodov cez breakpoint
 		push	hl
-		ld	hl, (rpc)
-		ld	de, (adrbrk+1)
+		ld	hl, (rpc)	; Hodnota registra PC v	debuggeri
+		ld	de, (adrbrk+1)	; Adresa zadaneho breakpointu (0 = ziadny nie je)
 		or	a
 		sbc	hl, de
 		pop	hl
 		ret	nz
-		ld	de, (cross+1)
+		ld	de, (cross+1)	; Pocet	prechodov cez breakpoint
 		ld	a, d
 		or	e
 		ret	z
 		dec	de
-		ld	(cross+1), de
+		ld	(cross+1), de	; Pocet	prechodov cez breakpoint
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-zac:					
+zac:					; Naposledy zadany prikaz debuggera (kod klavesy)
 		ld	a, 0
 		and	0DFh ; ''
 		or	80h ; ''
 
-errtxt:					
+errtxt:					; Pracovny priestor pre	stack
 		ld	sp, begmod
 		cp	0CEh ; ''
 		jp	z, tstop
 		push	af
 
-wmm:					
+wmm:
 		jr	vr0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prtln:					
+prtln:
 		ld	a, 0
 		or	a
 		ld	l, a
 		ld	de, (prtadr)
-		call	nz, dumplr
+		call	nz, dumplr	; Vypis	L riadkov dumpu	pamete pre prikaz Dump
 		ld	a, 18h
 		ld	(wmm), a
 
 ; Vypis	stavov registrov
 
-vr0:					
+vr0:					; Zmazanie textoveho buffera
 		call	clrd
 		pop	af
 		push	af
@@ -6547,16 +6310,16 @@ vr0:
 		ld	(hl), a
 		inc	hl
 		inc	hl
-		ld	de, rpc
-		call	dwhx
+		ld	de, rpc		; Hodnota registra PC v	debuggeri
+		call	dwhx		; Vypis	hexadecimalnej hodnoty z pameti
 		ld	l, 1Bh
-		ld	a, (raf+1)
-		ld	de, tflg
+		ld	a, (raf+1)	; Hodnota registra AF v	debuggeri
+		ld	de, tflg	; Priznaky pre ich vypis v debuggeri
 		ld	b, 5
 		rlca
 		rrca
 
-vr1:					
+vr1:
 		ld	(hl), 2Dh ; '-'
 		jr	nc, vr2
 		ex	de, hl
@@ -6564,19 +6327,19 @@ vr1:
 		ex	de, hl
 		ld	(hl), c
 
-vr2:					
+vr2:
 		inc	de
 		inc	hl
 		rlca
 		rlca
 		djnz	vr1
-		ld	a, (raf+2)
-		call	bnhx
+		ld	a, (raf+2)	; Hodnota registra AF v	debuggeri
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		inc	hl
 		ld	b, 6
-		ld	de,  rbc+1
+		ld	de,  rbc+1	; Hodnota registra BC v	debuggeri
 
-vr3:					
+vr3:					; Vypis	hexadecimalnej hodnoty z pameti
 		call	dwhx
 		inc	de
 		inc	de
@@ -6588,36 +6351,36 @@ vr3:
 		rlca
 		jr	nc, vr4
 
-scrln:					
+scrln:
 		ld	a, 17h
 		cp	17h
 		jp	nc, vrtst
-		call	rolup
+		call	rolup		; Posun	casti obrazovky	o dva riadky hore
 
-vr4:					
+vr4:					; Hodnota registra PC v	debuggeri
 		ld	hl, (rpc)
-		call	disrow
-		call	outdlg
+		call	disrow		; Disasemblovanie jednej instrukcie na adrese HL
+		call	outdlg		; Vypis	buffera	na spodny riadok obrazovky
 		ld	hl, 1607h
 		ld	b, 13h
 
-inv:					
+inv:					; Invertovanie znaku na	obrazovke
 		call	invpix
 		inc	l
 		djnz	inv
 		pop	af
 		jr	z, tstop
 
-ink:
+ink:					; ; Obsluha klavesnice s autorepeatom
 		call	inkey
-		ld	(zac+1), a
+		ld	(zac+1), a	; Naposledy zadany prikaz debuggera (kod klavesy)
 		cp	4Ah ; 'J'
 		jp	z, sprac
 		and	0DFh ; ''
-		ld	hl, tabfn
+		ld	hl, tabfn	; Ovladacie klavesy debuggera
 		ld	bc, 3
 		cpir
-		jp	z, usprac
+		jp	z, usprac	; Debugger klavesy S,C,T,N - kontrolovany beh programu
 		ld	c, 0Dh
 		cpir
 		ld	de, retfnc
@@ -6628,8 +6391,8 @@ ink:
 		ld	e, (hl)
 		inc	hl
 		ld	d, (hl)
-		jp	nz, beep
-		call	clrd
+		jp	nz, beep	; Vyraznejsi zvukovy signal so zachovanim AF
+		call	clrd		; Zmazanie textoveho buffera
 		ld	(hl), a
 		inc	hl
 		push	de
@@ -6637,32 +6400,28 @@ ink:
 		cp	5
 		ret	nc
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-outdlg:					
+outdlg:					; Vypis	buffera	na spodny riadok obrazovky
 		push	hl
 		push	de
-		call	outbdb
+		call	outbdb		; Vypis	buffera	na spodny riadok obrazovky
 		pop	de
 		pop	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-rolup:					
+rolup:					; Posun	casti obrazovky	o dva riadky hore
 		push	af
-		call	rolup1
+		call	rolup1		; Posun	casti obrazovky	o jeden	riadok hore
 		pop	af
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-rolup1:					
+rolup1:					; Posun	casti obrazovky	o jeden	riadok hore
 		push	bc
 		push	de
 		push	hl
 		ld	h, a
 		ld	a, 17h
-		call	idel
+		call	idel		; Posun	(casti)	obrazovky smerom hore
 		pop	hl
 		pop	de
 		pop	bc
@@ -6670,53 +6429,38 @@ rolup1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabfn:		db  53h	; S		
-		db  43h	; C
-		db  54h	; T
-		db  4Dh	; M
-		db  44h	; D
-		db  49h	; I
-		db  4Ch	; L
-		db  58h	; X
-		db  41h	; A
-		db  50h	; P
-		db  51h	; Q
-		db  4Eh	; N
-		db  57h	; W
-		db  52h	; R
-		db  4Fh	; O
-		db  47h	; G
-		dw go
-		dw outbr
-		dw regist
-		dw wmpc
-		dw usprac
-		dw quit
-		dw print
-		dw anti
-		dw exxx			; exx :	ex af,af
-		dw list
-		dw inbrk
-		dw dump
-		dw modify
+tabfn:		db 'SCTMDILXAPQNWROG' ; Ovladacie klavesy debuggera
+
+		dw go			; Debugger klavesa G - spustenie programu
+		dw outbr		; Debugger klavesa O - deaktivacia breakpointu
+		dw regist		; Debugger klavesa R - nastavenie registrov
+		dw wmpc			; Debugger klavesa W - nastavenie PC a memory okien
+		dw usprac		; Debugger klavesy S,C,T,N - kontrolovany beh programu
+		dw quit			; Debugger klavesa Q - ukoncenie debuggera
+		dw print		; Debugger klavesa P - zobrazenie zadanej oblasti pamete pri zapise do nej
+		dw anti			; Debugger klavesa A - disasembler - vypise strojovy kod od danej adresy
+		dw exxx			; Debugger klavesa X - vymena registrov	za alternativne	(urobi EX AF,AF	a EXX)
+		dw list			; Debugger klavesa L - urcenie poctu zobrazovanych zakladnych stavovych	informacii
+		dw inbrk		; Debugger klavesa I - vytvorenie breakpointu
+		dw dump			; Debugger klavesa D - vypis pameti a hladanie bajtov/textov v pameti
+		dw modify		; Debugger klavesa M - modifikacia obsahu pameti
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-vrtst:					
+vrtst:
 		pop	af
 		push	af
 		jp	nz, vr4
-		call	outdlg
+		call	outdlg		; Vypis	buffera	na spodny riadok obrazovky
 
-tstop:					
+tstop:					; Rychly test klavesy BREAK
 		call	brktst
 		jp	nc, retfnc
 
-usprac:					
-					
+usprac:					; Debugger klavesy S,C,T,N - kontrolovany beh programu
 		ld	de, ii
 
-uspr1:					
+uspr1:					; Hodnota registra PC v	debuggeri
 		ld	hl, (rpc)
 		ld	a, (de)
 		or	a
@@ -6729,18 +6473,18 @@ uspr1:
 		ld	a, (de)
 		inc	hl
 
-uspr2:					
+uspr2:
 		cp	(hl)
 
-uspr3:					
+uspr3:
 		inc	de
 		jr	nz, uspr1
-		call	hard
+		call	hard		; Kontrola zadaneho prikazu v debuggeri
 		ld	a, 49h ; 'I'
-		call	nc, beep
-		jp	nc, errtxt
+		call	nc, beep	; Vyraznejsi zvukovy signal so zachovanim AF
+		jp	nc, errtxt	; Pracovny priestor pre	stack
 
-sprac:					
+sprac:					; Hodnota registra PC v	debuggeri
 		ld	hl, (rpc)
 		ld	c, (hl)
 		ld	a, c
@@ -6759,16 +6503,16 @@ ed:
 		ld	a, (de)
 		jr	nz, ed1b
 ; Rekurzie
-		call	hard
+		call	hard		; Kontrola zadaneho prikazu v debuggeri
 		ret	c
 		ld	a, (de)
 		rra
 		ret	c
-		ld	de, (rbc+1)
-		ld	hl, (rde+1)
+		ld	de, (rbc+1)	; Hodnota registra BC v	debuggeri
+		ld	hl, (rde+1)	; Hodnota registra DE v	debuggeri
 		rra
 		jr	nc, rek1
-		ld	hl, (rhl+1)
+		ld	hl, (rhl+1)	; Hodnota registra HL v	debuggeri
 		ld	e, d
 		ld	d, 0
 		inc	e
@@ -6776,7 +6520,7 @@ ed:
 		jr	nz, rek1
 		inc	d
 
-rek1:					
+rek1:
 		ld	bc, 1
 		rra
 		rra
@@ -6784,14 +6528,14 @@ rek1:
 		dec	bc
 		dec	bc
 
-rek2:					
+rek2:
 		rra
 		ld	a, b
 		ld	b, 2
-		jp	nc, wmem
+		jp	nc, wmem	; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		ld	b, a
 
-rek3:					
+rek3:					; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		call	wmem
 		add	hl, bc
 		dec	de
@@ -6803,10 +6547,10 @@ rek3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ed1b:					
+ed1b:
 		or	a
 
-ed1b_1:					
+ed1b_1:
 		jp	m, undef
 		sub	40h ; '@'
 		jr	c, ed1b_1
@@ -6816,7 +6560,7 @@ ed1b_1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-fdd:					
+fdd:
 		ld	a, c
 		and	0DFh ; ''
 		cp	0DDh ; ''
@@ -6835,7 +6579,7 @@ fdd:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-fdd1:					
+fdd1:
 		cp	45h ; 'E'
 		ret	z
 		cp	4Dh ; 'M'
@@ -6855,31 +6599,31 @@ fdd1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cb:					
+cb:
 		ld	a, c
 		cp	0CBh ; ''
 		jr	nz, base
 
-fdcb:					
+fdcb:
 		ld	a, (de)
 		rla
 		jr	c, testcb
 		rla
 		ret	c
 
-testcb:					
+testcb:
 		ld	a, (de)
 		and	7
 		cp	6
 		ret	nz
 
-memhl:					
+memhl:					; Nacitanie displacementu z instrukcie a vypocet vyslednej adresy
 		call	hlortd
-		jp	wmem
+		jp	wmem		; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-base:					
+base:
 		dec	b
 		call	prg1
 		ld	a, c
@@ -6890,7 +6634,7 @@ base:
 		ld	hl, tabase
 		dec	de
 
-long:					
+long:
 		push	af
 		ld	c, a
 		and	3
@@ -6908,7 +6652,7 @@ long:
 		rlca
 		inc	b
 
-lon1:					
+lon1:
 		rrca
 		rrca
 		djnz	lon1
@@ -6919,19 +6663,19 @@ lon1:
 		jr	nc, lon2
 		inc	b
 
-lon2:					
+lon2:					; Kontrola zadaneho prikazu v debuggeri
 		call	hard
 		ret	z
 		ld	a, (de)
-		ld	hl, (rbc+1)
+		ld	hl, (rbc+1)	; Hodnota registra BC v	debuggeri
 		cp	2
 		jr	z, lonw
-		ld	hl, (rde+1)
+		ld	hl, (rde+1)	; Hodnota registra DE v	debuggeri
 		cp	12h
 		jr	z, lonw
 		ld	hl, tabdde
 
-lon3:					
+lon3:
 		ld	a, (de)
 		and	(hl)
 		inc	hl
@@ -6947,7 +6691,7 @@ lon3:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lon5:					
+lon5:					; Nacitanie displacementu z instrukcie a vypocet vyslednej adresy
 		call	hlortd
 		bit	0, c
 		jr	nz, lonw
@@ -6956,7 +6700,7 @@ lon5:
 		jp	m, lon6
 		and	1Fh
 
-lon6:					
+lon6:
 		bit	3, c
 		jr	z, noflags
 		rrca
@@ -6971,7 +6715,7 @@ lon6:
 		adc	a, 0EFh	; ''   ; high tbflag
 		sub	l
 		ld	h, a
-		ld	a, (raf+1)
+		ld	a, (raf+1)	; Hodnota registra AF v	debuggeri
 		and	(hl)
 		rlca
 		rlca
@@ -6985,7 +6729,7 @@ flags1:
 		or	a
 		jp	po, skok
 
-noflags:				
+noflags:
 		ld	a, (de)
 		bit	1, c
 		jr	z, lon7
@@ -6997,29 +6741,29 @@ noflags:
 		ex	de, hl
 		cp	32h ; '2'
 		inc	hl
-		call	nz, wmem
+		call	nz, wmem	; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		dec	hl
 
-lonw:					
+lonw:					; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		jp	wmem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lon7:					
+lon7:
 		bit	2, c
 		jr	z, lon9
-		ld	hl, (rsp+1)
+		ld	hl, (rsp+1)	; Hodnota registra SP v	debuggeri
 		cp	0E3h ; ''
 		jr	z, lon8
 		dec	hl
 		dec	hl
 
-lon8:					
+lon8:					; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 		call	wmem
 		inc	hl
-		call	wmem
+		call	wmem		; Zistenie ci adresa na	ktoru sa ma zapisovat nie je v niektorom pametovom okne
 
-lon9:					
+lon9:
 		ld	a, c
 		and	0F8h ; ''
 		ret	z
@@ -7027,7 +6771,7 @@ lon9:
 		ex	(sp), hl
 		ld	a, (de)
 		cp	0E9h ; ''
-		jr	z, ihtohl
+		jr	z, ihtohl	; Zistenie ci instrukcia ma prefix #DD / #FD
 		and	38h ; '8'
 		ld	l, a
 		ld	a, (de)
@@ -7048,48 +6792,48 @@ lon9:
 		ld	a, (de)
 		cp	10h		; djnz
 		jr	nz, lon12
-		ld	a, (rbc+2)
+		ld	a, (rbc+2)	; Hodnota registra BC v	debuggeri
 		dec	a
 		jr	nz, lon11
 		ld	l, e
 		ld	h, d
 		inc	hl
 
-lon11:					
+lon11:
 		scf
 
-lon12:					
+lon12:
 		inc	hl
 		push	af
-		call	wpc
+		call	wpc		; Zistenie ci adresa vykonavaneho programu je v	niektorom pametovom okne
 		pop	af
 		ret	nc
-		ld	(rbc+2), a
+		ld	(rbc+2), a	; Hodnota registra BC v	debuggeri
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lon14:					
+lon14:					; Hodnota registra SP v	debuggeri
 		ld	hl, (rsp+1)
 		bit	5, c
 		jr	nz, lon15
 		bit	4, c
 		ex	de, hl
 
-lon15:					
+lon15:
 		ld	e, (hl)
 		inc	hl
 		ld	d, (hl)
 		inc	hl
 		ex	de, hl
 		ret	z
-		call	wpc
+		call	wpc		; Zistenie ci adresa vykonavaneho programu je v	niektorom pametovom okne
 		bit	5, c
 		jr	nz, lon17
 
-lon16:					
+lon16:
 		push	hl
-		ld	hl, (rsp+1)
+		ld	hl, (rsp+1)	; Hodnota registra SP v	debuggeri
 		dec	hl
 		ld	(hl), d
 		dec	hl
@@ -7097,17 +6841,17 @@ lon16:
 		ex	de, hl
 		pop	hl
 
-lon17:					
+lon17:					; Hodnota registra SP v	debuggeri
 		ld	(rsp+1), de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-hlortd:					
+hlortd:					; Nacitanie displacementu z instrukcie a vypocet vyslednej adresy
 		call	ihtohl
 		ret	nz
 		push	de
-		ld	de, (rpc)
+		ld	de, (rpc)	; Hodnota registra PC v	debuggeri
 		inc	de
 		inc	de
 		ld	a, (de)
@@ -7121,22 +6865,21 @@ hlortd:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ihtohl:					
+ihtohl:					; Zistenie ci instrukcia ma prefix #DD / #FD
 		ld	hl, (rpc)
 		ld	a, (hl)
-		ld	hl, (rix+2)
+		ld	hl, (rix+2)	; Hodnota registra IX v	debuggeri
 		cp	0DDh ; ''
 		ret	z
-		ld	hl, (riy+2)
+		ld	hl, (riy+2)	; Hodnota registra IY v	debuggeri
 		cp	0FDh ; ''
 		ret	z
-		ld	hl, (rhl+1)
+		ld	hl, (rhl+1)	; Hodnota registra HL v	debuggeri
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-prg1:					
-
+prg1:
 		cp	76h ; 'v'
 		jp	z, undef
 		and	0F8h ; ''
@@ -7147,7 +6890,7 @@ prg1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-tabase:		db  5Dh	; ]		
+tabase:		db  5Dh	; ]
 		db  65h	; e
 		db  55h	; U
 		db  65h	; e
@@ -7179,7 +6922,7 @@ tabase:		db  5Dh	; ]
 		db  67h	; g
 		db  75h	; u
 		db  63h	; c
-tabed:		db 0D5h	; 		
+tabed:		db 0D5h	; 
 		db  55h	; U
 		db 0D5h	; 
 		db  45h	; E
@@ -7195,7 +6938,7 @@ tabed:		db 0D5h	;
 		db    0
 		db 0D5h	; 
 		db    0
-tabfd0:		db    0			
+tabfd0:		db    0
 		db    0
 		db    4
 		db    0
@@ -7259,7 +7002,7 @@ tabfd0:		db    0
 		db    0
 		db    4
 		db    0
-tabdde:		db 0E7h	; 		
+tabdde:		db 0E7h	; 
 		db  20h
 		db  88h	; 
 		db 0F7h	; 
@@ -7292,7 +7035,7 @@ tabdde:		db 0E7h	;
 		db 0C7h	; 
 		db 0C7h	; 
 		db  54h	; T
-Modifikacie
+; Modifikacie
 		db 0EFh	; 
 		db  22h	; "
 		db    2
@@ -7321,52 +7064,52 @@ Modifikacie
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-undef:					
+undef:					; Kontrola zadaneho prikazu v debuggeri
 		call	hard
 		ld	a, 49h ; 'I'
-		jp	nc, errtxt
+		jp	nc, errtxt	; Pracovny priestor pre	stack
 		ld	b, 1
 
-skok:					
+skok:					; Hodnota registra PC v	debuggeri
 		ld	hl, (rpc)
 
-skok_3:					
+skok_3:
 		inc	hl
 		djnz	skok_3
 		ld	c, b
 
-jump:					
+jump:					; Zistenie ci adresa vykonavaneho programu je v	niektorom pametovom okne
 		call	wpc
-		call	crosst
-		ld	(rpc), hl
-		ld	a, (zac+1)
+		call	crosst		; Pocitanie prechodov cez breakpoint
+		ld	(rpc), hl	; Hodnota registra PC v	debuggeri
+		ld	a, (zac+1)	; Naposledy zadany prikaz debuggera (kod klavesy)
 		and	0DFh ; ''
 		cp	43h ; 'C'
 		jr	nz, jum1
 		bit	4, c
-		jr	nz, callgo
+		jr	nz, callgo	; Obsluha vykonania instrukcie na adrese HL
 
-jum1:					
+jum1:
 		jp	bm1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-inbrk:					
+inbrk:					; Debugger klavesa I - vytvorenie breakpointu
 		ld	hl,  adrbrk+1
-		call	reg02
+		call	reg02		; Zadanie jednej hodnoty a jej ulozenie	na (HL)
 
-inb1:
+inb1:					; Zmazanie textoveho buffera
 		call	clrd
 		ld	(hl), 6Eh ; 'n'
-		call	vstup
+		call	vstup		; Zadanie jednej hodnoty
 		jr	nz, imb2
 		ld	de, 0
 
-imb2:					
+imb2:					; Pocet	prechodov cez breakpoint
 		ld	(cross+1), de
 		ld	a, 2Eh ; '.'
 
-inout:					
+inout:
 		ld	(bm1), a
 		ld	(bm2), a
 		ld	(bm3), a
@@ -7374,337 +7117,270 @@ inout:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outbr:					
-					
-
+outbr:					; Debugger klavesa O - deaktivacia breakpointu
 		ld	a, 18h
 		jr	inout
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-retp:		dw retbr		
+retp:		dw retbr		; Vektor pre RST #10 sluziace ako breakpoint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-go:					
-					
+go:					; Debugger klavesa G - spustenie programu
 		ld	hl, (rpc)
 		xor	a
 
-callgo:					
+callgo:					; Obsluha vykonania instrukcie na adrese HL
 		ld	(instr_1), hl
-		ld	a, 0C3h	; ''
-		ld	(instr_dbg), a
-		ld	hl, retp
+		ld	a, 0C3h	; ''   ; #C3 = Instrukcia JP
+		ld	(instr_dbg), a	; Vykonavana instrukcia	v rezimoch S,T,N
+		ld	hl, retp	; Vektor pre RST #10 sluziace ako breakpoint
 		ld	(rst10_vektor),	hl
 		jr	z, bm2
-		ld	sp, (rsp+1)
+		ld	sp, (rsp+1)	; Hodnota registra SP v	debuggeri
 		pop	hl
 		push	hl
-		ld	(adrcal+1), hl
+		ld	(adrcal+1), hl	; Adresa za instrukciou	krokovanou v rezime C (ostre vykonane vsetkych CALLov)
 		ld	a, (hl)
-		ld	(bytcal+1), a
-		ld	(hl), 0D7h ; ''
-		ld	a, 2Eh ; '.'
+		ld	(bytcal+1), a	; Povodny bajt za instrukciou krokovanou v rezime C (ostre vykonane vsetkych CALLov)
+		ld	(hl), 0D7h ; '' ; #D7 = Instrukcia RST #10 sluziaca ako breakpoint
+		ld	a, 2Eh ; '.'    ;  #2E = Instrukcia LD L,n
 		ld	(cm1), a
 
-bm2:					
-					
+bm2:
 		jr	goon
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		ld	hl, (adrbrk+1)
+		ld	hl, (adrbrk+1)	; Adresa zadaneho breakpointu (0 = ziadny nie je)
 		ld	a, (hl)
-		ld	(bytbrk+1), a
-		ld	(hl), 0D7h ; ''
+		ld	(bytbrk+1), a	; Povodny bajt na adrese kde je	teraz breakpoint
+		ld	(hl), 0D7h ; '' ; #D7 = Instrukcia RST #10 sluziaca ako breakpoint
 
-goon:					
+goon:
 		jr	refres
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-retbr:					
+retbr:					; Sem to skoci ak sa narazi na breakpoint
 		inc	sp
 		inc	sp
 		pop	hl
 		exx
 		ex	(sp), hl
 		dec	hl
-		ld	(rpc), hl
+		ld	(rpc), hl	; Hodnota registra PC v	debuggeri
 
-bm3:					
-					
+bm3:
 		jr	cm1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-adrbrk:					
+adrbrk:					; Adresa zadaneho breakpointu (0 = ziadny nie je)
 		ld	hl, 0
 
-bytbrk:					
+bytbrk:					; Povodny bajt na adrese kde je	teraz breakpoint
 		ld	(hl), 0
 
-cm1:					
-					
+cm1:
 		jr	retb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-adrcal:					
+adrcal:					; Adresa za instrukciou	krokovanou v rezime C (ostre vykonane vsetkych CALLov)
 		ld	hl, 0
 
-bytcal:					
+bytcal:					; Povodny bajt za instrukciou krokovanou v rezime C (ostre vykonane vsetkych CALLov)
 		ld	(hl), 0
 		ld	hl, cm1
-		ld	(hl), 18h
+		ld	(hl), 18h	; #18 =	Instrukcia JR ...
 
-retb:					
+retb:
 		pop	hl
 		jr	instr_4
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-retgo:					
+retgo:					; Navratova adresa pre spustane	programy
 		nop
-		ld	sp, (stack)
+		ld	sp, (stack)	; Hodnota SP pri spusteni systemu MRS
 		push	hl
-		ld	hl, 453Eh
-		ld	(zac), hl
-		ld	hl, retgo
+		ld	hl, 453Eh	; Instrukcia LD	A,'E'
+		ld	(zac), hl	; Naposledy zadany prikaz debuggera (kod klavesy)
+		ld	hl, retgo	; Navratova adresa pre spustane	programy
 		ex	(sp), hl
 		push	hl
 		jr	bm3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-byte:					
+byte:					; Hodnota registra PC v	debuggeri
 		ld	hl, (rpc)
-		ld	de, retgo
+		ld	de, retgo	; Navratova adresa pre spustane	programy
 		xor	a
 		ld	c, b
 		ld	b, a
 		sbc	hl, de
 		add	hl, de
 		ld	a, 45h ; 'E'
-		jp	z, errtxt
+		jp	z, errtxt	; Pracovny priestor pre	stack
 		push	hl
 		add	hl, bc
-		call	wpc
-		call	hard
+		call	wpc		; Zistenie ci adresa vykonavaneho programu je v	niektorom pametovom okne
+		call	hard		; Kontrola zadaneho prikazu v debuggeri
 		jr	z, byte1
 		pop	hl
-		ld	de, instr_dbg
+		ld	de, instr_dbg	; Vykonavana instrukcia	v rezimoch S,T,N
 		ldir
-		call	crosst
+		call	crosst		; Pocitanie prechodov cez breakpoint
 
-byte1:					
+byte1:					; Hodnota registra PC v	debuggeri
 		ld	(rpc), hl
 
-refres:					
+refres:					; Hodnota registra AF v	debuggeri
 		ld	hl, (raf+1)
 		push	hl
 		pop	af
 
-raf:					
+raf:					; Hodnota registra AF v	debuggeri
 		ld	bc, 0AAFFh
 		nop
 
-rbc:					
+rbc:					; Hodnota registra BC v	debuggeri
 		ld	bc, 0BBCCh
 		nop
 
-rde:					
+rde:					; Hodnota registra DE v	debuggeri
 		ld	de, 0DDEEh
 		nop
 
-rhl:					
+rhl:					; Hodnota registra HL v	debuggeri
 		ld	hl, 2211h
 
-rix:					
+rix:					; Hodnota registra IX v	debuggeri
 		ld	ix, 0DDDDh
 
-riy:					
+riy:					; Hodnota registra IY v	debuggeri
 		ld	iy, 5C3Ah
 		nop
 
-rsp:					
+rsp:					; Hodnota registra SP v	debuggeri
 		ld	sp, 0
 
-instr_dbg:				
+instr_dbg:				; Vykonavana instrukcia	v rezimoch S,T,N
 		nop
 
-instr_1:				
+instr_1:
 		nop
 
-instr_:					
+instr_:
 		nop
 		nop
 
-instr_4:				
+instr_4:				; Hodnota registra HL v	debuggeri
 		ld	(rhl+1), hl
-		ld	(rsp+1), sp
-		ld	sp, begmod
+		ld	(rsp+1), sp	; Hodnota registra SP v	debuggeri
+		ld	sp, begmod	; Pracovny priestor pre	stack
 		push	af
 		pop	hl
-		ld	(raf+1), hl
-		ld	(rbc+1), bc
-		ld	(rde+1), de
-		ld	(rix+2), ix
-		ld	(riy+2), iy
+		ld	(raf+1), hl	; Hodnota registra AF v	debuggeri
+		ld	(rbc+1), bc	; Hodnota registra BC v	debuggeri
+		ld	(rde+1), de	; Hodnota registra DE v	debuggeri
+		ld	(rix+2), ix	; Hodnota registra IX v	debuggeri
+		ld	(riy+2), iy	; Hodnota registra IY v	debuggeri
 		ld	hl, 0
-		ld	(instr_dbg), hl
+		ld	(instr_dbg), hl	; Vykonavana instrukcia	v rezimoch S,T,N
 		ld	(instr_), hl
 		jp	bm1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-exxx:					
-		ld	hl, 0D908h	; exx :	ex af,af
-		ld	(instr_dbg), hl
+exxx:					; Debugger klavesa X - vymena registrov	za alternativne	(urobi EX AF,AF	a EXX)
+		ld	hl, 0D908h
+		ld	(instr_dbg), hl	; #D9 =	exx , #08 = ex af,af
 		jr	refres
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-rpc:		dw 0			
-wm:		dw 0			
-wm2:		dw 0			
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-wm_x:		dw 0			
-countr:		dw 0			
-		dw 0FFFFh
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-pr:		dw 0			
+rpc:		dw 0			; Hodnota registra PC v	debuggeri
+wm:		dw 0			; Hranice pre pametove okna
+wm2:		dw  0, 0, 0, 0,	0, 0, 0
+countr:		dw  0,-1, 0, 0,	0, 0, 0, 0 ; Hranice pre PC okna
+		dw  0, 0, 0, 0,	0, 0, 0, 0
+		dw  0, 0, 0, 0,	0, 0, 0, 0
 		dw 0
 		dw 0
 		dw 0
 		dw 0
 		dw 0
 		dw 0
+		dw 0			; Pracovny priestor pre	stack
 		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-		dw 0
-begmod:		dw 0			
-endmod:		dw 0			
-pcode:		dw 0			
-aldind_:	db 0			
-eind:		db 0			
-linn:		dw 0			
-curpc:		dw 0			
-nextpc:		dw 0			
-plist:		dw 0			
-iunpln:		db 0			
-exaf:		db 0			
-					; getmem_lib+3Br
-prefix:		db 0DDh	; 		
+begmod:		dw 0			; Adresa kde bude prelozeny kod	ak nie je inak specifikovane ORG-om
+endmod:		dw 0			; Hranica v pameti po ktoru je mozne ukladat prelozeny kod
+pcode:		dw 0			; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+aldind_:	db 0			; Priznak kompilacneho prikazu:	0 = asm, 2 = ald
+eind:		db 0
+linn:		dw 0
+curpc:		dw 0			; Adresa zadana	ORG-om kde bude	kompilovany kod	fungovat
+nextpc:		dw 0			; Adresa ako curpc ale nasledujucej instrukcie
+plist:		dw 0
+iunpln:		db 0
+exaf:		db 0
+prefix:		db 0DDh	; 
 		db 0FDh	; 
 		db 0CBh	; 
 		db 0EDh	; 
-tude:		db  0Dh			
-		db  75h	; u
-		db  6Eh	; n
-		db  64h	; d
-		db  65h	; e
-		db  66h	; f
-		db  69h	; i
-		db  6Eh	; n
-		db  65h	; e
-		db  64h	; d
-		db  20h
-		db  65h	; e
-		db  78h	; x
-		db  74h	; t
-		db  65h	; e
-		db  72h	; r
-		db  6Eh	; n
-		db  61h	; a
-		db  6Ch	; l
-		db  73h	; s
-		db  3Ah	; :
+tude:		db  0Dh
+		db 'undefined externals:'
 tude2:		db  0Dh
-tnoend:		db  6Eh	; n		
-		db  6Fh	; o
-		db  20h
-		db  65h	; e
-		db  6Eh	; n
-		db  64h	; d
-		db  20h
-		db  20h
-terr:		db  0Dh			
-		db  65h	; e
-		db  72h	; r
-		db  72h	; r
-		db  6Fh	; o
-		db  72h	; r
-		db  73h	; s
-		db  3Ah	; :
-terr_sp:	db 20h			
-errcnt:		dw 0			
+tnoend:		db 'no end  '
+terr:		db  0Dh
+terrors:	db 'errors: '
+errcnt:		dw 0			; Pocet	chyb pri preklade
 		dw 0
 		db  20h
-tlib:		db  6Ch	; l		
-		db  69h	; i
-		db  62h	; b
-		db  3Eh	; >
-clib:		db  73h	; s		
-		db  61h	; a
-		db  76h	; v
-		dw savlib
-		db  6Ch	; l
-		db  6Fh	; o
-		db  61h	; a
-		dw loalib
-		db  64h	; d
-		db  65h	; e
-		db  6Ch	; l
-		dw delmod
-		db  6Ch	; l
-		db  73h	; s
-		db  74h	; t
-		dw lstlib
-		db  65h	; e
-		db  6Eh	; n
-		db  74h	; t
-		dw entry
+tlib:		db 'lib>'
+clib:		db 'sav'
+		dw savlib		; Prikaz lib>sav - Ulozenie kniznice na	pasku
+		db 'loa'
+		dw loalib		; Prikaz lib>loa - Nacitanie kniznice s	pasky
+		db 'del'
+		dw delmod		; Prikaz lib>del - Zmazanie posledneho modulu kniznice
+		db 'lst'
+		dw lstlib		; Prikaz lib>lst - Vypis modulov kniznice
+		db 'ent'
+		dw entry		; Prikaz lib>ent - Oznacenie vstupneho bodu pre	spustenie programu v kniznici
 		db 0FFh
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-schent:					
-		push	hl
-		ld	de, 6005h
-		call	gent1
+;   schent - vyhlada vstupny bod v kniznici.  da sa vyuzit  ak	napr.	jeden
+;	     program  produkuje	 data, ktore ma	spracovat iny modul kniznice.
+;	     pomocou schent moze dany program najst tabulku  v	inom  module,
+;	     kam ma ulozit vystupne data.
+;	     vstup:  <hl> = adresa retazca, ktory  udava  pozadovane  vstupne
+;	     navestie.	retazec	musi koncit binarnou nulou.
+;	     vystup:<z flag> = 1 - chybna syntax alebo v kniznici nie je take
+;	     meno.  inac
+;		     <hl> = adresa mena	v kniznici.  na	 tejto	adrese	je  6
+;	     znakov  meno a dalsie dva znaky adresa, ktoru toto	meno oznacuje
+;	     (napr.  adresa tabulky, ktorej meno je popisane ako ent).
+;	     meni sa:  <af>, <bc>, <de>, <hl>
 
-se1:					
+schent:					; Vyhladanie vstupneho bodu v kniznici
+		push	hl
+		ld	de, libbeg	; Zaciatok kniznice a napis "sysmod"
+		call	gent1		; Vyhladanie tabulky navesti ENT v moduloch kniznice
+
+se1:
 		ex	de, hl
 		ex	(sp), hl
 		push	hl
 		push	de
 		push	bc
-		call	cmpsym
+		call	cmpsym		; Porovnanie dvoch navesti ci sa jedna o to iste navestie
 		pop	bc
 		pop	hl
 		pop	de
@@ -7723,33 +7399,33 @@ se1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-se2:					
+se2:
 		inc	a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-cmpsym:					
+cmpsym:					; Porovnanie dvoch navesti ci sa jedna o to iste navestie
 		push	bc
 		push	de
 		push	hl
 		ld	b, 6
 		ex	de, hl
 
-cs1:					
+cs1:
 		ld	a, (de)
 		cp	20h ; ' '
 		jr	nc, cs2
 		ld	a, 20h ; ' '
 		dec	de
 
-cs2:					
+cs2:
 		res	7, a
 		bit	7, (hl)
 		jr	z, cs3
 		set	7, a
 
-cs3:					
+cs3:
 		cp	(hl)
 		inc	de
 		inc	hl
@@ -7757,7 +7433,7 @@ cs3:
 		dec	b
 		jr	nz, cs1
 
-cs4:					
+cs4:
 		pop	hl
 		pop	de
 		pop	bc
@@ -7765,22 +7441,20 @@ cs4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-stbyt0:					
+stbyt0:					; Nacitanie jedneho bajtu z (HL) a ulozenie do kodu pri	kompilacii
 		ld	a, (hl)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-stbyte:					
+stbyte:					; Ulozenie jedneho bajtu do kodu pri kompilacii
 		push	hl
 		push	de
 		push	af
-		ld	de, (endmod)
-		ld	hl, (pcode)
+		ld	de, (endmod)	; Hranica v pameti po ktoru je mozne ukladat prelozeny kod
+		ld	hl, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		ld	a, l
 		sub	e
 		ld	a, h
 		sbc	a, d
-		jp	nc, wtmf
+		jp	nc, wtmf	; Chybove hlasenie "MEM FULL"
 		pop	af
 		ld	d, a
 		ld	a, l
@@ -7789,26 +7463,26 @@ stbyte:
 		jr	z, nostb
 		ld	(hl), d
 		inc	hl
-		ld	(pcode), hl
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 
-nostb:					
+nostb:
 		pop	de
 		pop	hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-movsym:					
+movsym:					; Ulozenie nazvu navestia do skompilovaneho kodu (potrebne kvoli kniznici)
 		ld	b, 6
 
-ms1:					
+ms1:
 		ld	a, (hl)
 		and	7Fh ; ''
 		jr	nz, ms2
 		ld	a, 20h ; ' '
 		dec	hl
 
-ms2:					
+ms2:					; Ulozenie jedneho bajtu do kodu pri kompilacii
 		call	stbyte
 		inc	hl
 		djnz	ms1
@@ -7816,36 +7490,31 @@ ms2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gmodnm:					
+gmodnm:					; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		ld	hl, 6
 		add	hl, de
 		ld	e, (hl)
 		inc	hl
 		ld	d, (hl)
-		ld	hl, (memory)
-		jp	cmhlde
+		ld	hl, (memory)	; Koniec kniznice a zaciatok volnej pamete
+		jp	cmhlde		; Porovnanie HL	a DE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getn0:					
+getn0:					; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		call	gmodnm
 		ret	z
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-gent1:					
-
+gent1:					; Vyhladanie tabulky navesti ENT v moduloch kniznice
 		call	gaexen
 		jr	z, getn0
 		ld	c, a
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-gentnm:					
+gentnm:
 		dec	c
 		jp	m, getn0
 
-gent2:					
+gent2:					; Zisti	adresu nasledujuceho modulu kniznice
 		call	gaexen
 		push	bc
 		push	hl
@@ -7862,7 +7531,7 @@ gent2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gaexen:					
+gaexen:					; Zisti	pocet navesti v	danom module kniznice (DE = adresa modulu)
 		ld	hl, 8
 		add	hl, de
 		ld	a, (hl)
@@ -7876,20 +7545,17 @@ gaexen:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gext0:					
+gext0:					; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		call	gmodnm
 		ret	z
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-gext1:					
-
+gext1:					; Vyhladanie tabulky navesti EXT v moduloch kniznice
 		call	gaexen
 		jr	z, gext0
 		ld	c, a
-		call	gent2
+		call	gent2		; Zisti	adresu nasledujuceho modulu kniznice
 
-getx2:					
+getx2:
 		ld	a, (hl)
 		or	a
 		jr	z, gext0
@@ -7897,7 +7563,7 @@ getx2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gextnm:					
+gextnm:
 		ld	bc, 6
 		add	hl, bc
 		ld	c, (hl)
@@ -7908,19 +7574,19 @@ gextnm:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-vstoax:					
+vstoax:					; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		ex	de, hl
-		call	vstoas
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ex	de, hl
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-putsvl:					
+putsvl:					; Zadefinuje label na zadanu hodnotu (s	osetrenim duplicitnych definicii)
 		push	de
 		push	af
 		ex	de, hl
-		call	vstoax
+		call	vstoax		; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		ld	a, (hl)
 		rlca
 		scf
@@ -7945,7 +7611,7 @@ putsvl:
 		inc	de
 		inc	de
 
-pv1_b:					
+pv1_b:
 		inc	hl
 		inc	hl
 		inc	hl
@@ -7953,57 +7619,57 @@ pv1_b:
 		inc	hl
 		ld	(hl), d
 
-psvlq:					
+psvlq:
 		ex	de, hl
 		pop	de
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ald:					
+ald:					; Prikaz mrs>ald - Preklad a linkovanie	zdrojoveho textu a potom skok do debuggera
 		ld	a, 2
 
-asm:					
+asm:					; Prikaz mrs>asm - preklad zdrojoveho textu
 		ld	(aldind_), a
-		ld	hl, (libtop)
-		ld	(pcode), hl
-		ld	(memory), hl
+		ld	hl, (libtop)	; Koniec kniznice a zaciatok volnej pamete
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+		ld	(memory), hl	; Koniec kniznice a zaciatok volnej pamete
 		push	de
-		call	getend
-		ld	(endmod), de
+		call	getend		; Zistenie kde v pameti	zacina zdrojovy	text
+		ld	(endmod), de	; Hranica v pameti po ktoru je mozne ukladat prelozeny kod
 		pop	hl
 		ld	a, (hl)
 		or	a
 		jr	z, noname
 		cp	20h ; ' '
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		inc	hl
-		call	getlbl
-		jp	c, mrs2
-		ld	de, libbeg
+		call	getlbl		; Vyhladanie navestia v	tabulke	navesti
+		jp	c, mrs2		; Oprava textu zadaneho	v module "mrs"
+		ld	de, libbeg	; Zaciatok kniznice a napis "sysmod"
 
-as1:					
+as1:					; Porovnanie dvoch navesti ci sa jedna o to iste navestie
 		call	cmpsym
 		jr	z, name
 		push	hl
-		call	gmodnm
+		call	gmodnm		; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		pop	hl
 		jr	nz, as1
 		ld	hl, buffer_meno
 
-noname:					
+noname:					; Ulozenie nazvu navestia do skompilovaneho kodu (potrebne kvoli kniznici)
 		call	movsym
 		ld	b, 4
 		xor	a
 
-as2:					
+as2:					; Ulozenie jedneho bajtu do kodu pri kompilacii
 		call	stbyte
 		djnz	as2
 		jr	sasm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-name:					
+name:
 		ld	hl, 6
 		add	hl, de
 		ld	e, (hl)
@@ -8015,48 +7681,48 @@ name:
 		inc	hl
 		ld	(hl), a
 		inc	hl
-		ld	(pcode), hl
-		ld	(endmod), de
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+		ld	(endmod), de	; Hranica v pameti po ktoru je mozne ukladat prelozeny kod
 
-sasm:					
+sasm:					; Pocitadlo pre	pocet riadkov na jednu stranku listingu	(0 = bez stran)
 		ld	(page),	a
-		ld	(terr_sp), a
+		ld	(terrors+7), a
 		ld	a, 30h ; '0'
-		ld	(lind+1), a
+		ld	(lind+1), a	; Skok pre vypis listingu: 0x04	= vsetko, 0x30 = iba chybne riadky
 		ld	a, 0Dh
-		ld	(scrlp+1), a
-		ld	hl, outchr
-		ld	(opsch3+1), hl
-		ld	hl, (adstab)
+		ld	(scrlp+1), a	; Znak pre vypis listingu (0x0D	= obrazovka, 0x20 = tlaciaren)
+		ld	hl, outchr	; Vypis	jedneho	znaku na obrazovku
+		ld	(opsch3+1), hl	; Volanie rutinky pre vypis jedneho znaku listingu (outchr = obrazovka,	pntchr = tlaciaren)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		ld	a, (hl)
 		or	a
 		jr	z, sa3_lib
 		ld	c, a
 
-sa1_lib:				
+sa1_lib:				; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		call	vstoax
 		ld	b, 6
 
-sa2_lib:				
+sa2_lib:
 		res	7, (hl)
 		inc	hl
 		djnz	sa2_lib
 		dec	c
 		jr	nz, sa1_lib
 
-sa3_lib:				
+sa3_lib:				; Aktualny riadok zdrojoveho textu bude	prvy
 		call	crtnin
-		ld	hl, (pcode)
-		ld	(begmod), hl
+		ld	hl, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+		ld	(begmod), hl	; Adresa kde bude prelozeny kod	ak nie je inak specifikovane ORG-om
 
-eachln:					
+eachln:
 		push	hl
-		ld	hl, (curent)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		ld	d, h
 		ld	e, l
-		call	skipln
+		call	skipln		; Presun na dalsi riadok v zdrojovom texte
 		pop	hl
-		jp	z, noend
+		jp	z, noend	; Chybove hlasenie "NO END"
 		ld	a, (de)
 		dec	de
 		rlca
@@ -8070,83 +7736,83 @@ eachln:
 		push	hl
 		push	bc
 		dec	de
-		call	getval
+		call	getval		; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		pop	bc
 		or	a
 		inc	a
-		call	putsvl
+		call	putsvl		; Zadefinuje label na zadanu hodnotu (s	osetrenim duplicitnych definicii)
 		pop	hl
 		jr	eachln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-notequ:					
+notequ:					; Zadefinuje label na zadanu hodnotu (s	osetrenim duplicitnych definicii)
 		call	putsvl
 
-nolbl:					
+nolbl:
 		ld	a, (de)
 		cp	0Fh
 		jr	z, spass
-		call	newpc
+		call	newpc		; Urcenie adresy nasledujucej instrukcie
 		jr	eachln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-spass:					
+spass:					; Aktualny riadok zdrojoveho textu bude	prvy
 		call	crtnin
-		call	illa
+		call	illa		; Zmaze	obrazovku, nastavi kurzor vlavo	dole a vynuluje	pocet chyb
 		ld	(linn),	hl
-		ld	hl, (begmod)
-		ld	(pcode), hl
+		ld	hl, (begmod)	; Adresa kde bude prelozeny kod	ak nie je inak specifikovane ORG-om
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 
-asloop:					
+asloop:					; Adresa zadana	ORG-om kde bude	kompilovany kod	fungovat
 		ld	(curpc), hl
 		call	asmain
-		call	outcod
-		ld	hl, (curent)
-		call	skipln
-		ld	hl, (nextpc)
+		call	outcod		; Vytvorenie riadku pre	listing
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
+		call	skipln		; Presun na dalsi riadok v zdrojovom texte
+		ld	hl, (nextpc)	; Adresa ako curpc ale nasledujucej instrukcie
 		ld	a, (eind)
 		or	a
 		jr	nz, asloop
 		inc	hl
-		ld	(pcode), hl
-		ld	hl, (curent)
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		cp	(hl)
 		jr	nz, nolabd
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		cp	(hl)
 		jr	z, nolabd
 		ld	c, (hl)
 
-sa4:					
+sa4:					; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		call	vstoax
 		ld	b, 6
 
-sa5:					
+sa5:
 		bit	7, (hl)
 		jr	nz, sa6
 		inc	hl
 		djnz	sa5
-		call	vstoax
+		call	vstoax		; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		ld	(hl), b
 
-sa6:					
+sa6:
 		dec	c
 		jr	nz, sa4
 
-nolabd:					
+nolabd:
 		xor	a
-		ld	hl, errcnt
+		ld	hl, errcnt	; Pocet	chyb pri preklade
 		cp	(hl)
 		jp	nz, erry
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		cp	(hl)
 		jr	z, sa20
 		ld	c, (hl)
 		push	bc
 
-sa11:					
+sa11:					; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		call	vstoax
 		push	hl
 		inc	hl
@@ -8156,19 +7822,19 @@ sa11:
 		bit	7, (hl)
 		pop	hl
 		jr	z, sa12
-		call	movsym
-		call	stbyt0
+		call	movsym		; Ulozenie nazvu navestia do skompilovaneho kodu (potrebne kvoli kniznici)
+		call	stbyt0		; Nacitanie jedneho bajtu z (HL) a ulozenie do kodu pri	kompilacii
 		inc	hl
-		call	stbyt0
+		call	stbyt0		; Nacitanie jedneho bajtu z (HL) a ulozenie do kodu pri	kompilacii
 		ld	hl, eind
 		inc	(hl)
 
-sa12:					
+sa12:
 		dec	c
 		jr	nz, sa11
 		pop	bc
 
-sa13:					
+sa13:					; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		call	vstoax
 		push	hl
 		inc	hl
@@ -8177,18 +7843,18 @@ sa13:
 		bit	7, (hl)
 		pop	hl
 		jr	z, sa17
-		call	movsym
+		call	movsym		; Ulozenie nazvu navestia do skompilovaneho kodu (potrebne kvoli kniznici)
 		push	bc
 		xor	a
-		call	stbyte
+		call	stbyte		; Ulozenie jedneho bajtu do kodu pri kompilacii
 		push	hl
-		ld	hl, (pcode)
+		ld	hl, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		dec	hl
 		ex	(sp), hl
 		ld	b, h
 		ld	c, l
 
-sa14:					
+sa14:
 		ld	e, (hl)
 		inc	hl
 		ld	d, (hl)
@@ -8199,11 +7865,11 @@ sa14:
 		cp	e
 		jr	z, sa16
 
-sa15:					
+sa15:
 		ld	a, e
-		call	stbyte
+		call	stbyte		; Ulozenie jedneho bajtu do kodu pri kompilacii
 		ld	a, d
-		call	stbyte
+		call	stbyte		; Ulozenie jedneho bajtu do kodu pri kompilacii
 		pop	hl
 		inc	(hl)
 		push	hl
@@ -8212,23 +7878,23 @@ sa15:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-sa16:					
+sa16:
 		pop	hl
 		pop	bc
 
-sa17:					
+sa17:
 		dec	c
 		jr	nz, sa13
 
-sa20:					
+sa20:					; Adresa ako curpc ale nasledujucej instrukcie
 		ld	de, (nextpc)
-		ld	hl, (pcode)
+		ld	hl, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		dec	hl
-		call	cmhlde
+		call	cmhlde		; Porovnanie HL	a DE
 		jr	nz, sa21
-		ld	(pcode), hl
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 
-sa21:					
+sa21:					; Adresa kde bude prelozeny kod	ak nie je inak specifikovane ORG-om
 		ld	hl, (begmod)
 		dec	hl
 		dec	hl
@@ -8236,93 +7902,92 @@ sa21:
 		jr	z, sa18
 		ld	(de), a
 		xor	a
-		call	stbyte
+		call	stbyte		; Ulozenie jedneho bajtu do kodu pri kompilacii
 		inc	hl
 		ld	(hl), d
 		dec	hl
 		ld	(hl), e
 
-sa18:					
+sa18:
 		dec	hl
 		ld	a, (hl)
 		dec	hl
 		or	(hl)
 		jr	nz, erry
 		ex	de, hl
-		ld	hl, (pcode)
-		ld	(memory), hl
+		ld	hl, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
+		ld	(memory), hl	; Koniec kniznice a zaciatok volnej pamete
 		ex	de, hl
 		ld	(hl), e
 		inc	hl
 		ld	(hl), d
-		ld	hl, (libtop)
+		ld	hl, (libtop)	; Koniec kniznice a zaciatok volnej pamete
 		ld	a, (hl)
 		cp	20h ; ' '
 		jr	z, erry
 		ex	de, hl
-		ld	(libtop), hl
+		ld	(libtop), hl	; Koniec kniznice a zaciatok volnej pamete
 
-erry:					
+erry:					; Vypis	CR-LF do listingu
 		call	ocrlf
 		call	symtab
-		call	ocrlf
+		call	ocrlf		; Vypis	CR-LF do listingu
 
-erryi:					
+erryi:					; Pocet	chyb pri preklade
 		ld	bc, (errcnt)
-		ld	hl, terr_sp
-		call	bndc
+		ld	hl,  terrors+7
+		call	bndc		; Prevod 16bit hodnoty na desiatkove cislo
 		ld	b, l
 		ld	hl, terr
 		dec	b
-		call	oc2_1
-		call	ocrlf
+		call	oc2_1		; Vypis	jedneho	riadku listingu
+		call	ocrlf		; Vypis	CR-LF do listingu
 		jr	err1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-errout:					
+errout:
 		ld	c, 1
-		call	mrsd
+		call	mrsd		; Dialogovy riadok bez vyhodnocovania prikazov
 
-err1:					
+err1:
 		ld	de, lnk1
 		ld	bc, ilnli1
-		ld	hl, aldind_
+		ld	hl, aldind_	; Priznak kompilacneho prikazu:	0 = asm, 2 = ald
 		xor	a
 		cp	(hl)
-		jp	z, monit
+		jp	z, monit	; Vstup	do modulu "mrs>"
 		dec	(hl)
 		jr	nz, nodbg
-		call	getend
-		ld	(wm), de
+		call	getend		; Zistenie kde v pameti	zacina zdrojovy	text
+		ld	(wm), de	; Hranice pre pametove okna
 		ld	hl, endcod
 		ld	(wm2), hl
-		ld	de, dbg
+		ld	de, dbg		; Prikaz mrs>dbg - spustenie debuggera
 
-nodbg:					
+nodbg:
 		ex	de, hl
-		ld	a, (terr_sp)
+		ld	a, (terrors+7)
 		cp	30h ; '0'
-		jp	nz, edi
+		jp	nz, edi		; Prikaz mrs>edi - skok	do modulu edi>
 		jp	(hl)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-noend:					
+noend:					; Chybove hlasenie "NO END"
 		ld	hl, tnoend
 		ld	b, 6
 		jr	errout
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-asmain:					
-
+asmain:
 		ld	a, 1
 		ld	(iunpln), a
-		ld	hl, (curent)
+		ld	hl, (curent)	; Adresa aktualneho riadku v zdrojovom texte
 		push	hl
-		ld	(nxtadr), hl
-		call	unpln
+		ld	(nxtadr), hl	; Adresa dalsej	instrukcie
+		call	unpln		; Nacita a depakuje riadok zdrojoveho textu do textoveho buffera
 		pop	de
 		ld	a, (de)
 		dec	de
@@ -8331,7 +7996,7 @@ asmain:
 		ld	a, (de)
 		dec	de
 		ld	c, a
-		call	vstoax
+		call	vstoax		; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		inc	hl
 		ld	a, (hl)
 		rlca
@@ -8341,18 +8006,18 @@ asmain:
 sp10:
 		ld	(lst_chyba), a
 
-sp2:					
+sp2:
 		ld	a, (de)
 		sub	0Fh
 		ld	(eind),	a
 		push	de
-		ld	hl, (curpc)
+		ld	hl, (curpc)	; Adresa zadana	ORG-om kde bude	kompilovany kod	fungovat
 		push	hl
-		call	newpc
-		ld	(nextpc), hl
+		call	newpc		; Urcenie adresy nasledujucej instrukcie
+		ld	(nextpc), hl	; Adresa ako curpc ale nasledujucej instrukcie
 		pop	de
 		ld	hl, (plist)
-		call	bnhx2
+		call	bnhx2		; Prevod 16bit hodnoty na hexadecimalne	cislo
 		inc	hl
 		ld	(plist), hl
 		pop	de
@@ -8361,7 +8026,7 @@ sp2:
 		cp	0FEh ; ''
 		ret	z
 		rrca
-		jp	c, asmpsi
+		jp	c, asmpsi	; Kompilacia pseudoinstrukcii s	viac parametrami
 		rlca
 		ld	c, a
 
@@ -8369,10 +8034,10 @@ asmins:
 		ld	hl, prefix
 		ld	b, 4
 
-savprx:					
+savprx:
 		rlc	c
 		ld	a, (hl)
-		call	c, savcod
+		call	c, savcod	; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		inc	hl
 		djnz	savprx
 		ld	a, (de)
@@ -8381,7 +8046,7 @@ savprx:
 		ld	b, a
 		jr	nc, notrel
 		push	bc
-		call	get8vl
+		call	get8vl		; Ziskanie 8-bitovej hodnoty zo	zdrojoveho textu
 		pop	bc
 		bit	2, c
 		jr	z, wocb
@@ -8389,12 +8054,12 @@ savprx:
 		ld	l, b
 		ld	b, a
 
-wocb:					
+wocb:
 		ld	a, b
-		call	savcod
+		call	savcod		; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		ld	a, l
 
-notrel:					
+notrel:					; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		call	savcod
 		sla	c
 		ret	nc
@@ -8409,12 +8074,12 @@ notrel:
 		and	60h ; '`'
 		cp	20h ; ' '
 
-reljmp:					
+reljmp:
 		push	af
-		call	getval
+		call	getval		; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		pop	af
 		jr	nz, nospc
-		ld	bc, (curpc)
+		ld	bc, (curpc)	; Adresa zadana	ORG-om kde bude	kompilovany kod	fungovat
 		inc	bc
 		scf
 		sbc	hl, bc
@@ -8422,33 +8087,31 @@ reljmp:
 		xor	h
 		call	m, rngerr
 
-nospc:					
+nospc:					; Test osemnbitovej hodnoty na rozsah -256..+255
 		call	test8
 		ld	a, l
-		jr	savcod
+		jr	savcod		; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-asmadr:					
+asmadr:
 		or	c
 
-asmexp:					
+asmexp:
 		push	af
-		call	getval
+		call	getval		; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		ld	a, l
-		call	savcod
+		call	savcod		; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		pop	af
-		jp	p, test8
+		jp	p, test8	; Test osemnbitovej hodnoty na rozsah -256..+255
 		ld	a, h
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-savcod:					
+savcod:					; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		push	bc
 		push	de
 		push	hl
 		push	af
-		call	stbyte
+		call	stbyte		; Ulozenie jedneho bajtu do kodu pri kompilacii
 		ld	de, lst_limit
 		ld	hl, (plist)
 		ld	a, l
@@ -8456,12 +8119,12 @@ savcod:
 		ld	a, h
 		sbc	a, d
 		jr	c, sc1
-		call	outcod
+		call	outcod		; Vytvorenie riadku pre	listing
 		ld	hl, lst_data
 
-sc1:					
+sc1:
 		pop	af
-		call	bnhx
+		call	bnhx		; Prevod 8bit hodnoty na hexadecimalne cislo
 		ld	(plist), hl
 		pop	hl
 		pop	de
@@ -8470,7 +8133,7 @@ sc1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outval:					
+outval:					; Zobrazenie navestia a	jeho hodnoty
 		push	hl
 		push	de
 		inc	hl
@@ -8487,25 +8150,25 @@ outval:
 		jr	z, ova2
 		ld	b, 4
 
-ova1:					
+ova1:
 		ld	(hl), 58h ; 'X'
 		inc	hl
 		djnz	ova1
 
-ova2:					
+ova2:					; Prevod 16bit hodnoty na hexadecimalne	cislo
 		call	z, bnhx2
 		ld	de, -0Bh
 		add	hl, de
 		ex	de, hl
 		pop	hl
 
-outnam_lib:				
+outnam_lib:				; Prekopiruje navestie do textoveho buffera
 		xor	a
 		ld	(iunpln), a
 		push	hl
 		ld	b, 6
 
-on1:					
+on1:
 		ld	a, (hl)
 		and	7Fh ; ''
 		ld	(de), a
@@ -8519,21 +8182,21 @@ on1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outna0:					
+outna0:					; Vypis	navestia - mena	modulu
 		ld	de, buffer
 		push	de
-		call	outnam_lib
+		call	outnam_lib	; Prekopiruje navestie do textoveho buffera
 		pop	hl
 		ld	b, 5
-		jr	oc2_1
+		jr	oc2_1		; Vypis	jedneho	riadku listingu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-outcod:					
+outcod:					; Vytvorenie riadku pre	listing
 		ld	hl, iunpln
 		xor	a
 		cp	(hl)
-		call	z, blank
+		call	z, blank	; Zmazanie textoveho buffera
 		jr	z, oc1
 		ld	(hl), a
 		ld	hl, (linn)
@@ -8542,63 +8205,58 @@ outcod:
 		ld	b, h
 		ld	c, l
 		ld	hl, lst_riadok
-		call	bndc
+		call	bndc		; Prevod 16bit hodnoty na desiatkove cislo
 
-oc1:					
+oc1:					; Textovy buffer pre jeden riadok na obrazovke
 		ld	hl, buffer
 		ld	a, (hl)
 		cp	2Ah ; '*'
-		call	z, analax
+		call	z, analax	; Vyhodnotenie riadku zacinajuceho hviezdickou
 		ld	a, (lst_chyba)
 		cp	20h ; ' '
 
-lind:					
+lind:					; Skok pre vypis listingu: 0x04	= vsetko, 0x30 = iba chybne riadky
 		jr	z, errln
-		ld	hl, errcnt
+		ld	hl, errcnt	; Pocet	chyb pri preklade
 		inc	(hl)
 
-errln:					
+errln:					; Hladanie konca textu v textovom bufferi
 		call	chblk
 		ld	b, l
 		ld	hl, listing_print
 
-scrlp:					
+scrlp:					; Znak pre vypis listingu (0x0D	= obrazovka, 0x20 = tlaciaren)
 		ld	a, 0
 		ld	(lst_eol), a
 
-oc2:					
+oc2:
 		inc	hl
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-oc2_1:					
-
+oc2_1:					; Vypis	jedneho	riadku listingu
 		ld	a, (hl)
-		call	opschr
+		call	opschr		; Vypis	jedneho	znaku pre vypis	listingu na obrazovke alebo tlaciarni
 		ld	a, l
 		cp	b
 		jr	nz, oc2
-		call	ocrlf
-		ld	a, (page)
+		call	ocrlf		; Vypis	CR-LF do listingu
+		ld	a, (page)	; Pocitadlo pre	pocet riadkov na jednu stranku listingu	(0 = bez stran)
 		or	a
-		jr	z, bbc
+		jr	z, bbc		; Zmazanie casti buffera pre cislo editovaneho riadku
 		dec	a
 		jr	nz, pg1
 		ld	a, 0Ch
-		call	opschr
-		ld	a, (newpag)
+		call	opschr		; Vypis	jedneho	znaku pre vypis	listingu na obrazovke alebo tlaciarni
+		ld	a, (newpag)	; Pocet	riadkov	na jednu stranu	listingu zadany	pomocou	direktivy *p
 
-pg1:					
+pg1:					; Pocitadlo pre	pocet riadkov na jednu stranku listingu	(0 = bez stran)
 		ld	(page),	a
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-bbc:					
+bbc:					; Zmazanie casti buffera pre cislo editovaneho riadku
 		ld	hl, lst_adresa
 		ld	(plist), hl
 		ld	hl, lst_riadok
 
-bbc1:					
+bbc1:
 		ld	(hl), 20h ; ' '
 		inc	l
 		jr	nz, bbc1
@@ -8606,45 +8264,41 @@ bbc1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ocrlf:					
+ocrlf:					; Vypis	CR-LF do listingu
 		ld	a, 0Dh
-		call	opschr
+		call	opschr		; Vypis	jedneho	znaku pre vypis	listingu na obrazovke alebo tlaciarni
 		ld	a, 0Ah
-		jp	opschr
+		jp	opschr		; Vypis	jedneho	znaku pre vypis	listingu na obrazovke alebo tlaciarni
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-get8vl:					
+get8vl:					; Ziskanie 8-bitovej hodnoty zo	zdrojoveho textu
 		call	getval
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-test8:					
+test8:					; Test osemnbitovej hodnoty na rozsah -256..+255
 		ld	a, h
 		inc	a
 		ret	z
 		dec	a
 		ret	z
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-rngerr:					
+rngerr:
 		ld	a, 52h ; 'R'
 		jr	seterr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-asmpsi:					
+asmpsi:					; Kompilacia pseudoinstrukcii s	viac parametrami
 		push	af
-		call	apsi
+		call	apsi		; Kompilacia pseudoinstrukcii
 		pop	af
 		sub	8
-		jp	m, asmpsi
+		jp	m, asmpsi	; Kompilacia pseudoinstrukcii s	viac parametrami
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-apsi:					
+apsi:					; Kompilacia pseudoinstrukcii
 		and	7
 		sub	2
 		jr	c, aexten
@@ -8655,29 +8309,29 @@ apsi:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-adb:					
+adb:
 		ld	a, (de)
 		or	a
 		jp	p, asmexp
 		ld	c, a
 
-savstr:					
+savstr:
 		dec	de
 		dec	c
 		ret	p
 		ld	a, (de)
-		call	savcod
+		call	savcod		; Spracovanie bajtu pri	kompilacii: Ulozenie do	pameti a vypis v listingu
 		jr	savstr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-aexten:					
+aexten:
 		inc	a
 		ld	a, (de)
 		dec	de
 		ld	c, a
-		jp	z, putsvl
-		call	vstoax
+		jp	z, putsvl	; Zadefinuje label na zadanu hodnotu (s	osetrenim duplicitnych definicii)
+		call	vstoax		; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		bit	7, (hl)
 		inc	hl
 		jr	z, ae10
@@ -8690,12 +8344,12 @@ aexten:
 		push	hl
 		dec	hl
 		push	de
-		call	schent
+		call	schent		; Vyhladanie vstupneho bodu v kniznici
 		pop	de
 		pop	hl
 		set	7, (hl)
 
-ae0:					
+ae0:
 		ld	c, 4Dh ; 'M'
 		jr	nz, ae2
 		res	7, (hl)
@@ -8707,23 +8361,23 @@ ae0:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ae10:					
+ae10:
 		inc	hl
 		set	7, (hl)
 
-ae1:					
+ae1:
 		ld	c, 55h ; 'U'
 
-ae2:					
+ae2:
 		ld	a, c
 
-seterr:					
+seterr:
 		ld	(lst_chyba), a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getval:					
+getval:					; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		call	gvmain
 		ld	a, (lst_chyba)
 		cp	20h ; ' '
@@ -8733,12 +8387,12 @@ getval:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gvmain:					
+gvmain:					; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte
 		ld	a, (de)
 		dec	de
 		push	af
 		add	a, a
-		call	getmem_lib
+		call	getmem_lib	; Vyhodnotenie jednej hodnoty v	zdrojovom texte
 		pop	af
 		push	bc
 		ld	c, a
@@ -8749,15 +8403,15 @@ gvmain:
 		jr	z, unary
 		push	af
 		ld	a, b
-		call	getmem_lib
+		call	getmem_lib	; Vyhodnotenie jednej hodnoty v	zdrojovom texte
 		pop	af
 		pop	hl
 		ld	de, optab_2
-		jp	pgcnt
+		jp	pgcnt		; Skok na adresu ulozenu v N-tej polozke v tabulke (A =	index polozky)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-unary:					
+unary:
 		ld	a, c
 		and	3
 		pop	hl
@@ -8766,7 +8420,7 @@ unary:
 		jr	nz, gv1_b
 		ld	l, h
 
-gv1_b:					
+gv1_b:
 		dec	a
 		jr	z, neghl
 		ld	h, 0
@@ -8774,30 +8428,30 @@ gv1_b:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-neghl:					
+neghl:
 		ld	b, h
 		ld	c, l
 		ld	h, a
 		ld	l, a
 
-op_sub:					
+op_sub:
 		or	a
 		sbc	hl, bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_add:					
+op_add:
 		add	hl, bc
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_mul:					
+op_mul:
 		ex	de, hl
 		ld	hl, 0
 
-mullop:					
+mullop:
 		ld	a, b
 		or	c
 		ret	z
@@ -8807,14 +8461,14 @@ mullop:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_div:					
+op_div:
 		ld	a, b
 		or	c
 		ld	a, 5Ah ; 'Z'
 		jr	z, seterr
 		ld	de, 0
 
-divlop:					
+divlop:
 		or	a
 		sbc	hl, bc
 		inc	de
@@ -8825,7 +8479,7 @@ divlop:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_and:					
+op_and:
 		ld	a, h
 		and	b
 		ld	h, a
@@ -8836,7 +8490,7 @@ op_and:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_or:					
+op_or:
 		ld	a, h
 		or	b
 		ld	h, a
@@ -8847,20 +8501,20 @@ op_or:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-op_xor:					
+op_xor:
 		ld	a, h
 		xor	b
 		ld	h, a
 		ld	a, l
 		xor	c
 
-optab_2:				
+optab_2:
 		ld	l, a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		dw op_add
+		dw op_add		; Tabulka operatorov vo	vyrazoch v zdrojovom texte
 		dw op_sub
 		dw op_mul
 		dw op_div
@@ -8870,7 +8524,7 @@ optab_2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-getmem_lib:				
+getmem_lib:				; Vyhodnotenie jednej hodnoty v	zdrojovom texte
 		add	a, a
 		ex	de, hl
 		ld	c, (hl)
@@ -8883,7 +8537,7 @@ getmem_lib:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gm1:					
+gm1:
 		ld	b, 0
 		ex	de, hl
 		ret	p
@@ -8891,12 +8545,12 @@ gm1:
 		xor	a
 		or	c
 		jr	nz, notpc
-		ld	bc, (curpc)
+		ld	bc, (curpc)	; Adresa zadana	ORG-om kde bude	kompilovany kod	fungovat
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-notpc:					
+notpc:					; Adresa labelu	 (In: C=cislo labelu  Out: HL=adresa labelu)
 		call	vstoax
 		ld	a, (hl)
 		inc	hl
@@ -8926,16 +8580,16 @@ notpc:
 		add	a, a
 		ld	a, 45h ; 'E'
 		jp	nz, seterr
-		ld	a, (pcode+1)
+		ld	a, (pcode+1)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		ld	(hl), a
 		dec	hl
-		ld	a, (pcode)
+		ld	a, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		ld	(hl), a
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-newpc:					
+newpc:					; Urcenie adresy nasledujucej instrukcie
 		ld	a, (de)
 		cp	0FEh ; ''
 		ret	nc
@@ -8944,12 +8598,12 @@ newpc:
 		jr	c, npps
 		ld	b, 7
 
-npil:					
+npil:
 		rra
 		jr	nc, npi1
 		inc	hl
 
-npi1:					
+npi1:
 		dec	b
 		jr	nz, npil
 		inc	hl
@@ -8957,7 +8611,7 @@ npi1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-npps:					
+npps:
 		ld	c, a
 		and	7
 		dec	a
@@ -8972,16 +8626,16 @@ npps:
 
 npds:
 		push	hl
-		call	getval
+		call	getval		; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		push	hl
-		ld	bc, (pcode)
+		ld	bc, (pcode)	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		ld	a, b
 		or	c
 		jr	z, npds1
 		add	hl, bc
-		ld	(pcode), hl
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 
-npds1:					
+npds1:
 		pop	hl
 		pop	bc
 		add	hl, bc
@@ -8989,14 +8643,14 @@ npds1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-nporg:					
+nporg:					; Vyhodnotenie hodnoty vyrazu v	zdrojovom texte	 - v pripade chyby vrati nulu
 		call	getval
-		ld	(pcode), hl
+		ld	(pcode), hl	; Adresa zadana	ORG-om alebo direktivou	*c kam sa bude ukladat kod
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-npdb:					
+npdb:
 		ld	a, (de)
 		dec	de
 		or	a
@@ -9007,7 +8661,7 @@ npdb:
 		jp	p, npdb1
 		dec	de
 
-npdb1:					
+npdb1:
 		and	3Ch ; '<'
 		cp	8
 		jr	c, npdbc
@@ -9019,7 +8673,7 @@ npdb1:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-npstp:					
+npstp:
 		and	7Fh ; ''
 		push	bc
 		ld	c, a
@@ -9031,7 +8685,7 @@ npstp:
 		add	hl, bc
 		pop	bc
 
-npdbc:					
+npdbc:
 		ld	a, c
 		sub	8
 		ret	p
@@ -9040,7 +8694,7 @@ npdbc:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-npdw:					
+npdw:
 		ld	a, c
 		rra
 		rra
@@ -9053,29 +8707,29 @@ npdw:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-symtab:					
+symtab:					; Skok pre vypis listingu: 0x04	= vsetko, 0x30 = iba chybne riadky
 		ld	a, (lind+1)
 
-symtab_3:				
+symtab_3:
 		cp	4
 		ret	nz
-		ld	hl, (adstab)
+		ld	hl, (adstab)	; Adresa tabulky navesti
 		ld	c, (hl)
 		inc	c
 
-sfs:					
+sfs:
 		dec	c
 		ret	z
-		call	vstoas
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ld	a, (de)
 		or	a
 		jp	p, sfs
-		call	clrd
+		call	clrd		; Zmazanie textoveho buffera
 		inc	hl
 
-loopi:					
+loopi:
 		ld	de, symtab_3
-		ld	bc, (adstab)
+		ld	bc, (adstab)	; Adresa tabulky navesti
 		ld	a, (bc)
 		ld	c, a
 		inc	c
@@ -9083,13 +8737,13 @@ loopi:
 		push	de
 		push	hl
 
-loopj:					
+loopj:
 		push	hl
 
-loopj_1:				
+loopj_1:
 		dec	c
 		jr	z, endj
-		call	vstoas
+		call	vstoas		; Adresa labelu	 (In: C=cislo labelu  Out: DE=adresa labelu)
 		ld	a, (de)
 		or	a
 		jp	p, loopj_1
@@ -9104,17 +8758,17 @@ loopj_1:
 		rlca
 		jr	c, loopj_1
 		pop	hl
-		call	cmpsym
+		call	cmpsym		; Porovnanie dvoch navesti ci sa jedna o to iste navestie
 		jr	c, loopj
 		push	de
 		jr	loopj_1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-endj:					
+endj:
 		pop	hl
 		pop	de
-		call	cmhlde
+		call	cmhlde		; Porovnanie HL	a DE
 		pop	de
 		jr	z, endi
 		ld	a, e
@@ -9122,17 +8776,17 @@ endj:
 		cp	39h ; '9'
 		jr	c, cst
 		push	hl
-		ld	hl, buffer
+		ld	hl, buffer	; Textovy buffer pre jeden riadok na obrazovke
 		ld	b, 3Eh ; '>'
-		call	oc2_1
-		call	clrd
+		call	oc2_1		; Vypis	jedneho	riadku listingu
+		call	clrd		; Zmazanie textoveho buffera
 		pop	de
 		ex	de, hl
 		ld	a, 8
 
-cst:					
+cst:
 		ld	e, a
-		call	outval
+		call	outval		; Zobrazenie navestia a	jeho hodnoty
 		inc	hl
 		inc	hl
 		inc	hl
@@ -9151,35 +8805,35 @@ cst:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-endi:					
+endi:					; Textovy buffer pre jeden riadok na obrazovke
 		ld	hl, buffer
 		ld	b, 3Eh ; '>'
-		jp	oc2_1
+		jp	oc2_1		; Vypis	jedneho	riadku listingu
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lnk:					
+lnk:					; Prikaz mrs>lnk - linkovanie zdrojoveho textu
 		ld	bc, ilnli
 
-lnk1:					
+lnk1:					; call ilnli - Inicializacia obrazovky a vypisovej rutinky pre listing
 		ld	(lnk2+1), bc
 
-lnk2:					
+lnk2:					; call ilnli - Inicializacia obrazovky a vypisovej rutinky pre listing
 		call	rom_0
-		ld	hl, tude
+		ld	hl, tude	; Vypis	"Undefined externals:"
 		ld	b, 0C1h	; ''
-		call	oc2_1
-		ld	de, libbeg
-		call	gext1
+		call	oc2_1		; Vypis	jedneho	riadku listingu
+		ld	de, libbeg	; Zaciatok kniznice a napis "sysmod"
+		call	gext1		; Vyhladanie tabulky navesti EXT v moduloch kniznice
 
-cext:					
+cext:
 		jp	z, erryi
 		push	de
 		push	hl
-		ld	de, libbeg
-		call	gent1
+		ld	de, libbeg	; Zaciatok kniznice a napis "sysmod"
+		call	gent1		; Vyhladanie tabulky navesti ENT v moduloch kniznice
 
-cent:					
+cent:
 		push	de
 		pop	de
 		pop	de
@@ -9188,7 +8842,7 @@ cent:
 		dec	sp
 		ld	b, 6
 
-lk3:					
+lk3:
 		ld	a, (de)
 		cp	(hl)
 		jr	nz, gent
@@ -9204,7 +8858,7 @@ lk3:
 		ld	l, a
 		ex	de, hl
 
-lk4:					
+lk4:
 		dec	b
 		inc	sp
 		inc	sp
@@ -9225,17 +8879,17 @@ lk4:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-gent:					
+gent:
 		pop	de
 		call	gentnm
 		jr	nz, cent
 		pop	hl
 		push	hl
-		call	outna0
-		ld	hl, errcnt
+		call	outna0		; Vypis	navestia - mena	modulu
+		ld	hl, errcnt	; Pocet	chyb pri preklade
 		inc	(hl)
 
-nxtext:					
+nxtext:
 		pop	hl
 		pop	de
 		call	gextnm
@@ -9243,53 +8897,52 @@ nxtext:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-illa:					
+illa:					; Zmaze	obrazovku, nastavi kurzor vlavo	dole a vynuluje	pocet chyb
 		call	clear
 		ld	hl, 1600h
-		ld	(cursor), hl
+		ld	(cursor), hl	; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
 		ld	h, 0
-		ld	(errcnt), hl
+		ld	(errcnt), hl	; Pocet	chyb pri preklade
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-ilnli:					
-					
+ilnli:					; Inicializacia	obrazovky a vypisovej rutinky pre listing
 		call	illa
 
-ilnli1:					
+ilnli1:
 		ld	a, 4
-		ld	(lind+1), a
-		ld	hl, outchr
-		ld	(opsch3+1), hl
+		ld	(lind+1), a	; Skok pre vypis listingu: 0x04	= vsetko, 0x30 = iba chybne riadky
+		ld	hl, outchr	; Vypis	jedneho	znaku na obrazovku
+		ld	(opsch3+1), hl	; Volanie rutinky pre vypis jedneho znaku listingu (outchr = obrazovka,	pntchr = tlaciaren)
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lstlib:					
+lstlib:					; Prikaz lib>lst - Vypis modulov kniznice
 		call	ilnli
-		ld	de, 6005h
+		ld	de, libbeg	; Zaciatok kniznice a napis "sysmod"
 
-lb1:					
+lb1:
 		push	de
 		push	de
 		ex	de, hl
-		call	outna0
-		call	outcrl
+		call	outna0		; Vypis	navestia - mena	modulu
+		call	outcrl		; Presun kurzora na zaciatok noveho riadku
 		pop	de
-		call	gaexen
+		call	gaexen		; Zisti	pocet navesti v	danom module kniznice (DE = adresa modulu)
 		jr	z, lb3
 
-lb2:					
+lb2:
 		dec	a
 		jp	m, lb3
 		push	af
 		push	hl
 		ld	de, buffer_instr
-		call	outval
-		ld	hl, buffer
+		call	outval		; Zobrazenie navestia a	jeho hodnoty
+		ld	hl, buffer	; Textovy buffer pre jeden riadok na obrazovke
 		ld	b, 0Ah
-		call	oc2_1
+		call	oc2_1		; Vypis	jedneho	riadku listingu
 		pop	hl
 		pop	af
 		ld	de, 8
@@ -9298,27 +8951,27 @@ lb2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-lb3:					
+lb3:					; Presun kurzora na zaciatok noveho riadku
 		call	outcrl
 		pop	de
-		call	gmodnm
+		call	gmodnm		; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		jr	nz, lb1
-		jr	lib
+		jr	lib		; Prikaz mrs>lib - skok	do modulu lib>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-delmod:					
+delmod:					; Prikaz lib>del - Zmazanie posledneho modulu kniznice
 		ld	de, libbeg
-		call	gmodnm
-		jr	z, lib
+		call	gmodnm		; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
+		jr	z, lib		; Prikaz mrs>lib - skok	do modulu lib>
 
-dm1:					
+dm1:
 		push	de
-		call	gmodnm
+		call	gmodnm		; Zisti	hodnotu	navestia a porovna so zaciatkom	volnej pamete
 		pop	hl
 		jr	nz, dm1
-		ld	(libtop), hl
-		ld	(memory), hl
+		ld	(libtop), hl	; Koniec kniznice a zaciatok volnej pamete
+		ld	(memory), hl	; Koniec kniznice a zaciatok volnej pamete
 
 ;;;;;;;;;;;;;;;;;;;;
 ;;		  ;;
@@ -9326,51 +8979,51 @@ dm1:
 ;;		  ;;
 ;;;;;;;;;;;;;;;;;;;;
 
-lib:					
+lib:					; Prikaz mrs>lib - skok	do modulu lib>
 		ld	hl, tlib
 		ld	de, clib
 		jp	ctrl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-loalib:					
+loalib:					; Prikaz lib>loa - Nacitanie kniznice s	pasky
 		xor	a
-		ld	hl, lib
+		ld	hl, lib		; Prikaz mrs>lib - skok	do modulu lib>
 		call	load
-		jr	lib
+		jr	lib		; Prikaz mrs>lib - skok	do modulu lib>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-savlib:					
+savlib:					; Prikaz lib>sav - Ulozenie kniznice na	pasku
 		ld	de, sysmod
-		ld	hl, (libtop)
-		ld	(memory), hl
-		ld	bc, lib
+		ld	hl, (libtop)	; Koniec kniznice a zaciatok volnej pamete
+		ld	(memory), hl	; Koniec kniznice a zaciatok volnej pamete
+		ld	bc, lib		; Prikaz mrs>lib - skok	do modulu lib>
 		xor	a
 		jp	save
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-entry:					
+entry:					; Prikaz lib>ent - Oznacenie vstupneho bodu pre	spustenie programu v kniznici
 		ld	a, (de)
 		ex	de, hl
 		ld	de, 52h	; 'R'
 		or	a
 		jr	z, ent1
 		cp	20h ; ' '
-		jp	nz, mrs2
+		jp	nz, mrs2	; Oprava textu zadaneho	v module "mrs"
 		inc	hl
-		call	schent
-		jp	z, mrs2
+		call	schent		; Vyhladanie vstupneho bodu v kniznici
+		jp	z, mrs2		; Oprava textu zadaneho	v module "mrs"
 		ld	de, 6
 		add	hl, de
 		ld	e, (hl)
 		inc	hl
 		ld	d, (hl)
 
-ent1:					
+ent1:					; Entry	point do skompilovaneho	programu
 		ld	(sysmod+1), de
-		jr	lib
+		jr	lib		; Prikaz mrs>lib - skok	do modulu lib>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -9381,7 +9034,7 @@ ent1:
     SAVETAP  tap_file ,	 CODE ,	"mrs.V01" , tmf    , endcod-tmf
     SAVETAP  tap_file ,	 CODE ,	"sysmod"  , sysmod , fremem-sysmod , sysmod , 0
 
-endcod:		ds 1			
+endcod:		ds 1
 		ds 1
 		ds 1
 		ds 1
@@ -9394,50 +9047,50 @@ endcod:		ds 1
 		ds 1
 		ds 1
 		ds 1
-listing_print:	ds 1			
-lst_riadok:	ds 1			
+listing_print:	ds 1
+lst_riadok:	ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
-lst_chyba:	ds 1			
+lst_chyba:	ds 1
 		ds 1
-lst_adresa:	ds 1			
+lst_adresa:	ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
-lst_data:	ds 1			
+lst_data:	ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
-edi_riadok:	ds 1			
-lst_limit:	ds 1			
+edi_riadok:	ds 1
+lst_limit:	ds 1
 		ds 1
-lst_eol:	ds 1			
-buffer:		ds 1			
+lst_eol:	ds 1
+buffer:		ds 1			; Textovy buffer pre jeden riadok na obrazovke
 		ds 1
-buffer_2:	ds 1			
+buffer_2:	ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
-buffer_instr:	ds 1			
-buffer_meno:	ds 1			
+buffer_instr:	ds 1
+buffer_meno:	ds 1
 		ds 1
 		ds 1
 		ds 1
-buffer_params:	ds 1			
+buffer_params:	ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
 		ds 1
-buffer_dlzka:	ds 2			
-buffer_adresa:	ds 2			
+buffer_dlzka:	ds 2
+buffer_adresa:	ds 2
 		ds 1
 		ds 1
 		ds 1
@@ -9448,7 +9101,7 @@ buffer_adresa:	ds 2
 		ds 1
 		ds 1
 		ds 1
-buffer_comment:	ds 1			
+buffer_comment:	ds 1
 		ds 1
 		ds 1
 		ds 1
@@ -9479,16 +9132,16 @@ buffer_comment:	ds 1
 		ds 1
 		ds 1
 		ds 1
-buffer_end:	ds 1			
-sent:		ds 2			
-cursor:		ds 1			
-row:		ds 1			
-poscur:		ds 2			
-krept:		ds 2			
+buffer_end:	ds 1
+sent:		ds 2
+cursor:		ds 1			; Aktualna pozicia vypisu. Prvy	bajt je	stlpec 0-31, druhy bajt	je riadok 0-23.
+row:		ds 1
+poscur:		ds 2			; Aktualna pohoha blikajuceho atributu na obrazovke
+krept:		ds 2
 		ds 48h
-pdline:		ds 70h			
+pdline:		ds 70h			; Buffer pre spakovany riadok zdrojoveho textu
 		ds 40h
-stack_init:	ds 0C0h			
+stack_init:	ds 0C0h
 ; end of 'RAM'
 
 		end
